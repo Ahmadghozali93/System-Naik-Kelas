@@ -68,6 +68,14 @@ body {
   flex-direction: column;
   gap: 0.5rem;
   flex: 1;
+  overflow-y: auto;
+  scrollbar-width: none;
+  /* Firefox */
+}
+
+.sidebar-nav::-webkit-scrollbar {
+  display: none;
+  /* Safari and Chrome */
 }
 
 .nav-item {
