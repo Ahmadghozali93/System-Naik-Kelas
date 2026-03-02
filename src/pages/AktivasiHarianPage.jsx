@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User } from 'lucide-react';
+import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function AktivasiHarianPage() {
@@ -13,6 +13,13 @@ export default function AktivasiHarianPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [showSelesai, setShowSelesai] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
+
+    // Search & Filters
+    const [search, setSearch] = useState('');
+    const [filterUnit, setFilterUnit] = useState('');
+    const [filterProgram, setFilterProgram] = useState('');
+    const [filterGuru, setFilterGuru] = useState('');
+    const [filterStatus, setFilterStatus] = useState('');
 
     const [formData, setFormData] = useState({
         siswa_id: '',
@@ -292,6 +299,42 @@ export default function AktivasiHarianPage() {
                     </div>
                 </div>
 
+                {/* Search & Filters */}
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+                        <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                        <input
+                            type="text"
+                            placeholder="Cari siswa / guru / program..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                        />
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                            <option value="">Semua Unit</option>
+                            {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Harian').map(a => a.detail_jadwal?.unit).filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
+                        </select>
+                        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                            <option value="">Semua Program</option>
+                            {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Harian').map(a => a.detail_jadwal?.nama_program).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
+                        </select>
+                        <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                            <option value="">Semua Guru</option>
+                            {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Harian').map(a => a.detail_jadwal?.nama_guru).filter(Boolean))].map(g => <option key={g} value={g}>{g}</option>)}
+                        </select>
+                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                            <option value="">Semua Status</option>
+                            <option value="Aktif">Aktif</option>
+                            <option value="Lulus">Lulus</option>
+                            <option value="Keluar">Keluar</option>
+                            <option value="Cancel">Cancel</option>
+                        </select>
+                    </div>
+                </div>
+
                 {/* Toggle List View — grouped by assign_id_induk */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                     {isLoading ? (
@@ -299,7 +342,22 @@ export default function AktivasiHarianPage() {
                     ) : (() => {
                         const harianList = aktivasis
                             .filter(a => a.detail_jadwal?.jenis_program === 'Harian')
-                            .filter(a => showSelesai || !a.selesai);
+                            .filter(a => showSelesai || !a.selesai)
+                            .filter(a => {
+                                const dj = a.detail_jadwal || {};
+                                if (search) {
+                                    const s = search.toLowerCase();
+                                    const matchSiswa = a.nama_siswa?.toLowerCase().includes(s);
+                                    const matchGuru = dj.nama_guru?.toLowerCase().includes(s);
+                                    const matchProgram = dj.nama_program?.toLowerCase().includes(s);
+                                    if (!matchSiswa && !matchGuru && !matchProgram) return false;
+                                }
+                                if (filterUnit && dj.unit !== filterUnit) return false;
+                                if (filterProgram && dj.nama_program !== filterProgram) return false;
+                                if (filterGuru && dj.nama_guru !== filterGuru) return false;
+                                if (filterStatus && a.status !== filterStatus) return false;
+                                return true;
+                            });
                         if (harianList.length === 0) {
                             return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada data aktivasi siswa harian.</div>;
                         }

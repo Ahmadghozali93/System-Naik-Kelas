@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format, addDays } from 'date-fns';
 import { id } from 'date-fns/locale';
-import { Calendar, Filter, Clock } from 'lucide-react';
+import { Calendar, Filter, Clock, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 // Generate next 10 days
@@ -24,6 +24,7 @@ export default function KanbanBoard() {
     const [gurus, setGurus] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
 
+    const [search, setSearch] = useState('');
     const [filterUnit, setFilterUnit] = useState('');
     const [filterProgram, setFilterProgram] = useState('');
     const [filterGuru, setFilterGuru] = useState('');
@@ -86,6 +87,15 @@ export default function KanbanBoard() {
             if (filterProgram && d.program_id !== filterProgram) return false;
             if (filterGuru && d.guru_id !== filterGuru) return false;
 
+            // Apply Search
+            if (search) {
+                const s = search.toLowerCase();
+                const matchSiswa = a.nama_siswa?.toLowerCase().includes(s);
+                const matchProgram = d.nama_program?.toLowerCase().includes(s);
+                const matchGuru = d.nama_guru?.toLowerCase().includes(s);
+                if (!matchSiswa && !matchProgram && !matchGuru) return false;
+            }
+
             // Rutin: match day name AND jam
             if (d.jenis_program === 'Rutin') {
                 const jamMatch = d.jam === waktuJam;
@@ -114,6 +124,14 @@ export default function KanbanBoard() {
             if (filterUnit && tj.unit !== filterUnit) return false;
             if (filterProgram && tj.program_id !== filterProgram) return false;
             if (filterGuru && tj.guru_id !== filterGuru) return false;
+            // Apply Search
+            if (search) {
+                const s = search.toLowerCase();
+                const matchSiswa = r.nama_siswa?.toLowerCase().includes(s);
+                const matchProgram = tj.nama_program?.toLowerCase().includes(s);
+                const matchGuru = tj.nama_guru?.toLowerCase().includes(s);
+                if (!matchSiswa && !matchProgram && !matchGuru) return false;
+            }
             return true;
         });
     };
@@ -147,6 +165,13 @@ export default function KanbanBoard() {
                 if (filterGuru && j.guru_id !== filterGuru) return false;
                 if (j.jam !== waktuJam) return false;
                 if (!j.hari || !j.hari.includes(dayName)) return false;
+                // Apply Search
+                if (search) {
+                    const s = search.toLowerCase();
+                    const matchProgram = j.nama_program?.toLowerCase().includes(s);
+                    const matchGuru = j.nama_guru?.toLowerCase().includes(s);
+                    if (!matchProgram && !matchGuru) return false;
+                }
                 return true;
             })
             .map(j => {
@@ -160,69 +185,71 @@ export default function KanbanBoard() {
 
     return (
         <div className="page-container" style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-            <div className="page-header" style={{ marginBottom: '1.5rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <div>
-                    <h1 className="page-title">Timetable Master (10 Hari)</h1>
-                    <p className="text-secondary">Lihat jadwal kelas berdasarkan hari dan jam.</p>
+            <div className="page-header" style={{ marginBottom: '1rem' }}>
+                <h1 className="page-title">Timetable Master (10 Hari)</h1>
+                <p className="text-secondary">Lihat jadwal kelas berdasarkan hari dan jam.</p>
+            </div>
+
+            {/* Search & Filters */}
+            <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1.25rem' }}>
+                {/* Search */}
+                <div style={{ position: 'relative', minWidth: '220px', flex: '1', maxWidth: '320px' }}>
+                    <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                    <input
+                        type="text"
+                        placeholder="Cari siswa / guru / program..."
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        style={{ width: '100%', padding: '0.5rem 0.75rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', outline: 'none' }}
+                    />
                 </div>
 
-                {/* Filters */}
-                <div style={{ display: 'flex', gap: '1rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-color)', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)' }}>
-                        <Filter className="w-4 h-4" style={{ marginRight: '0.5rem', color: 'var(--text-secondary)' }} />
-                        <select
-                            value={filterUnit}
-                            onChange={(e) => setFilterUnit(e.target.value)}
-                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.875rem' }}
-                        >
-                            <option value="">Semua Unit</option>
-                            {units.map(u => (
-                                <option key={u.nama} value={u.nama}>{u.nama}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-color)', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)' }}>
-                        <Filter className="w-4 h-4" style={{ marginRight: '0.5rem', color: 'var(--text-secondary)' }} />
-                        <select
-                            value={filterProgram}
-                            onChange={(e) => setFilterProgram(e.target.value)}
-                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.875rem' }}
-                        >
-                            <option value="">Semua Program</option>
-                            {programs.map(p => (
-                                <option key={p.id} value={p.id}>{p.nama}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-color)', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)' }}>
-                        <Filter className="w-4 h-4" style={{ marginRight: '0.5rem', color: 'var(--text-secondary)' }} />
-                        <select
-                            value={filterGuru}
-                            onChange={(e) => setFilterGuru(e.target.value)}
-                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.875rem' }}
-                        >
-                            <option value="">Semua Guru</option>
-                            {gurus.map(g => (
-                                <option key={g.id} value={g.id}>{g.nama}</option>
-                            ))}
-                        </select>
-                    </div>
-
-                    <div style={{ display: 'flex', alignItems: 'center', background: 'var(--surface-color)', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)' }}>
-                        <Filter className="w-4 h-4" style={{ marginRight: '0.5rem', color: 'var(--text-secondary)' }} />
-                        <select
-                            value={filterSlot}
-                            onChange={(e) => setFilterSlot(e.target.value)}
-                            style={{ border: 'none', background: 'transparent', outline: 'none', fontSize: '0.875rem' }}
-                        >
-                            <option value="">Semua Slot</option>
-                            <option value="terisi">Terisi</option>
-                            <option value="kosong">Kosong</option>
-                        </select>
-                    </div>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
                 </div>
+
+                <select
+                    value={filterUnit}
+                    onChange={(e) => setFilterUnit(e.target.value)}
+                    style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '130px' }}
+                >
+                    <option value="">Semua Unit</option>
+                    {units.map(u => (
+                        <option key={u.nama} value={u.nama}>{u.nama}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={filterProgram}
+                    onChange={(e) => setFilterProgram(e.target.value)}
+                    style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '130px' }}
+                >
+                    <option value="">Semua Program</option>
+                    {programs.map(p => (
+                        <option key={p.id} value={p.id}>{p.nama}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={filterGuru}
+                    onChange={(e) => setFilterGuru(e.target.value)}
+                    style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '130px' }}
+                >
+                    <option value="">Semua Guru</option>
+                    {gurus.map(g => (
+                        <option key={g.id} value={g.id}>{g.nama}</option>
+                    ))}
+                </select>
+
+                <select
+                    value={filterSlot}
+                    onChange={(e) => setFilterSlot(e.target.value)}
+                    style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '130px' }}
+                >
+                    <option value="">Semua Slot</option>
+                    <option value="terisi">Terisi</option>
+                    <option value="kosong">Kosong</option>
+                </select>
             </div>
 
             <div style={{ flex: 1, minHeight: 0, overflow: 'auto', background: 'var(--surface-color)', borderRadius: '1rem', border: '1px solid var(--glass-border)', boxShadow: '0 4px 6px -1px rgba(0, 0, 0, 0.05)' }}>
@@ -232,7 +259,7 @@ export default function KanbanBoard() {
                     <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: '1200px' }}>
                         <thead style={{ position: 'sticky', top: 0, background: 'var(--surface-color)', zIndex: 10 }}>
                             <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                                <th style={{ padding: '1rem', textAlign: 'center', borderRight: '1px solid var(--glass-border)', width: '140px', minWidth: '140px', backgroundColor: '#f9fafb' }}>
+                                <th style={{ padding: '1rem', textAlign: 'center', borderRight: '1px solid var(--glass-border)', width: '140px', minWidth: '140px', backgroundColor: '#f9fafb', position: 'sticky', left: 0, zIndex: 11 }}>
                                     <Clock className="w-5 h-5 mx-auto text-gray-400" />
                                 </th>
                                 {dates.map((date, idx) => (
@@ -249,10 +276,10 @@ export default function KanbanBoard() {
                                     <td colSpan={11} style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada Master Jam diatur.</td>
                                 </tr>
                             ) : (
-                                masterJam.map((jam) => (
-                                    <tr key={jam.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                                masterJam.map((jam, jamIdx) => (
+                                    <tr key={jam.id} style={{ borderBottom: '2px solid #e2e8f0', backgroundColor: jamIdx % 2 === 0 ? '#ffffff' : '#eef2ff' }}>
                                         {/* Row Header: Time */}
-                                        <td style={{ padding: '1rem', textAlign: 'center', borderRight: '1px solid var(--glass-border)', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: '#f9fafb', fontSize: '0.875rem', whiteSpace: 'nowrap', width: '140px', minWidth: '140px' }}>
+                                        <td style={{ padding: '1rem', textAlign: 'center', borderRight: '2px solid #e2e8f0', fontWeight: 600, color: 'var(--text-secondary)', backgroundColor: '#f9fafb', fontSize: '0.875rem', whiteSpace: 'nowrap', width: '140px', minWidth: '140px', position: 'sticky', left: 0, zIndex: 5 }}>
                                             {jam.waktu}
                                         </td>
 
@@ -271,79 +298,69 @@ export default function KanbanBoard() {
                                             const showKosong = filterSlot !== 'terisi';
 
                                             return (
-                                                <td key={idx} style={{ padding: '0.5rem', borderRight: '1px solid var(--glass-border)', verticalAlign: 'top' }}>
-                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
-                                                        {/* Terisi cards */}
+                                                <td key={idx} style={{ padding: '0.35rem', borderRight: '1px solid var(--glass-border)', verticalAlign: 'top' }}>
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '3px' }}>
+                                                        {/* Terisi */}
                                                         {showTerisi && cellSchedules.map(sch => {
                                                             const d = sch.detail_jadwal || {};
                                                             const isHarian = d.jenis_program === 'Harian';
-                                                            const isRescheduledOut = rescheduleOutSiswaIds.has(sch.nama_siswa);
+                                                            const isOut = rescheduleOutSiswaIds.has(sch.nama_siswa);
                                                             return (
                                                                 <div key={sch.id} style={{
-                                                                    background: isRescheduledOut ? 'rgba(239,68,68,0.06)' : isHarian ? 'rgba(245, 158, 11, 0.08)' : 'rgba(79, 70, 229, 0.05)',
-                                                                    borderLeft: isRescheduledOut ? '3px solid #f87171' : isHarian ? '3px solid #f59e0b' : '3px solid var(--primary)',
-                                                                    padding: '0.6rem',
-                                                                    borderRadius: '0.375rem',
-                                                                    fontSize: '0.75rem',
-                                                                    display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    gap: '0.2rem',
-                                                                    opacity: isRescheduledOut ? 0.5 : 1,
-                                                                    textDecoration: isRescheduledOut ? 'line-through' : 'none'
+                                                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                                                    padding: '4px 8px',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.7rem',
+                                                                    background: isOut ? '#fef2f2' : isHarian ? '#fffbeb' : '#eef2ff',
+                                                                    color: isOut ? '#dc2626' : isHarian ? '#b45309' : '#4338ca',
+                                                                    opacity: isOut ? 0.55 : 1,
+                                                                    textDecoration: isOut ? 'line-through' : 'none',
+                                                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                                                                 }}>
-                                                                    <div style={{ fontWeight: 600, color: isRescheduledOut ? '#ef4444' : 'var(--text-primary)' }}>
-                                                                        {sch.nama_siswa} <span style={{ fontWeight: 400, opacity: 0.5 }}>|</span> {d.nama_program}
-                                                                    </div>
-                                                                    <div style={{ color: 'var(--text-secondary)' }}>
-                                                                        Guru : {d.nama_guru}
-                                                                    </div>
-                                                                    {isRescheduledOut && (
-                                                                        <div style={{ color: '#ef4444', fontWeight: 600, fontSize: '0.65rem', textDecoration: 'none' }}>Reschedule →</div>
-                                                                    )}
+                                                                    <span style={{ fontWeight: 600 }}>{sch.nama_siswa}</span>
+                                                                    <span style={{ opacity: 0.4 }}>·</span>
+                                                                    <span style={{ opacity: 0.7 }}>{d.nama_program}</span>
+                                                                    <span style={{ opacity: 0.4 }}>·</span>
+                                                                    <span style={{ opacity: 0.7 }}>{d.nama_guru}</span>
+                                                                    {isOut && <span style={{ color: '#ef4444', fontWeight: 700, fontSize: '0.6rem', textDecoration: 'none', marginLeft: 'auto' }}>→</span>}
                                                                 </div>
                                                             );
                                                         })}
-                                                        {/* Reschedule masuk cards */}
+                                                        {/* Reschedule masuk */}
                                                         {showTerisi && rescheduleIn.map(r => {
                                                             const tj = jadwalMaster.find(j => j.id === r.jadwal_tujuan_id);
                                                             return (
                                                                 <div key={'resc-' + r.id} style={{
-                                                                    background: 'rgba(16,185,129,0.08)',
-                                                                    borderLeft: '3px solid #10b981',
-                                                                    padding: '0.6rem',
-                                                                    borderRadius: '0.375rem',
-                                                                    fontSize: '0.75rem',
-                                                                    display: 'flex',
-                                                                    flexDirection: 'column',
-                                                                    gap: '0.2rem'
+                                                                    display: 'flex', alignItems: 'center', gap: '4px',
+                                                                    padding: '4px 8px',
+                                                                    borderRadius: '4px',
+                                                                    fontSize: '0.7rem',
+                                                                    background: '#ecfdf5',
+                                                                    color: '#047857',
+                                                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                                                                 }}>
-                                                                    <div style={{ fontWeight: 600, color: '#047857' }}>
-                                                                        {r.nama_siswa} <span style={{ fontWeight: 400, opacity: 0.5 }}>|</span> {tj?.nama_program || '-'}
-                                                                    </div>
-                                                                    <div style={{ color: 'var(--text-secondary)' }}>
-                                                                        Guru : {tj?.nama_guru || '-'}
-                                                                    </div>
-                                                                    <div style={{ color: '#10b981', fontWeight: 600, fontSize: '0.65rem' }}>← Reschedule ({r.status})</div>
+                                                                    <span style={{ fontWeight: 700, fontSize: '0.6rem' }}>←</span>
+                                                                    <span style={{ fontWeight: 600 }}>{r.nama_siswa}</span>
+                                                                    <span style={{ opacity: 0.4 }}>·</span>
+                                                                    <span style={{ opacity: 0.7 }}>{tj?.nama_program || '-'}</span>
                                                                 </div>
                                                             );
                                                         })}
-                                                        {/* Kosong cards */}
+                                                        {/* Kosong */}
                                                         {showKosong && emptyJadwals.map(j => (
                                                             <div key={'empty-' + j.id} style={{
-                                                                background: 'rgba(156, 163, 175, 0.08)',
-                                                                borderLeft: '3px solid #d1d5db',
-                                                                padding: '0.6rem',
-                                                                borderRadius: '0.375rem',
-                                                                fontSize: '0.75rem',
-                                                                display: 'flex',
-                                                                flexDirection: 'column',
-                                                                gap: '0.2rem',
-                                                                opacity: 0.6
+                                                                display: 'flex', alignItems: 'center', gap: '4px',
+                                                                padding: '4px 8px',
+                                                                borderRadius: '4px',
+                                                                fontSize: '0.65rem',
+                                                                background: '#f9fafb',
+                                                                color: '#9ca3af',
+                                                                whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
                                                             }}>
-                                                                <div style={{ fontWeight: 600, color: '#9ca3af' }}>Kosong <span style={{ fontWeight: 400, fontSize: '0.65rem' }}>(Sisa: {j.sisaKuota})</span></div>
-                                                                <div style={{ color: '#9ca3af', fontSize: '0.7rem' }}>
-                                                                    {j.nama_program} — {j.nama_guru}
-                                                                </div>
+                                                                <span style={{ fontWeight: 500 }}>{j.nama_program}</span>
+                                                                <span style={{ opacity: 0.4 }}>·</span>
+                                                                <span>{j.nama_guru}</span>
+                                                                <span style={{ marginLeft: 'auto', fontWeight: 600 }}>({j.sisaKuota})</span>
                                                             </div>
                                                         ))}
                                                     </div>

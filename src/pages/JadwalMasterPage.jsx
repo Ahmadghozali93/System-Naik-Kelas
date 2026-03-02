@@ -8,6 +8,7 @@ export default function JadwalMasterPage() {
     const [gurus, setGurus] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [units, setUnits] = useState([]);
+    const [aktivasis, setAktivasis] = useState([]);
 
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isJamModalOpen, setIsJamModalOpen] = useState(false);
@@ -32,12 +33,13 @@ export default function JadwalMasterPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [jadwalRes, jamRes, guruRes, programRes, unitRes] = await Promise.all([
+            const [jadwalRes, jamRes, guruRes, programRes, unitRes, aktivasiRes] = await Promise.all([
                 supabase.from('jadwal_master').select('*').order('created_at', { ascending: false }),
                 supabase.from('master_jam').select('*').order('waktu', { ascending: true }),
                 supabase.from('gurus').select('id, nama').eq('status', 'Aktif').eq('role', 'Guru'),
                 supabase.from('programs').select('id, nama, jenis').eq('status', 'Aktif'),
-                supabase.from('units').select('nama').eq('aktif', true)
+                supabase.from('units').select('nama').eq('aktif', true),
+                supabase.from('aktivasi_siswa').select('jadwal_id, status')
             ]);
 
             if (jadwalRes.error) throw jadwalRes.error;
@@ -45,12 +47,14 @@ export default function JadwalMasterPage() {
             if (guruRes.error) throw guruRes.error;
             if (programRes.error) throw programRes.error;
             if (unitRes.error) throw unitRes.error;
+            if (aktivasiRes.error) throw aktivasiRes.error;
 
             setJadwals(jadwalRes.data || []);
             setMasterJam(jamRes.data || []);
             setGurus(guruRes.data || []);
             setPrograms(programRes.data || []);
             setUnits(unitRes.data || []);
+            setAktivasis(aktivasiRes.data || []);
         } catch (error) {
             console.error('Error fetching data:', error.message);
             alert('Gagal mengambil data dari database.');
@@ -221,6 +225,11 @@ export default function JadwalMasterPage() {
 
     const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
+    const getSisaKuota = (jadwalId, kuota) => {
+        const activeCount = aktivasis.filter(a => a.jadwal_id === jadwalId && a.status === 'Aktif').length;
+        return (kuota || 0) - activeCount;
+    };
+
     const handleToggleReschedule = async (jadwal) => {
         const newVal = !jadwal.reschedule;
         try {
@@ -295,29 +304,30 @@ export default function JadwalMasterPage() {
                 })()}
 
                 <div style={{ overflowX: 'auto', paddingBottom: '1rem' }}>
-                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <table style={{ width: '100%', minWidth: '900px', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.82rem', tableLayout: 'auto' }}>
                         <thead>
                             <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>ID Jadwal</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Guru</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Program (Jenis)</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Hari & Jam</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Kuota</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)', textAlign: 'center' }}>Reschedule</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap', width: '10%' }}>ID Jadwal</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '14%' }}>Guru</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '14%' }}>Program</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '16%' }}>Hari & Jam</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '8%' }}>Unit</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '6%', textAlign: 'center' }}>Kuota</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '8%', textAlign: 'center' }}>Sisa</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', textAlign: 'center', width: '9%' }}>Reschedule</th>
+                                <th style={{ padding: '0.75rem 0.5rem', color: 'var(--text-secondary)', width: '8%' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Memuat data jadwal master...
                                     </td>
                                 </tr>
                             ) : jadwals.length === 0 ? (
                                 <tr>
-                                    <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Belum ada jadwal master.
                                     </td>
                                 </tr>
@@ -331,28 +341,35 @@ export default function JadwalMasterPage() {
                                 });
                                 return filteredJadwals.length === 0 ? (
                                     <tr>
-                                        <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                             Tidak ada jadwal yang cocok.
                                         </td>
                                     </tr>
                                 ) : filteredJadwals.map((j) => (
                                     <tr key={j.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={{ padding: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>{j.jadwal_id}</td>
-                                        <td style={{ padding: '1rem' }}>
+                                        <td style={{ padding: '0.6rem 0.5rem', fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{j.jadwal_id}</td>
+                                        <td style={{ padding: '0.6rem 0.5rem' }}>
                                             <div style={{ fontWeight: 600 }}>{j.nama_guru}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{j.guru_id}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
+                                        <td style={{ padding: '0.6rem 0.5rem' }}>
                                             <div style={{ color: 'var(--primary)', fontWeight: 600 }}>{j.nama_program}</div>
-                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{j.jenis_program}</div>
+                                            <div style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{j.jenis_program}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
+                                        <td style={{ padding: '0.6rem 0.5rem' }}>
                                             <div style={{ fontWeight: 500 }}>{j.hari}</div>
-                                            <div style={{ color: 'var(--text-secondary)' }}>{j.jam}</div>
+                                            <div style={{ color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{j.jam}</div>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>{j.unit}</td>
-                                        <td style={{ padding: '1rem' }}>{j.kuota}</td>
-                                        <td style={{ padding: '1rem', textAlign: 'center' }}>
+                                        <td style={{ padding: '0.6rem 0.5rem' }}>{j.unit}</td>
+                                        <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>{j.kuota}</td>
+                                        <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
+                                            {(() => {
+                                                const sisa = getSisaKuota(j.id, j.kuota);
+                                                const bg = sisa > 0 ? '#d1fae5' : '#fee2e2';
+                                                const color = sisa > 0 ? '#047857' : '#b91c1c';
+                                                return <span className="badge" style={{ background: bg, color, fontWeight: 700 }}>{sisa}</span>;
+                                            })()}
+                                        </td>
+                                        <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
                                             <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', cursor: 'pointer' }}>
                                                 <input
                                                     type="checkbox"
@@ -374,8 +391,8 @@ export default function JadwalMasterPage() {
                                                 </span>
                                             </label>
                                         </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <td style={{ padding: '0.6rem 0.5rem' }}>
+                                            <div style={{ display: 'flex', gap: '0.35rem' }}>
                                                 <button
                                                     onClick={() => handleOpenModal(j)}
                                                     style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}

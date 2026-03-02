@@ -1,0 +1,21 @@
+{
+  "name": "Jadwal BimbelApp",
+  "short_name": "BimbelApp",
+  "description": "Aplikasi Manajemen Jadwal dan Aktivasi Bimbel",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#f3f4f6",
+  "theme_color": "#4f46e5",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml"
+    },
+    {
+      "src": "/vite.svg",
+      "sizes": "512x512",
+      "type": "image/svg+xml"
+    }
+  ]
+}

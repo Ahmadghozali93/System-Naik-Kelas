@@ -1,4 +1,6 @@
+import { useState } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Menu } from 'lucide-react';
 import Sidebar from './components/layout/Sidebar';
 import UserPage from './pages/UserPage';
 import UnitPage from './pages/UnitPage';
@@ -20,10 +22,21 @@ import ProtectedRoute from './components/layout/ProtectedRoute';
 
 // Layout wrapper untuk halaman dashboard (yang punya sidebar)
 function DashboardLayout({ children }) {
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+
   return (
     <div className="app-container">
-      <Sidebar />
+      <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+      {isSidebarOpen && (
+        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>
+      )}
       <main className="main-content">
+        <header className="mobile-header d-md-none" style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
+          <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '1rem', color: 'var(--text-primary)' }}>
+            <Menu className="w-6 h-6" />
+          </button>
+          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Menu</h2>
+        </header>
         {children}
       </main>
     </div>

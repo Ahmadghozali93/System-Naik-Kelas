@@ -14,11 +14,12 @@ import {
     CalendarX2,
     RefreshCw,
     LayoutDashboard,
-    Settings
+    Settings,
+    X
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
-const Sidebar = () => {
+const Sidebar = ({ isOpen, setIsOpen }) => {
     const { user, permissions, logout } = useAuth();
     const navigate = useNavigate();
     const [isAktivasiOpen, setIsAktivasiOpen] = useState(true);
@@ -68,14 +69,19 @@ const Sidebar = () => {
     });
 
     return (
-        <aside className="sidebar">
-            <div className="sidebar-header">
-                {appSettings.logoUrl ? (
-                    <img src={appSettings.logoUrl} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '0.5rem', objectFit: 'cover' }} />
-                ) : (
-                    <GraduationCap className="w-8 h-8" />
-                )}
-                <span>{displayName}</span>
+        <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
+            <div className="sidebar-header" style={{ justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                    {appSettings.logoUrl ? (
+                        <img src={appSettings.logoUrl} alt="Logo" style={{ width: '32px', height: '32px', borderRadius: '0.5rem', objectFit: 'cover' }} />
+                    ) : (
+                        <GraduationCap className="w-8 h-8" />
+                    )}
+                    <span>{displayName}</span>
+                </div>
+                <button className="mobile-close-btn" onClick={() => setIsOpen(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                    <X className="w-6 h-6" />
+                </button>
             </div>
 
             {/* User Info (Optional, keeping it simple to match original design) */}
@@ -95,6 +101,7 @@ const Sidebar = () => {
                             <NavLink
                                 to={link.to}
                                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                                onClick={() => setIsOpen && setIsOpen(false)}
                             >
                                 <link.icon className="w-5 h-5" />
                                 <span>{link.label}</span>
@@ -122,6 +129,7 @@ const Sidebar = () => {
                                                     to="/aktivasi-rutin"
                                                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                                                     style={{ padding: '0.6rem 1rem 0.6rem 3.25rem', fontSize: '0.9rem', minHeight: 'auto' }}
+                                                    onClick={() => setIsOpen && setIsOpen(false)}
                                                 >
                                                     Jadwal Rutin
                                                 </NavLink>
@@ -131,6 +139,7 @@ const Sidebar = () => {
                                                     to="/aktivasi-harian"
                                                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
                                                     style={{ padding: '0.6rem 1rem 0.6rem 3.25rem', fontSize: '0.9rem', minHeight: 'auto' }}
+                                                    onClick={() => setIsOpen && setIsOpen(false)}
                                                 >
                                                     Jadwal Harian
                                                 </NavLink>

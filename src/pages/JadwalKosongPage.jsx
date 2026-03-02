@@ -41,11 +41,12 @@ export default function JadwalKosongPage() {
         return (kuota || 0) - activeCount;
     };
 
-    // Only show jadwals with remaining quota > 0
-    const jadwalsWithQuota = jadwals.map(j => ({
-        ...j,
-        sisaKuota: getSisaKuota(j.id, j.kuota)
-    })).filter(j => j.sisaKuota > 0);
+    // Show all jadwals with remaining quota > 0
+    const jadwalsWithQuota = jadwals
+        .map(j => ({
+            ...j,
+            sisaKuota: getSisaKuota(j.id, j.kuota)
+        })).filter(j => j.sisaKuota > 0);
 
     // Derive unique filter options from jadwals with remaining quota
     const unitOptions = [...new Set(jadwalsWithQuota.map(j => j.unit).filter(Boolean))];

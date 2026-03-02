@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { RefreshCw, Plus, X, Search, Filter, Trash2, CalendarX2, Eye, EyeOff } from 'lucide-react';
+import { RefreshCw, Plus, X, Search, Filter, Trash2, CalendarX2, Eye, EyeOff, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function ReschedulePage() {
@@ -111,6 +111,7 @@ export default function ReschedulePage() {
 
         return jadwals
             .filter(j => {
+                if (!j.reschedule) return false; // only jadwals with reschedule enabled
                 if (j.id === selectedAktivasi.jadwal_id) return false; // can't reschedule to same jadwal
                 return true;
             })
@@ -267,10 +268,10 @@ export default function ReschedulePage() {
             {/* Tab: Kuota Reschedule — Ringkasan Jadwal 10 Hari yang Kosong */}
             {activeTab === 'kuota' && (() => {
                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                // Generate next 10 days
+                // Generate next 10 days starting from tomorrow
                 const dates10 = [];
                 const today = new Date();
-                for (let i = 0; i < 10; i++) {
+                for (let i = 1; i <= 10; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() + i);
                     dates10.push(d);
@@ -283,6 +284,8 @@ export default function ReschedulePage() {
                     const hari = dayNames[dateObj.getDay()];
 
                     jadwals.forEach(j => {
+                        // Only show jadwals with reschedule enabled
+                        if (!j.reschedule) return;
                         // Check jadwal falls on this day
                         if (!j.hari || !j.hari.includes(hari)) return;
 
@@ -484,6 +487,18 @@ export default function ReschedulePage() {
                                                             style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#d1fae5', color: '#047857' }}
                                                         >Done</button>
                                                     )}
+                                                    {r.status === 'Approved' && (
+                                                        <button
+                                                            onClick={() => {
+                                                                const text = `*Info Reschedule Jadwal*\n\nSiswa: ${r.nama_siswa}\n\n*Jadwal Asal:*\nTanggal: ${r.tanggal_asal}\nJadwal: ${jadwalInfo(r.jadwal_asal_id)}\n\n*Jadwal Baru:*\nTanggal: ${r.tanggal_tujuan}\nJadwal: ${jadwalInfo(r.jadwal_tujuan_id)}\n\nStatus: ✅ Disetujui\nCatatan: ${r.catatan || '-'}`;
+                                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                            }}
+                                                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#22c55e', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                                            title="Kirim ke WA"
+                                                        >
+                                                            <Send size={12} /> WA
+                                                        </button>
+                                                    )}
                                                     {r.status !== 'Cancelled' && r.status !== 'Done' && (
                                                         <button
                                                             onClick={() => handleUpdateStatus(r.id, 'Cancelled')}
@@ -552,10 +567,10 @@ export default function ReschedulePage() {
                             )}
 
                             {(() => {
-                                // Generate next 10 calendar days
+                                // Generate next 10 calendar days starting tomorrow
                                 const dates10 = [];
                                 const today = new Date();
-                                for (let i = 0; i < 10; i++) {
+                                for (let i = 1; i <= 10; i++) {
                                     const d = new Date(today);
                                     d.setDate(d.getDate() + i);
                                     dates10.push(d);
@@ -620,82 +635,115 @@ export default function ReschedulePage() {
 
                             {(() => {
                                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                                // Generate Kuota Reschedule rows (same logic as kuota tab)
+                                // Generate Kuota Reschedule rows starting tomorrow
                                 const dates10 = [];
                                 const today = new Date();
-                                for (let i = 0; i < 10; i++) {
+                                for (let i = 1; i <= 10; i++) {
                                     const d = new Date(today);
                                     d.setDate(d.getDate() + i);
                                     dates10.push(d);
                                 }
 
                                 const targetSlots = [];
-                                if (selectedAktivasi) {
-                                    dates10.forEach(dateObj => {
-                                        const dateStr = dateObj.toISOString().split('T')[0];
-                                        const hari = dayNames[dateObj.getDay()];
+                                if (selectedAktivasi && formData.tanggal_tujuan) {
+                                    const dateObj = new Date(formData.tanggal_tujuan + 'T00:00:00');
+                                    const dateStr = formData.tanggal_tujuan;
+                                    const hari = dayNames[dateObj.getDay()];
 
-                                        jadwals.forEach(j => {
-                                            if (j.id === selectedAktivasi.jadwal_id) return;
-                                            if (!j.hari || !j.hari.includes(hari)) return;
+                                    jadwals.forEach(j => {
+                                        if (!j.reschedule) return; // only jadwals with reschedule enabled
+                                        if (j.id === selectedAktivasi.jadwal_id) return;
+                                        if (!j.hari || !j.hari.includes(hari)) return;
 
-                                            // Filter by same unit and program as student's jadwal
-                                            if (selectedAktJadwal) {
-                                                if (j.unit !== selectedAktJadwal.unit) return;
-                                                if (j.nama_program !== selectedAktJadwal.nama_program) return;
-                                            }
+                                        // Filter by same unit and program as student's jadwal
+                                        if (selectedAktJadwal) {
+                                            if (j.unit !== selectedAktJadwal.unit) return;
+                                            if (j.nama_program !== selectedAktJadwal.nama_program) return;
+                                        }
 
-                                            // Sisa kuota from Kuota Reschedule
-                                            const activeCount = aktivasis.filter(a => a.jadwal_id === j.id && a.status === 'Aktif').length;
-                                            const rescheduleCount = reschedules.filter(r => r.jadwal_tujuan_id === j.id && r.tanggal_tujuan === dateStr && (r.status === 'Pending' || r.status === 'Approved')).length;
-                                            const sisaKuota = (j.kuota || 0) - activeCount - rescheduleCount;
-                                            if (sisaKuota <= 0) return;
+                                        // Sisa kuota from Kuota Reschedule
+                                        const activeCount = aktivasis.filter(a => a.jadwal_id === j.id && a.status === 'Aktif').length;
+                                        const rescheduleCount = reschedules.filter(r => r.jadwal_tujuan_id === j.id && r.tanggal_tujuan === dateStr && (r.status === 'Pending' || r.status === 'Approved')).length;
+                                        const sisaKuota = (j.kuota || 0) - activeCount - rescheduleCount;
+                                        if (sisaKuota <= 0) return;
 
-                                            targetSlots.push({ ...j, dateStr, hari, sisaKuota });
-                                        });
+                                        targetSlots.push({ ...j, dateStr, hari, sisaKuota });
                                     });
                                 }
 
                                 return (
-                                    <div style={{ gridColumn: 'span 2' }}>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Jadwal Tujuan</label>
-                                        {!selectedAktivasi ? (
-                                            <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih aktivasi siswa terlebih dahulu.</p>
-                                        ) : targetSlots.length === 0 ? (
-                                            <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Tidak ada slot kosong yang tersedia dalam 10 hari ke depan.</p>
-                                        ) : (
-                                            <>
+                                    <>
+                                        <div style={{ gridColumn: 'span 2' }}>
+                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Tujuan</label>
+                                            {!selectedAktivasi ? (
+                                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih aktivasi siswa terlebih dahulu.</p>
+                                            ) : (
                                                 <select
-                                                    value={formData.jadwal_tujuan_id && formData.tanggal_tujuan ? formData.jadwal_tujuan_id + '|' + formData.tanggal_tujuan : ''}
-                                                    onChange={(e) => {
-                                                        const [jid, tgl] = e.target.value.split('|');
-                                                        const tj = jadwals.find(j => j.id === jid);
-                                                        setFormData(prev => ({ ...prev, jadwal_tujuan_id: jid, tanggal_tujuan: tgl, jam_tujuan: tj?.jam || '' }));
-                                                    }}
+                                                    value={formData.tanggal_tujuan}
+                                                    onChange={(e) => setFormData(prev => ({ ...prev, tanggal_tujuan: e.target.value, jadwal_tujuan_id: '', jam_tujuan: '' }))}
                                                     style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                                                     required
                                                 >
-                                                    <option value="" disabled>-- Pilih dari Kuota Reschedule --</option>
-                                                    {targetSlots.map(s => (
-                                                        <option key={s.id + '|' + s.dateStr} value={s.id + '|' + s.dateStr}>
-                                                            {s.hari}, {s.dateStr} — {s.nama_program} - {s.nama_guru} ({s.jam || '-'}) [{s.unit}] — Sisa: {s.sisaKuota}
-                                                        </option>
-                                                    ))}
+                                                    <option value="" disabled>-- Pilih Tanggal Tujuan --</option>
+                                                    {dates10.map(d => {
+                                                        const dateStr = d.toISOString().split('T')[0];
+                                                        const hri = dayNames[d.getDay()];
+                                                        return <option key={dateStr} value={dateStr}>{hri}, {dateStr}</option>;
+                                                    })}
                                                 </select>
-                                                {formData.jadwal_tujuan_id && formData.tanggal_tujuan && (() => {
-                                                    const tj = jadwals.find(j => j.id === formData.jadwal_tujuan_id);
-                                                    if (!tj) return null;
-                                                    const d = new Date(formData.tanggal_tujuan + 'T00:00:00');
-                                                    const hari = dayNames[d.getDay()];
-                                                    return (
-                                                        <div style={{ gridColumn: 'span 2', background: 'rgba(16,185,129,0.05)', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', marginTop: '0.75rem' }}>
-                                                            <strong>Tujuan:</strong> {hari}, {formData.tanggal_tujuan} — {tj.nama_program} — {tj.nama_guru} ({tj.jam || '-'}) [{tj.unit}]
-                                                        </div>
-                                                    );
-                                                })()}
-                                            </>
-                                        )}
-                                    </div>
+                                            )}
+                                        </div>
+
+                                        <div style={{ gridColumn: 'span 2' }}>
+                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Jadwal Tujuan (Kosong)</label>
+                                            {!formData.tanggal_tujuan ? (
+                                                <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih tanggal tujuan terlebih dahulu untuk melihat jadwal kosong.</p>
+                                            ) : targetSlots.length === 0 ? (
+                                                <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Tidak ada jadwal kosong yang tersedia pada hari tersebut.</p>
+                                            ) : (
+                                                <>
+                                                    <select
+                                                        value={formData.jadwal_tujuan_id}
+                                                        onChange={(e) => {
+                                                            const jid = e.target.value;
+                                                            const tj = jadwals.find(j => j.id === jid);
+                                                            setFormData(prev => ({ ...prev, jadwal_tujuan_id: jid, jam_tujuan: tj?.jam || '' }));
+                                                        }}
+                                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                                        required
+                                                    >
+                                                        <option value="" disabled>-- Pilih Jadwal Kosong --</option>
+                                                        {targetSlots.map(s => (
+                                                            <option key={s.id} value={s.id}>
+                                                                {s.nama_guru} ({s.jam || '-'}) [{s.unit}] — Sisa: {s.sisaKuota}
+                                                            </option>
+                                                        ))}
+                                                    </select>
+                                                    {formData.jadwal_tujuan_id && (() => {
+                                                        const tj = jadwals.find(j => j.id === formData.jadwal_tujuan_id);
+                                                        const siswaJamsOnDate = getSiswaJamsOnDate(formData.tanggal_tujuan);
+                                                        const isConflict = tj && siswaJamsOnDate.includes(tj.jam);
+
+                                                        const d = new Date(formData.tanggal_tujuan + 'T00:00:00');
+                                                        const hari = dayNames[d.getDay()];
+
+                                                        return (
+                                                            <>
+                                                                {isConflict && (
+                                                                    <p style={{ color: '#ef4444', fontSize: '0.85rem', marginTop: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                                                                        ⚠️ Peringatan: Kemungkinan jadwal bentrok. Siswa sudah memiliki jadwal pada jam {tj.jam} di tanggal ini.
+                                                                    </p>
+                                                                )}
+                                                                <div style={{ background: 'rgba(16,185,129,0.05)', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem', marginTop: '0.75rem' }}>
+                                                                    <strong>Tujuan:</strong> {hari}, {formData.tanggal_tujuan} — {tj.nama_program} — {tj.nama_guru} ({tj.jam || '-'}) [{tj.unit}]
+                                                                </div>
+                                                            </>
+                                                        );
+                                                    })()}
+                                                </>
+                                            )}
+                                        </div>
+                                    </>
                                 );
                             })()}
 
