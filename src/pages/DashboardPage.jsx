@@ -172,7 +172,7 @@ export default function DashboardPage() {
             </div>
 
             {/* Estimasi Omset + Detail Unit Omset */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.25rem', marginBottom: '2rem' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: '1.25rem', marginBottom: '2rem' }}>
                 {/* Estimasi Omset Total */}
                 <div className="glass-card" style={{ display: 'flex', alignItems: 'center', gap: '1.25rem', padding: '1.5rem' }}>
                     <div style={{
