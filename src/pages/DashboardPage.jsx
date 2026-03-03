@@ -5,7 +5,7 @@ import { supabase } from '../lib/supabase';
 export default function DashboardPage() {
     const [stats, setStats] = useState({
         totalSiswa: 0,
-        totalAktivasi: 0,
+        jadwalAktif: 0,
         aktivasiHariIni: 0,
         reschedulePending: 0,
         totalGuru: 0,
@@ -56,7 +56,7 @@ export default function DashboardPage() {
 
                 setStats({
                     totalSiswa: siswaRes.count || allSiswa.length,
-                    totalAktivasi: allAktivasi.length,
+                    jadwalAktif: allAktivasi.filter(a => a.status === 'Aktif').length,
                     aktivasiHariIni,
                     reschedulePending: rescheduleRes.count || 0,
                     totalGuru: guruRes.count || 0,
@@ -132,7 +132,7 @@ export default function DashboardPage() {
         { label: 'Total Unit', value: stats.totalUnit, icon: Building, color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
         { label: 'Booking', value: stats.totalBooking, icon: CalendarCheck, color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
         { label: 'Reschedule Pending', value: stats.reschedulePending, icon: RefreshCw, color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-        { label: 'Total Aktivasi', value: stats.totalAktivasi, icon: ClipboardList, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
+        { label: 'Jadwal Aktif', value: stats.jadwalAktif, icon: ClipboardList, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
         { label: 'Aktivasi Hari Ini', value: stats.aktivasiHariIni, icon: CalendarDays, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
     ];
 

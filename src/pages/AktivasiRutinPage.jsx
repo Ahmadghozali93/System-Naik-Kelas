@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Search, Filter, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import * as XLSX from 'xlsx';
@@ -12,6 +12,11 @@ export default function AktivasiRutinPage() {
     const [editingId, setEditingId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
     const [activeTab, setActiveTab] = useState('tabel');
+
+    // Siswa searchable dropdown
+    const [siswaSearch, setSiswaSearch] = useState('');
+    const [isSiswaDropdownOpen, setIsSiswaDropdownOpen] = useState(false);
+    const siswaDropdownRef = useRef(null);
 
     // Search & Filters
     const [search, setSearch] = useState('');
@@ -88,7 +93,20 @@ export default function AktivasiRutinPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingId(null);
+        setSiswaSearch('');
+        setIsSiswaDropdownOpen(false);
     };
+
+    // Click outside handler for siswa dropdown
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (siswaDropdownRef.current && !siswaDropdownRef.current.contains(event.target)) {
+                setIsSiswaDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
@@ -725,18 +743,75 @@ export default function AktivasiRutinPage() {
 
                             <div style={{ gridColumn: 'span 2' }}>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Siswa</label>
-                                <select
-                                    name="siswa_id"
-                                    value={formData.siswa_id}
-                                    onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    required
-                                >
-                                    <option value="" disabled>-- Cari/Pilih Siswa Aktif --</option>
-                                    {siswas.map(s => (
-                                        <option key={s.id} value={s.id}>{s.nama}</option>
-                                    ))}
-                                </select>
+                                <div style={{ position: 'relative' }} ref={siswaDropdownRef}>
+                                    <div
+                                        onClick={() => setIsSiswaDropdownOpen(!isSiswaDropdownOpen)}
+                                        style={{
+                                            width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)',
+                                            background: 'var(--surface-color)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            color: formData.siswa_id ? 'inherit' : 'var(--text-secondary)'
+                                        }}
+                                    >
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {formData.siswa_id && selectedSiswaObj
+                                                ? `${selectedSiswaObj.nama} — ${selectedSiswaObj.unit || '-'}`
+                                                : '-- Cari/Pilih Siswa Aktif --'}
+                                        </span>
+                                        <span style={{ transform: isSiswaDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: '0.5rem' }}>▼</span>
+                                    </div>
+
+                                    {isSiswaDropdownOpen && (
+                                        <div style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '0.35rem', zIndex: 9999,
+                                            backgroundColor: '#ffffff', border: '1px solid var(--glass-border)', borderRadius: '0.5rem',
+                                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+                                            overflow: 'hidden'
+                                        }}>
+                                            <div style={{ padding: '0.75rem', borderBottom: '1px solid rgba(0,0,0,0.05)', backgroundColor: '#f9fafb' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Cari nama siswa..."
+                                                        value={siswaSearch}
+                                                        onChange={(e) => setSiswaSearch(e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: 'var(--surface-color)', outline: 'none' }}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                {siswas.filter(s => !siswaSearch || s.nama?.toLowerCase().includes(siswaSearch.toLowerCase())).length === 0 ? (
+                                                    <div style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center' }}>Siswa tidak ditemukan</div>
+                                                ) : (
+                                                    siswas.filter(s => !siswaSearch || s.nama?.toLowerCase().includes(siswaSearch.toLowerCase())).map(s => (
+                                                        <div
+                                                            key={s.id}
+                                                            onClick={() => {
+                                                                setFormData(prev => ({ ...prev, siswa_id: s.id, jadwal_id: '' }));
+                                                                setIsSiswaDropdownOpen(false);
+                                                                setSiswaSearch('');
+                                                            }}
+                                                            style={{
+                                                                padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid rgba(0,0,0,0.05)',
+                                                                background: formData.siswa_id === s.id ? 'rgba(79,70,229,0.05)' : 'transparent',
+                                                                color: formData.siswa_id === s.id ? 'var(--primary)' : 'inherit'
+                                                            }}
+                                                            onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.05)'}
+                                                            onMouseOut={(e) => e.currentTarget.style.backgroundColor = formData.siswa_id === s.id ? 'rgba(79,70,229,0.05)' : 'transparent'}
+                                                        >
+                                                            <div style={{ fontWeight: 500 }}>{s.nama}</div>
+                                                            <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                                                Unit: {s.unit || '-'}
+                                                            </div>
+                                                        </div>
+                                                    ))
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             <div style={{ gridColumn: 'span 2' }}>
