@@ -1,6 +1,13 @@
 import { useState } from 'react';
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import {
+  BrowserRouter,
+  Routes,
+  Route,
+  Navigate,
+  Outlet
+} from 'react-router-dom';
 import { Menu } from 'lucide-react';
+
 import Sidebar from './components/layout/Sidebar';
 import UserPage from './pages/UserPage';
 import UnitPage from './pages/UnitPage';
@@ -17,70 +24,113 @@ import LoginPage from './pages/LoginPage';
 import RoleSetupPage from './pages/RoleSetupPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
+
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
 
-// Layout wrapper untuk halaman dashboard (yang punya sidebar)
-function DashboardLayout({ children }) {
+
+/* =========================
+   DASHBOARD LAYOUT
+========================= */
+
+function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
     <div className="app-container">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
+
       {isSidebarOpen && (
-        <div className="sidebar-overlay" onClick={() => setIsSidebarOpen(false)}></div>
+        <div
+          className="sidebar-overlay"
+          onClick={() => setIsSidebarOpen(false)}
+        />
       )}
+
       <main className="main-content">
-        <header className="mobile-header d-md-none" style={{ display: 'flex', alignItems: 'center', marginBottom: '1.5rem' }}>
-          <button onClick={() => setIsSidebarOpen(true)} style={{ background: 'none', border: 'none', cursor: 'pointer', marginRight: '1rem', color: 'var(--text-primary)' }}>
+        <header
+          className="mobile-header d-md-none"
+          style={{
+            display: 'flex',
+            alignItems: 'center',
+            marginBottom: '1.5rem'
+          }}
+        >
+          <button
+            onClick={() => setIsSidebarOpen(true)}
+            style={{
+              background: 'none',
+              border: 'none',
+              cursor: 'pointer',
+              marginRight: '1rem',
+              color: 'var(--text-primary)'
+            }}
+          >
             <Menu className="w-6 h-6" />
           </button>
-          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>Menu</h2>
+
+          <h2 style={{ fontSize: '1.25rem', margin: 0 }}>
+            Menu
+          </h2>
         </header>
-        {children}
+
+        {/* 🔥 INI WAJIB UNTUK NESTED ROUTE */}
+        <Outlet />
       </main>
     </div>
   );
 }
+
+
+/* =========================
+   APP ROUTING
+========================= */
 
 function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
-          {/* Redirect Root */}
-          <Route path="/" element={<Navigate to="/dashboard" replace />} />
 
-          {/* Public Route */}
+          {/* PUBLIC ROUTE */}
           <Route path="/login" element={<LoginPage />} />
 
-          {/* Protected Routes */}
+          {/* PROTECTED LAYOUT */}
           <Route
-            path="/*"
             element={
               <ProtectedRoute>
-                <DashboardLayout>
-                  <Routes>
-                    <Route path="/dashboard" element={<DashboardPage />} />
-                    <Route path="/user" element={<UserPage />} />
-                    <Route path="/unit" element={<UnitPage />} />
-                    <Route path="/siswa" element={<SiswaPage />} />
-                    <Route path="/program" element={<ProgramPage />} />
-                    <Route path="/jadwal-master" element={<JadwalMasterPage />} />
-                    <Route path="/aktivasi-rutin" element={<AktivasiRutinPage />} />
-                    <Route path="/aktivasi-harian" element={<AktivasiHarianPage />} />
-                    <Route path="/kanban" element={<KanbanBoard />} />
-                    <Route path="/booking" element={<BookingPage />} />
-                    <Route path="/jadwal-kosong" element={<JadwalKosongPage />} />
-                    <Route path="/reschedule" element={<ReschedulePage />} />
-                    <Route path="/role-setup" element={<RoleSetupPage />} />
-                    <Route path="/pengaturan" element={<SettingsPage />} />
-                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
-                  </Routes>
-                </DashboardLayout>
+                <DashboardLayout />
               </ProtectedRoute>
             }
-          />
+          >
+            {/* ROOT REDIRECT */}
+            <Route
+              index
+              element={<Navigate to="dashboard" replace />}
+            />
+
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="user" element={<UserPage />} />
+            <Route path="unit" element={<UnitPage />} />
+            <Route path="siswa" element={<SiswaPage />} />
+            <Route path="program" element={<ProgramPage />} />
+            <Route path="jadwal-master" element={<JadwalMasterPage />} />
+            <Route path="aktivasi-rutin" element={<AktivasiRutinPage />} />
+            <Route path="aktivasi-harian" element={<AktivasiHarianPage />} />
+            <Route path="kanban" element={<KanbanBoard />} />
+            <Route path="booking" element={<BookingPage />} />
+            <Route path="jadwal-kosong" element={<JadwalKosongPage />} />
+            <Route path="reschedule" element={<ReschedulePage />} />
+            <Route path="role-setup" element={<RoleSetupPage />} />
+            <Route path="pengaturan" element={<SettingsPage />} />
+
+            {/* FALLBACK */}
+            <Route
+              path="*"
+              element={<Navigate to="dashboard" replace />}
+            />
+          </Route>
+
         </Routes>
       </BrowserRouter>
     </AuthProvider>
