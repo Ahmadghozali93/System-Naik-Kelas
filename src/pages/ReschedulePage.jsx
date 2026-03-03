@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Plus, X, Search, Filter, Trash2, CalendarX2, Eye, EyeOff, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
@@ -29,6 +29,8 @@ export default function ReschedulePage() {
         jam_tujuan: '',
         catatan: ''
     });
+    const [aktivasiSearch, setAktivasiSearch] = useState('');
+    const [isAktivasiDropdownOpen, setIsAktivasiDropdownOpen] = useState(false);
 
     const fetchData = async () => {
         setIsLoading(true);
@@ -57,6 +59,18 @@ export default function ReschedulePage() {
     };
 
     useEffect(() => { fetchData(); }, []);
+
+    // Dropdown ref for click outside
+    const dropdownRef = useRef(null);
+    useEffect(() => {
+        const handleClickOutside = (event) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+                setIsAktivasiDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     // Get unique students from aktivasis
     const uniqueStudents = [];
@@ -135,6 +149,8 @@ export default function ReschedulePage() {
             jam_tujuan: '',
             catatan: ''
         });
+        setAktivasiSearch('');
+        setIsAktivasiDropdownOpen(false);
         setIsModalOpen(true);
     };
 
@@ -542,22 +558,78 @@ export default function ReschedulePage() {
 
                             <div style={{ gridColumn: 'span 2' }}>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Aktivasi Siswa</label>
-                                <select
-                                    value={formData.aktivasi_id}
-                                    onChange={(e) => setFormData(prev => ({ ...prev, aktivasi_id: e.target.value, jadwal_tujuan_id: '', jam_tujuan: '' }))}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    required
-                                >
-                                    <option value="" disabled>-- Pilih Siswa & Jadwal --</option>
-                                    {aktivasis.map(a => {
-                                        const dj = a.detail_jadwal || {};
-                                        return (
-                                            <option key={a.id} value={a.id}>
-                                                {a.nama_siswa} — {dj.nama_program || '-'} ({dj.hari || '-'} {dj.jam || '-'}) [{dj.unit || '-'}]
-                                            </option>
-                                        );
-                                    })}
-                                </select>
+                                <div style={{ position: 'relative' }} ref={dropdownRef}>
+                                    <div
+                                        onClick={() => setIsAktivasiDropdownOpen(!isAktivasiDropdownOpen)}
+                                        style={{
+                                            width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)',
+                                            background: 'var(--surface-color)', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                            color: formData.aktivasi_id ? 'inherit' : 'var(--text-secondary)'
+                                        }}
+                                    >
+                                        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                                            {formData.aktivasi_id && selectedAktivasi
+                                                ? `${selectedAktivasi.nama_siswa} — ${selectedAktivasi.detail_jadwal?.nama_program || '-'} (${selectedAktivasi.detail_jadwal?.hari || '-'} ${selectedAktivasi.detail_jadwal?.jam || '-'})`
+                                                : '-- Pilih Siswa & Jadwal --'}
+                                        </span>
+                                        <span style={{ transform: isAktivasiDropdownOpen ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.2s', marginLeft: '0.5rem' }}>▼</span>
+                                    </div>
+
+                                    {isAktivasiDropdownOpen && (
+                                        <div style={{
+                                            position: 'absolute', top: '100%', left: 0, right: 0, marginTop: '0.35rem', zIndex: 9999,
+                                            backgroundColor: '#ffffff', border: '1px solid var(--glass-border)', borderRadius: '0.5rem',
+                                            boxShadow: '0 20px 25px -5px rgba(0, 0, 0, 0.2), 0 10px 10px -5px rgba(0, 0, 0, 0.1)',
+                                            overflow: 'hidden'
+                                        }}>
+                                            <div style={{ padding: '0.75rem', borderBottom: '1px solid rgba(0,0,0,0.05)', backgroundColor: '#f9fafb' }}>
+                                                <div style={{ position: 'relative' }}>
+                                                    <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                                                    <input
+                                                        type="text"
+                                                        placeholder="Cari nama siswa..."
+                                                        value={aktivasiSearch}
+                                                        onChange={(e) => setAktivasiSearch(e.target.value)}
+                                                        onClick={(e) => e.stopPropagation()}
+                                                        style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: 'var(--surface-color)', outline: 'none' }}
+                                                        autoFocus
+                                                    />
+                                                </div>
+                                            </div>
+                                            <div style={{ maxHeight: '200px', overflowY: 'auto' }}>
+                                                {aktivasis.filter(a => !aktivasiSearch || a.nama_siswa?.toLowerCase().includes(aktivasiSearch.toLowerCase())).length === 0 ? (
+                                                    <div style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)', fontSize: '0.85rem', textAlign: 'center' }}>Siswa tidak ditemukan</div>
+                                                ) : (
+                                                    aktivasis.filter(a => !aktivasiSearch || a.nama_siswa?.toLowerCase().includes(aktivasiSearch.toLowerCase())).map(a => {
+                                                        const dj = a.detail_jadwal || {};
+                                                        return (
+                                                            <div
+                                                                key={a.id}
+                                                                onClick={() => {
+                                                                    setFormData(prev => ({ ...prev, aktivasi_id: a.id, jadwal_tujuan_id: '', jam_tujuan: '' }));
+                                                                    setIsAktivasiDropdownOpen(false);
+                                                                    setAktivasiSearch('');
+                                                                }}
+                                                                style={{
+                                                                    padding: '0.75rem 1rem', cursor: 'pointer', borderBottom: '1px solid rgba(0,0,0,0.05)',
+                                                                    background: formData.aktivasi_id === a.id ? 'rgba(79,70,229,0.05)' : 'transparent',
+                                                                    color: formData.aktivasi_id === a.id ? 'var(--primary)' : 'inherit'
+                                                                }}
+                                                                onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.05)'}
+                                                                onMouseOut={(e) => e.currentTarget.style.backgroundColor = formData.aktivasi_id === a.id ? 'rgba(79,70,229,0.05)' : 'transparent'}
+                                                            >
+                                                                <div style={{ fontWeight: 500 }}>{a.nama_siswa}</div>
+                                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                                                                    {dj.nama_program || '-'} ({dj.hari || '-'} {dj.jam || '-'}) [{dj.unit || '-'}]
+                                                                </div>
+                                                            </div>
+                                                        );
+                                                    })
+                                                )}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {selectedAktJadwal && (
