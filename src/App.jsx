@@ -48,6 +48,9 @@ function App() {
     <AuthProvider>
       <BrowserRouter>
         <Routes>
+          {/* Redirect Root */}
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+
           {/* Public Route */}
           <Route path="/login" element={<LoginPage />} />
 
@@ -58,7 +61,6 @@ function App() {
               <ProtectedRoute>
                 <DashboardLayout>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/dashboard" replace />} />
                     <Route path="/dashboard" element={<DashboardPage />} />
                     <Route path="/user" element={<UserPage />} />
                     <Route path="/unit" element={<UnitPage />} />
@@ -73,6 +75,7 @@ function App() {
                     <Route path="/reschedule" element={<ReschedulePage />} />
                     <Route path="/role-setup" element={<RoleSetupPage />} />
                     <Route path="/pengaturan" element={<SettingsPage />} />
+                    <Route path="*" element={<Navigate to="/dashboard" replace />} />
                   </Routes>
                 </DashboardLayout>
               </ProtectedRoute>
