@@ -18,6 +18,8 @@ export default function JadwalMasterPage() {
     const [filterUnit, setFilterUnit] = useState('');
     const [filterProgram, setFilterProgram] = useState('');
     const [filterGuru, setFilterGuru] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 15;
 
     const [jamMulai, setJamMulai] = useState('');
     const [jamSelesai, setJamSelesai] = useState('');
@@ -339,13 +341,19 @@ export default function JadwalMasterPage() {
                                     const matchGuru = !filterGuru || j.nama_guru === filterGuru;
                                     return matchSearch && matchUnit && matchProgram && matchGuru;
                                 });
+
+                                const totalPages = Math.ceil(filteredJadwals.length / ITEMS_PER_PAGE);
+                                const safePage = Math.min(currentPage, totalPages || 1);
+                                const startIdx = (safePage - 1) * ITEMS_PER_PAGE;
+                                const paginatedJadwals = filteredJadwals.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
                                 return filteredJadwals.length === 0 ? (
                                     <tr>
                                         <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                             Tidak ada jadwal yang cocok.
                                         </td>
                                     </tr>
-                                ) : filteredJadwals.map((j) => (
+                                ) : paginatedJadwals.map((j) => (
                                     <tr key={j.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                                         <td style={{ padding: '0.6rem 0.5rem', fontWeight: 500, color: 'var(--text-secondary)', fontSize: '0.75rem' }}>{j.jadwal_id}</td>
                                         <td style={{ padding: '0.6rem 0.5rem' }}>
@@ -415,6 +423,52 @@ export default function JadwalMasterPage() {
                         </tbody>
                     </table>
                 </div>
+
+                {/* Pagination Controls */}
+                {(() => {
+                    const filteredJadwals = jadwals.filter(j => {
+                        const matchSearch = !search || j.nama_guru?.toLowerCase().includes(search.toLowerCase()) || j.nama_program?.toLowerCase().includes(search.toLowerCase()) || j.jadwal_id?.toLowerCase().includes(search.toLowerCase());
+                        const matchUnit = !filterUnit || j.unit === filterUnit;
+                        const matchProgram = !filterProgram || j.nama_program === filterProgram;
+                        const matchGuru = !filterGuru || j.nama_guru === filterGuru;
+                        return matchSearch && matchUnit && matchProgram && matchGuru;
+                    });
+                    const totalPages = Math.ceil(filteredJadwals.length / ITEMS_PER_PAGE);
+                    if (totalPages <= 1) return null;
+                    const safePage = Math.min(currentPage, totalPages);
+                    return (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                Halaman {safePage} dari {totalPages} ({filteredJadwals.length} data)
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={safePage <= 1}
+                                    style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+                                >
+                                    ← Sebelumnya
+                                </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={safePage >= totalPages}
+                                    style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                                >
+                                    Selanjutnya →
+                                </button>
+                            </div>
+                        </div>
+                    );
+                })()}
             </div>
 
             {/* Modal Form */}

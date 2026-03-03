@@ -19,6 +19,8 @@ export default function AktivasiRutinPage() {
     const [filterProgram, setFilterProgram] = useState('');
     const [filterGuru, setFilterGuru] = useState('');
     const [filterStatus, setFilterStatus] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const ITEMS_PER_PAGE = 15;
 
     const [formData, setFormData] = useState({
         siswa_id: '',
@@ -331,6 +333,12 @@ export default function AktivasiRutinPage() {
                                                 if (filterStatus && a.status !== filterStatus) return false;
                                                 return true;
                                             });
+
+                                        const totalPages = Math.ceil(rutinList.length / ITEMS_PER_PAGE);
+                                        const safePage = Math.min(currentPage, totalPages || 1);
+                                        const startIdx = (safePage - 1) * ITEMS_PER_PAGE;
+                                        const paginatedList = rutinList.slice(startIdx, startIdx + ITEMS_PER_PAGE);
+
                                         return rutinList.length === 0 ? (
                                             <tr>
                                                 <td colSpan="8" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
@@ -338,7 +346,7 @@ export default function AktivasiRutinPage() {
                                                 </td>
                                             </tr>
                                         ) : (
-                                            rutinList.map((a) => {
+                                            paginatedList.map((a) => {
                                                 const dj = a.detail_jadwal || {};
                                                 return (
                                                     <tr key={a.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
@@ -389,6 +397,62 @@ export default function AktivasiRutinPage() {
                                 </tbody>
                             </table>
                         </div>
+
+                        {/* Pagination Controls */}
+                        {(() => {
+                            const rutinList = aktivasis
+                                .filter(a => a.detail_jadwal?.jenis_program === 'Rutin')
+                                .filter(a => {
+                                    const dj = a.detail_jadwal || {};
+                                    if (search) {
+                                        const s = search.toLowerCase();
+                                        const matchSiswa = a.nama_siswa?.toLowerCase().includes(s);
+                                        const matchGuru = dj.nama_guru?.toLowerCase().includes(s);
+                                        const matchProgram = dj.nama_program?.toLowerCase().includes(s);
+                                        if (!matchSiswa && !matchGuru && !matchProgram) return false;
+                                    }
+                                    if (filterUnit && dj.unit !== filterUnit) return false;
+                                    if (filterProgram && dj.nama_program !== filterProgram) return false;
+                                    if (filterGuru && dj.nama_guru !== filterGuru) return false;
+                                    if (filterStatus && a.status !== filterStatus) return false;
+                                    return true;
+                                });
+                            const totalPages = Math.ceil(rutinList.length / ITEMS_PER_PAGE);
+                            if (totalPages <= 1) return null;
+                            const safePage = Math.min(currentPage, totalPages);
+                            return (
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                                    <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                        Halaman {safePage} dari {totalPages} ({rutinList.length} data)
+                                    </span>
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                            disabled={safePage <= 1}
+                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+                                        >
+                                            ← Sebelumnya
+                                        </button>
+                                        {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                            <button
+                                                key={page}
+                                                onClick={() => setCurrentPage(page)}
+                                                style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                            >
+                                                {page}
+                                            </button>
+                                        ))}
+                                        <button
+                                            onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                            disabled={safePage >= totalPages}
+                                            style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                                        >
+                                            Selanjutnya →
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })()}
                     </>
                 ) : (
                     // MATRIX VIEW
