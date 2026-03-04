@@ -153,6 +153,9 @@ export default function LandingPage() {
                 .lp-stat .label { font-size: 0.9rem; color: var(--gray-600); font-weight: 700; line-height: 1.4; }
 
                 /* ALUR METODE */
+                .lp-alur-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-width: 700px; margin: 0 auto; }
+                .lp-alur-card { display: flex; align-items: center; gap: 0.75rem; background: white; padding: 1rem 1.25rem; border-radius: 0.75rem; border: 1.5px solid var(--gray-200); transition: all 0.2s; }
+                .lp-alur-card:hover { border-color: var(--blue); box-shadow: 0 4px 12px rgba(37,99,235,0.1); }
                 .lp-steps-flow { display: flex; flex-direction: column; align-items: center; gap: 0; max-width: 500px; margin: 0 auto; }
                 .lp-step-item { display: flex; align-items: center; gap: 1rem; background: white; padding: 1.25rem 1.75rem; border-radius: 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.06); width: 100%; border: 2px solid var(--gray-200); transition: all 0.2s; }
                 .lp-step-item:hover { border-color: var(--blue); transform: translateX(4px); box-shadow: 0 4px 16px rgba(37,99,235,0.12); }
@@ -161,6 +164,9 @@ export default function LandingPage() {
                 .lp-step-content .step-title { font-weight: 800; font-size: 1rem; color: var(--gray-800); }
                 .lp-step-content .step-desc { font-size: 0.85rem; color: var(--gray-600); margin-top: 0.15rem; }
                 .lp-step-arrow { color: var(--blue); opacity: 0.4; padding: 0.25rem 0; }
+
+                /* ABOUT GRID */
+                .lp-about-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; max-width: 900px; margin: 0 auto; }
 
                 /* VALUE UTAMA */
                 .lp-values-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; margin: 0 auto; }
@@ -211,8 +217,13 @@ export default function LandingPage() {
                     .lp-stats { gap: 1rem; }
                     .lp-prog-grid { grid-template-columns: repeat(2, 1fr); }
                     .lp-values-grid { grid-template-columns: 1fr; }
-                    .lp-journey-flow { flex-direction: column; gap: 0; }
-                    .lp-journey-arrow { transform: rotate(90deg); }
+                    .lp-alur-grid { grid-template-columns: repeat(2, 1fr); }
+                    .lp-about-grid { grid-template-columns: repeat(2, 1fr); }
+                    .lp-journey-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-width: 350px; margin: 0 auto 2.5rem; }
+                    .lp-journey-arrow { display: none; }
+                    .lp-journey-step { padding: 1rem 0.5rem; min-width: unset; }
+                    .lp-journey-step .journey-icon { width: 44px; height: 44px; }
+                    .lp-journey-step .journey-label { font-size: 0.8rem; }
                 }
             `}</style>
 
@@ -296,7 +307,7 @@ export default function LandingPage() {
                         <p className="lp-subtitle">Setiap pertemuan, anak belajar melalui 6 langkah pembelajaran yang sistematis dan menyenangkan.</p>
                     </div>
 
-                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', maxWidth: '700px', margin: '0 auto' }}>
+                    <div className="lp-alur-grid">
                         {[
                             { icon: <Brain size={20} />, title: 'Senam Otak', desc: 'Pemanasan otak agar siap belajar', color: '#2563eb', bg: '#dbeafe' },
                             { icon: <CheckCircle2 size={20} />, title: 'Remidi', desc: 'Review pelajaran sebelumnya', color: '#059669', bg: '#d1fae5' },
@@ -305,7 +316,7 @@ export default function LandingPage() {
                             { icon: <PencilLine size={20} />, title: 'Menulis', desc: 'Memperkuat ingatan lewat menulis', color: '#7c3aed', bg: '#ede9fe' },
                             { icon: <Puzzle size={20} />, title: 'Permainan', desc: 'Belajar sambil bermain', color: '#ea580c', bg: '#fff7ed' },
                         ].map((step, idx) => (
-                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'white', padding: '1rem 1.25rem', borderRadius: '0.75rem', border: '1.5px solid var(--gray-200)', transition: 'all 0.2s' }}>
+                            <div key={idx} className="lp-alur-card">
                                 <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: step.bg, color: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 800, fontSize: '0.75rem', position: 'relative' }}>
                                     {step.icon}
                                     <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--blue)', color: 'white', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{idx + 1}</span>
@@ -473,7 +484,7 @@ export default function LandingPage() {
                         </p>
                     </div>
 
-                    <div className="lp-stats" style={{ maxWidth: '900px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
+                    <div className="lp-about-grid">
                         <div className="lp-stat">
                             <div className="stat-icon"><Users size={22} /></div>
                             <div className="label">1 Guru Ngajar<br /><strong>Maks 2 Anak</strong></div>
