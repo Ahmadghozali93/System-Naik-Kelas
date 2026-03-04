@@ -25,7 +25,7 @@ export default function RescheduleModal({ schedule, onClose, onSubmit }) {
     };
 
     return (
-        <div className="modal-overlay" onClick={onClose}>
+        <div className="modal-overlay">
             <div className="modal-content" onClick={e => e.stopPropagation()}>
                 <h2 className="text-xl font-bold mb-4">Pengajuan Ganti Hari/Jam</h2>
 

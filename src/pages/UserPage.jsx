@@ -250,7 +250,7 @@ export default function UserPage() {
 
             {/* Modal Form */}
             {isModalOpen && (
-                <div className="modal-overlay" onClick={handleCloseModal}>
+                <div className="modal-overlay">
                     <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 className="text-xl font-bold">{isViewing ? 'Detail Data User' : editingId ? 'Edit Data User' : 'Tambah User Baru'}</h2>

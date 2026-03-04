@@ -483,7 +483,7 @@ export default function AktivasiHarianPage() {
 
             {/* Modal Form */}
             {isModalOpen && (
-                <div className="modal-overlay" onClick={handleCloseModal} style={{ overflowY: 'auto', padding: '2rem 0' }}>
+                <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 0' }}>
                     <div className="modal-content" style={{ maxWidth: '700px', margin: 'auto' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 className="text-xl font-bold">{editingId ? 'Edit Aktivasi Jadwal Harian' : 'Aktivasi Harian Baru'}</h2>

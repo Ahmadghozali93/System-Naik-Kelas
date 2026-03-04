@@ -223,7 +223,7 @@ export default function UnitPage() {
 
             {/* Modal Form */}
             {isModalOpen && (
-                <div className="modal-overlay" onClick={handleCloseModal}>
+                <div className="modal-overlay">
                     <div className="modal-content" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 className="text-xl font-bold">{editingId ? 'Edit Data Unit' : 'Tambah Unit Baru'}</h2>

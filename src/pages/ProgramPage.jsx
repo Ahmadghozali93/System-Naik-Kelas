@@ -235,7 +235,7 @@ export default function ProgramPage() {
 
             {/* Modal Form */}
             {isModalOpen && (
-                <div className="modal-overlay" onClick={handleCloseModal}>
+                <div className="modal-overlay">
                     <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                             <h2 className="text-xl font-bold">{isViewing ? 'Detail Data Program' : editingId ? 'Edit Data Program' : 'Tambah Program Baru'}</h2>

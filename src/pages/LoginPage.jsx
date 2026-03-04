@@ -114,7 +114,7 @@ export default function LoginPage() {
                     <div style={{ background: 'rgba(79,70,229,0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
                         {activeView === 'login' ? <LogIn className="w-8 h-8 text-primary" /> : <UserPlus className="w-8 h-8 text-primary" />}
                     </div>
-                    <h1 className="text-2xl font-bold" style={{ color: 'var(--text-color)' }}>Bimbel Ahe</h1>
+                    <h1 className="text-2xl font-bold" style={{ color: 'var(--text-color)' }}>Ahe Naik kelas</h1>
                     <p className="text-secondary" style={{ marginTop: '0.5rem' }}>
                         {activeView === 'login' ? 'Silakan masuk untuk melanjutkan' : 'Buat akun baru'}
                     </p>

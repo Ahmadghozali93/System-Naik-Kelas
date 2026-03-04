@@ -556,7 +556,7 @@ export default function LandingPage() {
 
                 {/* REGISTRATION MODAL */}
                 {isModalOpen && (
-                    <div className="lp-modal-bg" onClick={() => setIsModalOpen(false)}>
+                    <div className="lp-modal-bg">
                         <div className="lp-modal" onClick={e => e.stopPropagation()}>
                             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
                                 <h2>Form Pendaftaran Siswa</h2>
