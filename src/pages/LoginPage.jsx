@@ -73,7 +73,7 @@ export default function LoginPage() {
 
             if (error) throw error;
 
-            setSuccessMsg('Pendaftaran berhasil! Silakan login dengan akun Anda.');
+            setSuccessMsg('Pendaftaran berhasil! Akun Anda akan diaktifkan oleh admin terlebih dahulu sebelum bisa digunakan.');
             setSignUpData({ email: '', password: '', nama: '', role: 'Guru', nowa: '', alamat: '', maps: '' });
             setTimeout(() => setActiveView('login'), 2000);
         } catch (error) {
@@ -173,13 +173,7 @@ export default function LoginPage() {
                                 <label style={labelStyle}>Password *</label>
                                 <input type="password" name="password" value={signUpData.password} onChange={handleSignUpChange} style={inputStyle} required placeholder="Min 6 karakter" />
                             </div>
-                            <div>
-                                <label style={labelStyle}>Role</label>
-                                <select name="role" value={signUpData.role} onChange={handleSignUpChange} style={inputStyle}>
-                                    <option value="Guru">Guru</option>
-                                    <option value="Admin">Admin</option>
-                                </select>
-                            </div>
+
                             <div>
                                 <label style={labelStyle}>Link Maps Rumah</label>
                                 <input type="url" name="maps" value={signUpData.maps} onChange={handleSignUpChange} style={inputStyle} placeholder="https://maps.google.com/..." />

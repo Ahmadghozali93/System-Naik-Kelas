@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { X, MessageCircle, Send, UserPlus, CheckCircle2, BookOpen, Users, Star, ChevronRight, Award, GraduationCap, LogIn } from 'lucide-react';
+import { X, MessageCircle, Send, UserPlus, CheckCircle2, BookOpen, Users, Star, ChevronRight, Award, GraduationCap, LogIn, Target, Gamepad2, Layers, FileText, Brain, PencilLine, Puzzle, ArrowDown, Heart, TrendingUp, Smile } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function LandingPage() {
@@ -152,6 +152,33 @@ export default function LandingPage() {
                 .lp-stat .stat-icon { width: 44px; height: 44px; border-radius: 50%; background: var(--blue-light); color: var(--blue); display: flex; align-items: center; justify-content: center; margin: 0 auto 0.5rem; }
                 .lp-stat .label { font-size: 0.9rem; color: var(--gray-600); font-weight: 700; line-height: 1.4; }
 
+                /* ALUR METODE */
+                .lp-steps-flow { display: flex; flex-direction: column; align-items: center; gap: 0; max-width: 500px; margin: 0 auto; }
+                .lp-step-item { display: flex; align-items: center; gap: 1rem; background: white; padding: 1.25rem 1.75rem; border-radius: 1rem; box-shadow: 0 2px 10px rgba(0,0,0,0.06); width: 100%; border: 2px solid var(--gray-200); transition: all 0.2s; }
+                .lp-step-item:hover { border-color: var(--blue); transform: translateX(4px); box-shadow: 0 4px 16px rgba(37,99,235,0.12); }
+                .lp-step-num { width: 40px; height: 40px; border-radius: 50%; background: var(--blue); color: white; display: flex; align-items: center; justify-content: center; font-weight: 800; font-size: 1rem; flex-shrink: 0; }
+                .lp-step-content { flex: 1; }
+                .lp-step-content .step-title { font-weight: 800; font-size: 1rem; color: var(--gray-800); }
+                .lp-step-content .step-desc { font-size: 0.85rem; color: var(--gray-600); margin-top: 0.15rem; }
+                .lp-step-arrow { color: var(--blue); opacity: 0.4; padding: 0.25rem 0; }
+
+                /* VALUE UTAMA */
+                .lp-values-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; max-width: 900px; margin: 0 auto; }
+                .lp-value-card { background: white; padding: 2rem; border-radius: 1rem; border: 2px solid var(--gray-200); transition: all 0.25s; position: relative; overflow: hidden; }
+                .lp-value-card:hover { border-color: var(--blue); transform: translateY(-4px); box-shadow: 0 8px 24px rgba(37,99,235,0.1); }
+                .lp-value-card .value-icon { width: 52px; height: 52px; border-radius: 0.75rem; display: flex; align-items: center; justify-content: center; margin-bottom: 1rem; }
+                .lp-value-card h3 { font-size: 1.1rem; font-weight: 800; color: var(--gray-800); margin-bottom: 0.5rem; }
+                .lp-value-card p { font-size: 0.9rem; color: var(--gray-600); line-height: 1.6; }
+                .lp-value-card .value-tags { display: flex; gap: 0.5rem; flex-wrap: wrap; margin-top: 0.75rem; }
+                .lp-value-card .value-tag { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.8rem; font-weight: 700; padding: 0.3rem 0.75rem; border-radius: 2rem; }
+
+                /* JOURNEY EMOSIONAL */
+                .lp-journey-flow { display: flex; align-items: center; justify-content: center; gap: 0; max-width: 900px; margin: 0 auto 3rem; flex-wrap: wrap; }
+                .lp-journey-step { text-align: center; padding: 1.5rem 1rem; flex: 1; min-width: 140px; }
+                .lp-journey-step .journey-icon { width: 56px; height: 56px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin: 0 auto 0.75rem; }
+                .lp-journey-step .journey-label { font-size: 0.9rem; font-weight: 700; color: var(--gray-800); line-height: 1.4; }
+                .lp-journey-arrow { color: var(--blue); opacity: 0.35; flex-shrink: 0; }
+
                 .lp-cta { background: linear-gradient(135deg, var(--blue) 0%, #1e40af 100%); color: white; text-align: center; padding: 5rem 2rem; }
                 .lp-cta h2 { color: white; font-size: 2rem; max-width: 700px; margin: 0 auto 1rem; line-height: 1.35; }
                 .lp-cta p { color: rgba(255,255,255,0.85); font-size: 1.05rem; margin-bottom: 2rem; }
@@ -183,6 +210,9 @@ export default function LandingPage() {
                     .lp-form-grid { grid-template-columns: 1fr; }
                     .lp-stats { gap: 1rem; }
                     .lp-prog-grid { grid-template-columns: repeat(2, 1fr); }
+                    .lp-values-grid { grid-template-columns: 1fr; }
+                    .lp-journey-flow { flex-direction: column; gap: 0; }
+                    .lp-journey-arrow { transform: rotate(90deg); }
                 }
             `}</style>
 
@@ -190,7 +220,7 @@ export default function LandingPage() {
                 {/* NAV */}
                 <nav className="lp-nav">
                     <a href="/" className="lp-nav-brand">
-                        <BookOpen size={26} /> Bimbel Ahe
+                        <BookOpen size={26} /> Ahe Naik Kelas
                     </a>
                     <div className="lp-nav-actions">
                         <button onClick={openModal} className="lp-btn lp-btn-green lp-btn-sm">
@@ -206,17 +236,18 @@ export default function LandingPage() {
                 <section className="lp-hero">
                     <div>
                         <div className="lp-hero-badge">
-                            <Star size={14} /> Bimbingan Belajar Membaca Anak
+                            <Star size={14} /> Belajar Membaca & Menulis Anak
                         </div>
                         <h1>
-                            Anak Sudah Kenal Huruf, <span>Tapi Belum Lancar Membaca?</span>
+                            Mau Masuk SD, <span>Tapi Anak Belum Bisa Membaca?</span>
                         </h1>
                         <p>
-                            Seringkali bukan karena anak tidak pintar, tetapi <strong>cara belajarnya terlalu sulit</strong>.
-                            Di Bimbel Ahe, anak belajar membaca dengan cara yang lebih sederhana dan bertahap.
+                            Hal ini sering membuat orang tua khawatir.
+                            Di <strong>Ahe Naik Kelas</strong>, anak belajar membaca dengan <strong>cara yang lebih mudah, bertahap, dan menyenangkan.</strong>
+
                         </p>
                         <div className="lp-hero-btns">
-                            <a href={waLink('Halo Bimbel Ahe, saya ingin berkonsultasi tentang program belajar membaca untuk anak saya.')} target="_blank" rel="noreferrer" className="lp-btn lp-btn-wa lp-btn-lg">
+                            <a href={waLink('Halo Ahe Naik Kelas, saya ingin berkonsultasi tentang program belajar membaca untuk anak saya.')} target="_blank" rel="noreferrer" className="lp-btn lp-btn-wa lp-btn-lg">
                                 <MessageCircle size={22} /> Konsultasi via WhatsApp
                             </a>
                             <button onClick={openModal} className="lp-btn lp-btn-outline">
@@ -232,7 +263,7 @@ export default function LandingPage() {
                 {/* SECTION 2 — PERBEDAAN METODE */}
                 <section className="lp-section lp-method">
                     <div className="lp-section-center">
-                        <h2>Cara Belajar Membaca <span>yang Berbeda</span></h2>
+                        <h2>Anak Hafal Huruf, Tapi  <span>Belum Tentu Bisa Membaca</span></h2>
                         <p className="lp-subtitle">Bukan soal pintar atau tidak, tapi soal metode yang tepat untuk anak.</p>
                     </div>
 
@@ -245,7 +276,7 @@ export default function LandingPage() {
                             </div>
                         </div>
                         <div className="lp-compare-card new">
-                            <h3>Metode di Bimbel Ahe</h3>
+                            <h3>Metode di Ahe Naik Kelas</h3>
                             <div className="lp-compare-code">
                                 BA &nbsp; BI &nbsp; BU<br />
                                 BE &nbsp; BO
@@ -258,38 +289,99 @@ export default function LandingPage() {
                     </div>
                 </section>
 
-                {/* SECTION 3 — KENAPA LEBIH MUDAH */}
+                {/* SECTION — ALUR METODE BELAJAR AHE */}
                 <section className="lp-section">
                     <div className="lp-section-center">
-                        <h2>Kenapa Cara Ini <span>Lebih Mudah</span> Dipahami Anak?</h2>
-                        <p className="lp-subtitle">Pendekatan kami dirancang agar anak merasa nyaman dan percaya diri saat belajar.</p>
+                        <h2>Alur <span>Metode Belajar</span> AHE</h2>
+                        <p className="lp-subtitle">Setiap pertemuan, anak belajar melalui 6 langkah pembelajaran yang sistematis dan menyenangkan.</p>
                     </div>
 
-                    <ul className="lp-checklist">
-                        <li>
-                            <div className="check"><CheckCircle2 size={16} /></div>
-                            <div><strong>Anak tidak perlu mengeja huruf satu per satu</strong> — langsung belajar suku kata yang bermakna.</div>
-                        </li>
-                        <li>
-                            <div className="check"><CheckCircle2 size={16} /></div>
-                            <div><strong>Belajar dimulai dari suku kata</strong> — cara yang lebih alami untuk otak anak memproses bacaan.</div>
-                        </li>
-                        <li>
-                            <div className="check"><CheckCircle2 size={16} /></div>
-                            <div><strong>Latihan dilakukan secara bertahap</strong> — di kecepatan anak, tanpa tekanan.</div>
-                        </li>
-                        <li>
-                            <div className="check"><CheckCircle2 size={16} /></div>
-                            <div><strong>Kelas kecil sehingga anak lebih fokus</strong> — setiap anak mendapat perhatian penuh.</div>
-                        </li>
-                    </ul>
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', maxWidth: '700px', margin: '0 auto' }}>
+                        {[
+                            { icon: <Brain size={20} />, title: 'Senam Otak', desc: 'Pemanasan otak agar siap belajar', color: '#2563eb', bg: '#dbeafe' },
+                            { icon: <CheckCircle2 size={20} />, title: 'Remidi', desc: 'Review pelajaran sebelumnya', color: '#059669', bg: '#d1fae5' },
+                            { icon: <BookOpen size={20} />, title: 'Baca Modul', desc: 'Latihan membaca dengan modul AHE', color: '#d97706', bg: '#fef3c7' },
+                            { icon: <Star size={20} />, title: 'Pengayaan', desc: 'Pendalaman materi', color: '#db2777', bg: '#fce7f3' },
+                            { icon: <PencilLine size={20} />, title: 'Menulis', desc: 'Memperkuat ingatan lewat menulis', color: '#7c3aed', bg: '#ede9fe' },
+                            { icon: <Puzzle size={20} />, title: 'Permainan', desc: 'Belajar sambil bermain', color: '#ea580c', bg: '#fff7ed' },
+                        ].map((step, idx) => (
+                            <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', background: 'white', padding: '1rem 1.25rem', borderRadius: '0.75rem', border: '1.5px solid var(--gray-200)', transition: 'all 0.2s' }}>
+                                <div style={{ width: '40px', height: '40px', borderRadius: '50%', background: step.bg, color: step.color, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontWeight: 800, fontSize: '0.75rem', position: 'relative' }}>
+                                    {step.icon}
+                                    <span style={{ position: 'absolute', top: '-4px', right: '-4px', width: '18px', height: '18px', borderRadius: '50%', background: 'var(--blue)', color: 'white', fontSize: '0.65rem', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>{idx + 1}</span>
+                                </div>
+                                <div>
+                                    <div style={{ fontWeight: 700, fontSize: '0.9rem', color: 'var(--gray-800)' }}>{step.title}</div>
+                                    <div style={{ fontSize: '0.75rem', color: 'var(--gray-400)', marginTop: '0.1rem' }}>{step.desc}</div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </section>
+
+                {/* SECTION — VALUE UTAMA AHE */}
+                <section className="lp-section" style={{ background: 'var(--gray-50)' }}>
+                    <div className="lp-section-center">
+                        <h2>Kenapa <span>Metode AHE</span> Lebih Efektif?</h2>
+                        <p className="lp-subtitle">Ini yang membedakan AHE dari bimbel lainnya.</p>
+                    </div>
+
+                    <div className="lp-values-grid">
+                        <div className="lp-value-card">
+                            <div className="value-icon" style={{ background: '#dbeafe', color: '#2563eb' }}>
+                                <BookOpen size={26} />
+                            </div>
+                            <h3>Membaca Tanpa Mengeja</h3>
+                            <p>Anak langsung belajar membaca suku kata — tanpa perlu mengeja huruf satu per satu. Lebih cepat dan lebih natural bagi otak anak.</p>
+                            <div className="value-tags">
+                                <span className="value-tag" style={{ background: '#dbeafe', color: '#1d4ed8' }}><CheckCircle2 size={12} /> Lebih cepat</span>
+                                <span className="value-tag" style={{ background: '#dbeafe', color: '#1d4ed8' }}><CheckCircle2 size={12} /> Lebih natural</span>
+                            </div>
+                        </div>
+
+                        <div className="lp-value-card">
+                            <div className="value-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                                <Gamepad2 size={26} />
+                            </div>
+                            <h3>Belajar Sambil Bermain</h3>
+                            <p>AHE bukan seperti sekolah formal. Dengan kombinasi belajar, game, dan interaksi — anak tidak merasa sedang belajar.</p>
+                            <div className="value-tags">
+                                <span className="value-tag" style={{ background: '#fef3c7', color: '#92400e' }}><CheckCircle2 size={12} /> Menyenangkan</span>
+                                <span className="value-tag" style={{ background: '#fef3c7', color: '#92400e' }}><CheckCircle2 size={12} /> Interaktif</span>
+                            </div>
+                        </div>
+
+                        <div className="lp-value-card">
+                            <div className="value-icon" style={{ background: '#d1fae5', color: '#059669' }}>
+                                <Layers size={26} />
+                            </div>
+                            <h3>Sistem Level Bertahap</h3>
+                            <p>Anak belajar sistematis dari dasar hingga mahir — huruf vokal, suku kata, kata, hingga kalimat. Setiap tahap dikuasai sebelum lanjut.</p>
+                            <div className="value-tags">
+                                <span className="value-tag" style={{ background: '#d1fae5', color: '#065f46' }}>Tersedia Level 1 → Level 7</span>
+                            </div>
+                        </div>
+
+                        <div className="lp-value-card">
+                            <div className="value-icon" style={{ background: '#fce7f3', color: '#db2777' }}>
+                                <FileText size={26} />
+                            </div>
+                            <h3>Modul Khusus Terstandardisasi</h3>
+                            <p>AHE memiliki modul baca, kartu kata, dan game card yang sudah distandardisasi — bukan asal-asalan, tapi dirancang khusus.</p>
+                            <div className="value-tags">
+                                <span className="value-tag" style={{ background: '#fce7f3', color: '#9d174d' }}><CheckCircle2 size={12} /> Modul Baca</span>
+                                <span className="value-tag" style={{ background: '#fce7f3', color: '#9d174d' }}><CheckCircle2 size={12} /> Kartu Kata</span>
+                                <span className="value-tag" style={{ background: '#fce7f3', color: '#9d174d' }}><CheckCircle2 size={12} /> Game Card</span>
+                            </div>
+                        </div>
+                    </div>
                 </section>
 
                 {/* SECTION — PROGRAM BIMBEL */}
                 {programs.length > 0 && (
                     <section className="lp-section lp-programs">
                         <div className="lp-section-center">
-                            <h2>Program <span>Bimbel Ahe</span></h2>
+                            <h2>Program <span>Ahe Naik Kelas</span></h2>
                             <p className="lp-subtitle">Pilih program yang sesuai untuk anak Anda.</p>
                         </div>
 
@@ -312,11 +404,45 @@ export default function LandingPage() {
                     </section>
                 )}
 
-                {/* SECTION 4 — TESTIMONI */}
+                {/* SECTION — PERJALANAN ANAK + TESTIMONI */}
                 <section className="lp-section lp-testimonials">
                     <div className="lp-section-center">
-                        <h2>Yang Dirasakan <span>Orang Tua</span></h2>
-                        <p className="lp-subtitle">Cerita nyata dari wali murid Bimbel Ahe.</p>
+                        <h2>Perjalanan <span>Anak Anda</span> Bersama AHE</h2>
+                        <p className="lp-subtitle">Bukan hanya soal metode belajar — tapi dampak nyata yang dirasakan anak dan orang tua.</p>
+                    </div>
+
+                    <div className="lp-journey-flow">
+                        <div className="lp-journey-step">
+                            <div className="journey-icon" style={{ background: '#dbeafe', color: '#2563eb' }}>
+                                <BookOpen size={26} />
+                            </div>
+                            <div className="journey-label">Anak jadi<br />bisa membaca</div>
+                        </div>
+                        <div className="lp-journey-arrow"><ChevronRight size={28} /></div>
+                        <div className="lp-journey-step">
+                            <div className="journey-icon" style={{ background: '#d1fae5', color: '#059669' }}>
+                                <Smile size={26} />
+                            </div>
+                            <div className="journey-label">Anak jadi<br />percaya diri</div>
+                        </div>
+                        <div className="lp-journey-arrow"><ChevronRight size={28} /></div>
+                        <div className="lp-journey-step">
+                            <div className="journey-icon" style={{ background: '#fef3c7', color: '#d97706' }}>
+                                <TrendingUp size={26} />
+                            </div>
+                            <div className="journey-label">Prestasi sekolah<br />meningkat</div>
+                        </div>
+                        <div className="lp-journey-arrow"><ChevronRight size={28} /></div>
+                        <div className="lp-journey-step">
+                            <div className="journey-icon" style={{ background: '#fce7f3', color: '#db2777' }}>
+                                <Heart size={26} />
+                            </div>
+                            <div className="journey-label">Orang tua<br />bangga</div>
+                        </div>
+                    </div>
+
+                    <div className="lp-section-center" style={{ marginBottom: '1.5rem' }}>
+                        <h3 style={{ fontSize: '1.25rem', fontWeight: 700, color: 'var(--gray-800)' }}>Yang Dirasakan Orang Tua</h3>
                     </div>
 
                     <div className="lp-testi-grid">
@@ -341,37 +467,36 @@ export default function LandingPage() {
                 {/* SECTION 5 — TENTANG */}
                 <section className="lp-section lp-about">
                     <div className="lp-section-center">
-                        <h2>Tentang <span>Bimbel Ahe</span></h2>
-                        <p className="lp-subtitle">Kami hadir untuk membantu anak-anak belajar membaca dengan cara yang lebih mudah.</p>
+                        <h2>Tentang <span>Ahe Naik Kelas</span></h2>
+                        <p className="lp-subtitle">
+                            Kami hadir untuk membantu anak usia <strong>±4,5 tahun ke atas</strong> (TK hingga kelas awal SD) agar <strong>cepat bisa membaca dan percaya diri di sekolah</strong>.
+                        </p>
                     </div>
 
-                    <ul className="lp-checklist">
-                        <li>
-                            <div className="check"><BookOpen size={16} /></div>
-                            <div><strong>Fokus membantu anak belajar membaca</strong> — satu tujuan, satu keahlian.</div>
-                        </li>
-                        <li>
-                            <div className="check"><Star size={16} /></div>
-                            <div><strong>Metode belajar sederhana dan bertahap</strong> — terbukti efektif untuk anak usia 4-12 tahun.</div>
-                        </li>
-                        <li>
-                            <div className="check"><Users size={16} /></div>
-                            <div><strong>Kelas kecil agar anak lebih diperhatikan</strong> — setiap anak punya kebutuhan berbeda.</div>
-                        </li>
-                    </ul>
-
-                    <div className="lp-stats">
+                    <div className="lp-stats" style={{ maxWidth: '900px', margin: '0 auto', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem' }}>
                         <div className="lp-stat">
                             <div className="stat-icon"><Users size={22} /></div>
-                            <div className="label">Diajar oleh<br /><strong>Guru Terlatih</strong></div>
+                            <div className="label">1 Guru Ngajar<br /><strong>Maks 2 Anak</strong></div>
                         </div>
                         <div className="lp-stat">
-                            <div className="stat-icon"><GraduationCap size={22} /></div>
-                            <div className="label">Sudah Meluluskan<br /><strong>Ribuan Anak</strong></div>
+                            <div className="stat-icon"><Star size={22} /></div>
+                            <div className="label">1 Minggu<br /><strong>3x Pertemuan</strong></div>
                         </div>
                         <div className="lp-stat">
                             <div className="stat-icon"><Award size={22} /></div>
-                            <div className="label">Tersedia<br /><strong>Piagam Kelulusan</strong></div>
+                            <div className="label">Tiap Sesi<br /><strong>Max 30 Menit</strong></div>
+                        </div>
+                        <div className="lp-stat">
+                            <div className="stat-icon"><Target size={22} /></div>
+                            <div className="label">Dilayani<br /><strong>Privat</strong></div>
+                        </div>
+                        <div className="lp-stat">
+                            <div className="stat-icon"><BookOpen size={22} /></div>
+                            <div className="label">Diajarkan<br /><strong>Baca & Tulis</strong></div>
+                        </div>
+                        <div className="lp-stat">
+                            <div className="stat-icon"><Gamepad2 size={22} /></div>
+                            <div className="label">Ada Games<br /><strong>di Tiap Sesi</strong></div>
                         </div>
                     </div>
                 </section>
@@ -381,7 +506,7 @@ export default function LandingPage() {
                     <h2>Jika Anak Anda Masih Kesulitan Membaca, Anda Bisa Berdiskusi dengan Kami</h2>
                     <p>Konsultasi gratis. Tanpa kewajiban mendaftar. Kami siap membantu.</p>
                     <div className="lp-cta-btns">
-                        <a href={waLink('Halo Bimbel Ahe, saya ingin berkonsultasi tentang program belajar membaca untuk anak saya.')} target="_blank" rel="noreferrer" className="lp-btn lp-btn-wa lp-btn-lg">
+                        <a href={waLink('Halo Ahe Naik Kelas, saya ingin berkonsultasi tentang program belajar membaca untuk anak saya.')} target="_blank" rel="noreferrer" className="lp-btn lp-btn-wa lp-btn-lg">
                             <MessageCircle size={22} /> Konsultasi via WhatsApp
                         </a>
                         <button onClick={openModal} className="lp-btn lp-btn-white lp-btn-lg">
@@ -391,13 +516,13 @@ export default function LandingPage() {
                 </section>
 
                 {/* FLOATING WA */}
-                <a href={waLink('Halo Bimbel Ahe, saya ingin bertanya tentang program belajar membaca.')} target="_blank" rel="noreferrer" className="lp-float-wa" title="Chat WhatsApp">
+                <a href={waLink('Halo Ahe Naik Kelas, saya ingin bertanya tentang program belajar membaca.')} target="_blank" rel="noreferrer" className="lp-float-wa" title="Chat WhatsApp">
                     <MessageCircle size={30} />
                 </a>
 
                 {/* FOOTER */}
                 <footer className="lp-footer">
-                    &copy; {new Date().getFullYear()} Bimbel Ahe — Bimbingan Belajar Membaca Anak. All rights reserved.
+                    &copy; {new Date().getFullYear()} Ahe Naik Kelas — Bimbingan Belajar Membaca Anak. All rights reserved.
                     <div style={{ marginTop: '0.25rem' }}>
                         <Link to="/login" style={{ color: 'var(--blue)', textDecoration: 'none', fontSize: '0.8rem' }}>
                             Sign In <ChevronRight size={12} style={{ verticalAlign: 'middle' }} />
@@ -424,7 +549,7 @@ export default function LandingPage() {
                                     <h3 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '0.5rem' }}>Pendaftaran Berhasil!</h3>
                                     <p style={{ color: '#64748b', marginBottom: '1.5rem' }}>Terima kasih, data Anda telah kami terima. Tim kami akan segera menghubungi Anda.</p>
                                     <div style={{ display: 'flex', gap: '0.75rem', justifyContent: 'center', flexWrap: 'wrap' }}>
-                                        <a href={waLink('Halo Bimbel Ahe, saya baru saja mendaftar dan ingin konfirmasi pendaftaran.')} target="_blank" rel="noreferrer" className="lp-btn lp-btn-wa lp-btn-sm">
+                                        <a href={waLink('Halo Ahe Naik Kelas, saya baru saja mendaftar dan ingin konfirmasi pendaftaran.')} target="_blank" rel="noreferrer" className="lp-btn lp-btn-wa lp-btn-sm">
                                             <MessageCircle size={16} /> Konfirmasi via WA
                                         </a>
                                         <button onClick={() => setIsModalOpen(false)} className="lp-btn lp-btn-sm" style={{ background: '#f3f4f6', color: '#334155' }}>Tutup</button>
