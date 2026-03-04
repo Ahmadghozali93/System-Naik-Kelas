@@ -213,17 +213,30 @@ export default function LandingPage() {
                     .lp-section { padding: 3rem 1.25rem; }
                     .lp-section h2 { font-size: 1.5rem; }
                     .lp-nav { padding: 0.75rem 1rem; }
+                    .lp-nav-brand { font-size: 1rem; }
+                    .lp-btn-sm { padding: 0.4rem 0.7rem; font-size: 0.75rem; }
                     .lp-form-grid { grid-template-columns: 1fr; }
                     .lp-stats { gap: 1rem; }
+                    .lp-stat { min-width: unset; padding: 1rem 1.25rem; }
                     .lp-prog-grid { grid-template-columns: repeat(2, 1fr); }
                     .lp-values-grid { grid-template-columns: 1fr; }
                     .lp-alur-grid { grid-template-columns: repeat(2, 1fr); }
-                    .lp-about-grid { grid-template-columns: repeat(2, 1fr); }
+                    .lp-about-grid { grid-template-columns: repeat(2, 1fr); gap: 0.75rem; }
                     .lp-journey-flow { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; max-width: 350px; margin: 0 auto 2.5rem; }
                     .lp-journey-arrow { display: none; }
                     .lp-journey-step { padding: 1rem 0.5rem; min-width: unset; }
                     .lp-journey-step .journey-icon { width: 44px; height: 44px; }
                     .lp-journey-step .journey-label { font-size: 0.8rem; }
+                    .lp-cta { padding: 3rem 1.25rem; }
+                    .lp-cta h2 { font-size: 1.5rem; }
+                    .lp-btn-lg { padding: 0.75rem 1.25rem; font-size: 0.95rem; }
+                }
+                @media (max-width: 480px) {
+                    .lp-alur-grid { grid-template-columns: 1fr; }
+                    .lp-about-grid { grid-template-columns: 1fr; }
+                    .lp-hero h1 { font-size: 1.5rem; }
+                    .lp-nav-brand { font-size: 0.9rem; gap: 0.35rem; }
+                    .lp-nav-actions { gap: 0.35rem; }
                 }
             `}</style>
 

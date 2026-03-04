@@ -249,11 +249,11 @@ export default function LoginPage() {
                                     </button>
                                 )}
                             </div>
-                            <div style={{ gridColumn: 'span 2' }}>
+                            <div>
                                 <label style={labelStyle}>Alamat Lengkap *</label>
                                 <textarea name="alamat" value={signUpData.alamat} onChange={handleSignUpChange} rows="2" style={{ ...inputStyle, fontFamily: 'inherit' }} required placeholder="Alamat lengkap"></textarea>
                             </div>
-                            <div style={{ gridColumn: 'span 2' }}>
+                            <div>
                                 <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', display: 'flex', justifyContent: 'center' }} disabled={signUpLoading}>
                                     {signUpLoading ? 'Mendaftar...' : 'Daftar Akun'}
                                 </button>
