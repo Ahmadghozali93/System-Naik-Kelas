@@ -23,7 +23,7 @@ export default function LandingPage() {
         const fetchData = async () => {
             const [unitRes, progRes] = await Promise.all([
                 supabase.from('units').select('nama').eq('aktif', true),
-                supabase.from('programs').select('id, nama, status').eq('status', 'Aktif')
+                supabase.from('programs').select('id, nama, deskripsi, status').eq('status', 'Aktif')
             ]);
             if (unitRes.data) {
                 setUnits(unitRes.data);
@@ -302,6 +302,9 @@ export default function LandingPage() {
                                             <BookOpen size={22} />
                                         </div>
                                         <div className="prog-name" style={{ color: c.color }}>{prog.nama}</div>
+                                        {prog.deskripsi && (
+                                            <div style={{ fontSize: '0.85rem', color: c.color, opacity: 0.75, marginTop: '0.5rem', lineHeight: 1.5 }}>{prog.deskripsi}</div>
+                                        )}
                                     </div>
                                 );
                             })}
