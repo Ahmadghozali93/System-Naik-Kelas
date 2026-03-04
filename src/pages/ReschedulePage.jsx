@@ -7,6 +7,7 @@ export default function ReschedulePage() {
     const [aktivasis, setAktivasis] = useState([]);
     const [jadwals, setJadwals] = useState([]);
     const [masterJam, setMasterJam] = useState([]);
+    const [siswas, setSiswas] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('kuota');
@@ -35,22 +36,25 @@ export default function ReschedulePage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [resRes, aktRes, jadRes, jamRes] = await Promise.all([
+            const [resRes, aktRes, jadRes, jamRes, siswaRes] = await Promise.all([
                 supabase.from('reschedules').select('*').order('created_at', { ascending: false }),
                 supabase.from('aktivasi_siswa').select('*').eq('status', 'Aktif'),
                 supabase.from('jadwal_master').select('*'),
-                supabase.from('master_jam').select('*').order('waktu', { ascending: true })
+                supabase.from('master_jam').select('*').order('waktu', { ascending: true }),
+                supabase.from('siswa').select('id, nama, nowa')
             ]);
 
             if (resRes.error) throw resRes.error;
             if (aktRes.error) throw aktRes.error;
             if (jadRes.error) throw jadRes.error;
             if (jamRes.error) throw jamRes.error;
+            if (siswaRes.error) throw siswaRes.error;
 
             setReschedules(resRes.data || []);
             setAktivasis(aktRes.data || []);
             setJadwals(jadRes.data || []);
             setMasterJam(jamRes.data || []);
+            setSiswas(siswaRes.data || []);
         } catch (error) {
             console.error('Error:', error.message);
         } finally {
@@ -248,6 +252,29 @@ export default function ReschedulePage() {
         const j = jadwals.find(x => x.id === jadwalId);
         if (!j) return '-';
         return `${j.nama_program} - ${j.nama_guru} (${j.hari || '-'} ${j.jam || '-'}) [${j.unit}]`;
+    };
+
+    // Helper to build WA text for reschedule
+    const buildWaText = (r) => {
+        const jAsal = jadwals.find(x => x.id === r.jadwal_asal_id) || {};
+        const jTuj = jadwals.find(x => x.id === r.jadwal_tujuan_id) || {};
+        const fTgl = (t) => {
+            if (!t) return '-';
+            const d = new Date(t);
+            const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+            const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+            return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+        };
+        const statusText = r.status === 'Approved' ? 'Disetujui' : 'Dibatalkan';
+        return `*Reschedule Jadwal Les*\n\nNama Siswa: ${r.nama_siswa}\n\n*Jadwal Lama*\n- ${fTgl(r.tanggal_asal)}\n- ${jAsal.jam || '-'}\n- Tutor: ${jAsal.nama_guru || '-'}\n- ${jAsal.unit || '-'}\n\n*Jadwal Baru*\n- ${fTgl(r.tanggal_tujuan)}\n- ${r.jam_tujuan || jTuj.jam || '-'}\n- Tutor: ${jTuj.nama_guru || '-'}\n- ${jTuj.unit || '-'}\n\nStatus: ${statusText}\nCatatan: ${r.catatan || '-'}`;
+    };
+
+    // Helper to get siswa nowa from aktivasi
+    const getSiswaNoWa = (r) => {
+        const akt = aktivasis.find(a => a.id === r.aktivasi_id);
+        if (!akt) return null;
+        const siswa = siswas.find(s => s.id === akt.siswa_id);
+        return siswa?.nowa || null;
     };
 
     return (
@@ -511,27 +538,36 @@ export default function ReschedulePage() {
                                                             style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#d1fae5', color: '#047857' }}
                                                         >Done</button>
                                                     )}
-                                                    {r.status === 'Approved' && (
-                                                        <button
-                                                            onClick={() => {
-                                                                const jAsal = jadwals.find(x => x.id === r.jadwal_asal_id) || {};
-                                                                const jTuj = jadwals.find(x => x.id === r.jadwal_tujuan_id) || {};
-                                                                const fTgl = (t) => {
-                                                                    if (!t) return '-';
-                                                                    const d = new Date(t);
-                                                                    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                                                                    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-                                                                    return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
-                                                                };
-                                                                const text = `*Reschedule Jadwal Les*\n\nNama Siswa: ${r.nama_siswa}\n*Jadwal Sebelumnya*\n- ${fTgl(r.tanggal_asal)}\n- ${jAsal.jam || '-'}\n- Tutor: ${jAsal.nama_guru || '-'}\n- ${jAsal.unit || '-'}\n\n*Jadwal Pengganti*\n- ${fTgl(r.tanggal_tujuan)}\n- ${r.jam_tujuan || jTuj.jam || '-'}\n- Tutor: ${jTuj.nama_guru || '-'}\n- ${jTuj.unit || '-'}\n\nStatus: Disetujui\nCatatan: ${r.catatan || '-'}`;
-                                                                window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                                                            }}
-                                                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#22c55e', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                            title="Kirim ke WA"
-                                                        >
-                                                            <Send size={12} /> WA
-                                                        </button>
-                                                    )}
+                                                    {(r.status === 'Approved' || r.status === 'Cancelled') && (() => {
+                                                        const nowa = getSiswaNoWa(r);
+                                                        const waNumber = nowa ? nowa.replace(/^0/, '62') : null;
+                                                        return (
+                                                            <>
+                                                                {waNumber && (
+                                                                    <button
+                                                                        onClick={() => {
+                                                                            const text = buildWaText(r);
+                                                                            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank');
+                                                                        }}
+                                                                        style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#16a34a', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                                                        title="Kirim ke Wali Murid"
+                                                                    >
+                                                                        <Send size={12} /> Wali
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={() => {
+                                                                        const text = buildWaText(r);
+                                                                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
+                                                                    }}
+                                                                    style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#22c55e', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                                                    title="Kirim ke WA (pilih kontak)"
+                                                                >
+                                                                    <Send size={12} /> Group
+                                                                </button>
+                                                            </>
+                                                        );
+                                                    })()}
                                                     {r.status !== 'Cancelled' && r.status !== 'Done' && (
                                                         <button
                                                             onClick={() => handleUpdateStatus(r.id, 'Cancelled')}
