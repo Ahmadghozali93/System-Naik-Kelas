@@ -4,12 +4,15 @@ import { id } from 'date-fns/locale';
 import { Calendar, Filter, Clock, Search } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
-// Generate next 10 days
+// Generate next 10 days (skip Sunday)
 const generateDates = () => {
     const dates = [];
-    for (let i = 0; i < 10; i++) {
-        const date = addDays(new Date(), i);
-        dates.push(date);
+    let d = new Date();
+    for (let i = 0; dates.length < 10; i++) {
+        const date = addDays(d, i);
+        if (date.getDay() !== 0) {
+            dates.push(date);
+        }
     }
     return dates;
 };

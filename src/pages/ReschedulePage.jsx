@@ -284,13 +284,15 @@ export default function ReschedulePage() {
             {/* Tab: Kuota Reschedule — Ringkasan Jadwal 10 Hari yang Kosong */}
             {activeTab === 'kuota' && (() => {
                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                // Generate next 10 days starting from tomorrow
+                // Generate next 10 days starting from tomorrow (skip Sunday)
                 const dates10 = [];
                 const today = new Date();
-                for (let i = 1; i <= 10; i++) {
+                for (let i = 1; dates10.length < 10; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() + i);
-                    dates10.push(d);
+                    if (d.getDay() !== 0) {
+                        dates10.push(d);
+                    }
                 }
 
                 // Build rows: for each date + jadwal_master that falls on that date and has sisa kuota > 0
@@ -512,7 +514,16 @@ export default function ReschedulePage() {
                                                     {r.status === 'Approved' && (
                                                         <button
                                                             onClick={() => {
-                                                                const text = `*Info Reschedule Jadwal*\n\nSiswa: ${r.nama_siswa}\n\n*Jadwal Asal:*\nTanggal: ${r.tanggal_asal}\nJadwal: ${jadwalInfo(r.jadwal_asal_id)}\n\n*Jadwal Baru:*\nTanggal: ${r.tanggal_tujuan}\nJadwal: ${jadwalInfo(r.jadwal_tujuan_id)}\n\nStatus: ✅ Disetujui\nCatatan: ${r.catatan || '-'}`;
+                                                                const jAsal = jadwals.find(x => x.id === r.jadwal_asal_id) || {};
+                                                                const jTuj = jadwals.find(x => x.id === r.jadwal_tujuan_id) || {};
+                                                                const fTgl = (t) => {
+                                                                    if (!t) return '-';
+                                                                    const d = new Date(t);
+                                                                    const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
+                                                                    const monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+                                                                    return `${dayNames[d.getDay()]}, ${d.getDate()} ${monthNames[d.getMonth()]} ${d.getFullYear()}`;
+                                                                };
+                                                                const text = `*Reschedule Jadwal Les*\n\nNama Siswa: ${r.nama_siswa}\n*Jadwal Lama*\n- ${fTgl(r.tanggal_asal)}\n- ${jAsal.jam || '-'}\n- Tutor: ${jAsal.nama_guru || '-'}\n- ${jAsal.unit || '-'}\n\n*Jadwal Baru*\n- ${fTgl(r.tanggal_tujuan)}\n- ${r.jam_tujuan || jTuj.jam || '-'}\n- Tutor: ${jTuj.nama_guru || '-'}\n- ${jTuj.unit || '-'}\n\nStatus: Disetujui\nCatatan: ${r.catatan || '-'}`;
                                                                 window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                                             }}
                                                             style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#22c55e', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
@@ -645,13 +656,15 @@ export default function ReschedulePage() {
                             )}
 
                             {(() => {
-                                // Generate next 10 calendar days starting tomorrow
+                                // Generate next 10 calendar days starting tomorrow (skip Sunday)
                                 const dates10 = [];
                                 const today = new Date();
-                                for (let i = 1; i <= 10; i++) {
+                                for (let i = 1; dates10.length < 10; i++) {
                                     const d = new Date(today);
                                     d.setDate(d.getDate() + i);
-                                    dates10.push(d);
+                                    if (d.getDay() !== 0) {
+                                        dates10.push(d);
+                                    }
                                 }
                                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
@@ -713,13 +726,15 @@ export default function ReschedulePage() {
 
                             {(() => {
                                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                                // Generate Kuota Reschedule rows starting tomorrow
+                                // Generate Kuota Reschedule rows starting tomorrow (skip Sunday)
                                 const dates10 = [];
                                 const today = new Date();
-                                for (let i = 1; i <= 10; i++) {
+                                for (let i = 1; dates10.length < 10; i++) {
                                     const d = new Date(today);
                                     d.setDate(d.getDate() + i);
-                                    dates10.push(d);
+                                    if (d.getDay() !== 0) {
+                                        dates10.push(d);
+                                    }
                                 }
 
                                 const targetSlots = [];

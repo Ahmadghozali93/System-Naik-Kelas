@@ -6,14 +6,17 @@ export default function RescheduleModal({ schedule, onClose, onSubmit }) {
     const [newTime, setNewTime] = useState(schedule.time);
     const [reason, setReason] = useState('');
 
-    // Generate date options (next 10 days)
+    // Generate date options (next 10 days, skip Sunday)
     const dateOptions = [];
-    for (let i = 0; i < 10; i++) {
-        const d = addDays(new Date(), i);
-        dateOptions.push({
-            val: format(d, 'yyyy-MM-dd'),
-            label: format(d, 'dd MMM yyyy')
-        });
+    let d = new Date();
+    for (let i = 0; dateOptions.length < 10; i++) {
+        const targetDate = addDays(d, i);
+        if (targetDate.getDay() !== 0) {
+            dateOptions.push({
+                val: format(targetDate, 'yyyy-MM-dd'),
+                label: format(targetDate, 'dd MMM yyyy')
+            });
+        }
     }
 
     const handleSubmit = (e) => {
