@@ -196,12 +196,12 @@ export default function LandingPage() {
                 .lp-footer { padding: 1.5rem 2rem; text-align: center; color: var(--gray-400); font-size: 0.85rem; border-top: 1px solid var(--gray-200); }
 
                 .lp-modal-bg { position: fixed; inset: 0; z-index: 200; background: rgba(0,0,0,0.5); display: flex; align-items: center; justify-content: center; padding: 1rem; overflow-y: auto; }
-                .lp-modal { background: white; border-radius: 1rem; width: 100%; max-width: 600px; max-height: 90vh; overflow-y: auto; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
+                .lp-modal { background: white; border-radius: 1rem; width: 100%; max-width: 460px; max-height: 90vh; overflow-y: auto; padding: 2rem; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.25); }
                 .lp-modal h2 { font-size: 1.35rem; margin: 0; color: var(--gray-800); }
                 .lp-modal label { display: block; margin-bottom: 0.3rem; font-weight: 700; font-size: 0.85rem; color: var(--gray-600); }
                 .lp-modal input, .lp-modal select, .lp-modal textarea { width: 100%; padding: 0.6rem 0.85rem; border-radius: 0.5rem; border: 1.5px solid var(--gray-200); background: var(--gray-50); font-size: 0.9rem; font-family: inherit; outline: none; transition: border 0.2s; }
                 .lp-modal input:focus, .lp-modal select:focus, .lp-modal textarea:focus { border-color: var(--blue); }
-                .lp-form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+                .lp-form-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
 
                 @media (max-width: 768px) {
                     .lp-hero { grid-template-columns: 1fr; padding: 2.5rem 1.25rem; gap: 2rem; text-align: center; }
@@ -231,7 +231,7 @@ export default function LandingPage() {
                 {/* NAV */}
                 <nav className="lp-nav">
                     <a href="/" className="lp-nav-brand">
-                        <BookOpen size={26} /> Ahe Naik Kelas
+                        <BookOpen size={26} /> Naik Kelas
                     </a>
                     <div className="lp-nav-actions">
                         <button onClick={openModal} className="lp-btn lp-btn-green lp-btn-sm">
@@ -568,7 +568,7 @@ export default function LandingPage() {
                                 </div>
                             ) : (
                                 <form onSubmit={handleSubmit} className="lp-form-grid">
-                                    <div style={{ gridColumn: 'span 2', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
+                                    <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem' }}>
                                         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Informasi Dasar</h3>
                                     </div>
                                     <div>
@@ -589,12 +589,12 @@ export default function LandingPage() {
                                         <label>No. WhatsApp *</label>
                                         <input type="tel" name="nowa" value={formData.nowa} onChange={handleInputChange} required placeholder="08xxxxxxxxxx" />
                                     </div>
-                                    <div style={{ gridColumn: 'span 2' }}>
+                                    <div>
                                         <label>Alamat Lengkap *</label>
                                         <textarea name="alamat" value={formData.alamat} onChange={handleInputChange} rows="2" required placeholder="Alamat tempat tinggal"></textarea>
                                     </div>
 
-                                    <div style={{ gridColumn: 'span 2', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
+                                    <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
                                         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Sosial Media (Opsional)</h3>
                                     </div>
                                     <div>
@@ -610,15 +610,15 @@ export default function LandingPage() {
                                         <input type="text" name="tiktok" value={formData.tiktok} onChange={handleInputChange} placeholder="@username" />
                                     </div>
 
-                                    <div style={{ gridColumn: 'span 2', borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
+                                    <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
                                         <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Lain-lain</h3>
                                     </div>
-                                    <div style={{ gridColumn: 'span 2' }}>
+                                    <div>
                                         <label>Catatan</label>
                                         <textarea name="catatan" value={formData.catatan} onChange={handleInputChange} rows="2" placeholder="Catatan terkait siswa (opsional)"></textarea>
                                     </div>
 
-                                    <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
+                                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
                                         <button type="button" onClick={() => setIsModalOpen(false)} className="lp-btn lp-btn-sm" style={{ background: '#f3f4f6', color: '#334155' }}>Batal</button>
                                         <button type="submit" disabled={isSubmitting} className="lp-btn lp-btn-green lp-btn-sm" style={isSubmitting ? { opacity: 0.6, cursor: 'not-allowed' } : {}}>
                                             <Send size={14} /> {isSubmitting ? 'Mengirim...' : 'Kirim Pendaftaran'}

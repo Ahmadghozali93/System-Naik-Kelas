@@ -100,7 +100,7 @@ export default function LoginPage() {
             minHeight: '100vh', background: 'var(--bg-color)',
             width: '100%', position: 'absolute', top: 0, left: 0, margin: 0, padding: '1rem'
         }}>
-            <div className="glass-card" style={{ width: '100%', maxWidth: activeView === 'signup' ? '550px' : '400px', padding: '2.5rem', boxSizing: 'border-box', transition: 'max-width 0.3s' }}>
+            <div className="glass-card login-card" style={{ width: '100%', maxWidth: '420px', padding: '2.5rem', boxSizing: 'border-box' }}>
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                     <div style={{ background: 'rgba(79,70,229,0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
@@ -156,7 +156,7 @@ export default function LoginPage() {
                 {/* SIGN UP VIEW */}
                 {activeView === 'signup' && (
                     <>
-                        <form onSubmit={handleSignUp} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                        <form onSubmit={handleSignUp} className="signup-form" style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '0.85rem' }}>
                             <div>
                                 <label style={labelStyle}>Nama Lengkap *</label>
                                 <input type="text" name="nama" value={signUpData.nama} onChange={handleSignUpChange} style={inputStyle} required placeholder="Nama lengkap" />

@@ -328,4 +328,19 @@ body {
   .main-content {
     padding: 1rem;
   }
+
+  /* Sign-up form: collapse 2-col grid to 1-col on mobile */
+  .signup-form {
+    grid-template-columns: 1fr !important;
+  }
+
+  .signup-form>div[style*="grid-column: span 2"] {
+    grid-column: span 1 !important;
+  }
+
+  /* Login / Signup card mobile adjustments */
+  .login-card {
+    padding: 1.5rem !important;
+    max-width: 100% !important;
+  }
 }
