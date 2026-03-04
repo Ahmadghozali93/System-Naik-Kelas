@@ -5,17 +5,17 @@ import { LogIn, UserPlus, BookOpen } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function LoginPage() {
-    const [activeTab, setActiveTab] = useState('login');
+    const [activeView, setActiveView] = useState('login');
     const [credentials, setCredentials] = useState({ email: '', password: '' });
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
     const { login, loading } = useAuth();
     const navigate = useNavigate();
 
-    // Sign Up form
+    // Sign Up form (no status field — admin controls that)
     const [signUpData, setSignUpData] = useState({
         email: '', password: '', nama: '', role: 'Guru',
-        nowa: '', status: 'Aktif', alamat: '', maps: ''
+        nowa: '', alamat: '', maps: ''
     });
     const [signUpLoading, setSignUpLoading] = useState(false);
 
@@ -57,12 +57,8 @@ export default function LoginPage() {
         }
 
         try {
-            // Check if email already exists
             const { data: existing } = await supabase
-                .from('gurus')
-                .select('id')
-                .eq('email', signUpData.email)
-                .single();
+                .from('gurus').select('id').eq('email', signUpData.email).single();
 
             if (existing) {
                 setErrorMsg('Email sudah terdaftar. Silakan gunakan email lain atau login.');
@@ -73,13 +69,13 @@ export default function LoginPage() {
             const newId = 'GURU-' + Math.random().toString(36).substr(2, 6).toUpperCase();
             const { error } = await supabase
                 .from('gurus')
-                .insert([{ id: newId, ...signUpData }]);
+                .insert([{ id: newId, status: 'Aktif', ...signUpData }]);
 
             if (error) throw error;
 
             setSuccessMsg('Pendaftaran berhasil! Silakan login dengan akun Anda.');
-            setSignUpData({ email: '', password: '', nama: '', role: 'Guru', nowa: '', status: 'Aktif', alamat: '', maps: '' });
-            setTimeout(() => setActiveTab('login'), 2000);
+            setSignUpData({ email: '', password: '', nama: '', role: 'Guru', nowa: '', alamat: '', maps: '' });
+            setTimeout(() => setActiveView('login'), 2000);
         } catch (error) {
             console.error('Error:', error.message);
             setErrorMsg('Gagal mendaftar. Silakan coba lagi.');
@@ -104,44 +100,16 @@ export default function LoginPage() {
             minHeight: '100vh', background: 'var(--bg-color)',
             width: '100%', position: 'absolute', top: 0, left: 0, margin: 0, padding: '1rem'
         }}>
-            <div className="glass-card" style={{ width: '100%', maxWidth: activeTab === 'signup' ? '550px' : '400px', padding: '2.5rem', boxSizing: 'border-box', transition: 'max-width 0.3s' }}>
+            <div className="glass-card" style={{ width: '100%', maxWidth: activeView === 'signup' ? '550px' : '400px', padding: '2.5rem', boxSizing: 'border-box', transition: 'max-width 0.3s' }}>
                 {/* Header */}
                 <div style={{ textAlign: 'center', marginBottom: '1.5rem' }}>
                     <div style={{ background: 'rgba(79,70,229,0.1)', width: '64px', height: '64px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 1rem' }}>
-                        {activeTab === 'login' ? <LogIn className="w-8 h-8 text-primary" /> : <UserPlus className="w-8 h-8 text-primary" />}
+                        {activeView === 'login' ? <LogIn className="w-8 h-8 text-primary" /> : <UserPlus className="w-8 h-8 text-primary" />}
                     </div>
                     <h1 className="text-2xl font-bold" style={{ color: 'var(--text-color)' }}>Bimbel Ahe</h1>
                     <p className="text-secondary" style={{ marginTop: '0.5rem' }}>
-                        {activeTab === 'login' ? 'Silakan masuk untuk melanjutkan' : 'Buat akun baru'}
+                        {activeView === 'login' ? 'Silakan masuk untuk melanjutkan' : 'Buat akun baru'}
                     </p>
-                </div>
-
-                {/* Tab switcher */}
-                <div style={{ display: 'flex', borderRadius: '0.5rem', background: 'rgba(0,0,0,0.04)', padding: '0.25rem', marginBottom: '1.5rem' }}>
-                    <button
-                        onClick={() => { setActiveTab('login'); setErrorMsg(''); setSuccessMsg(''); }}
-                        style={{
-                            flex: 1, padding: '0.5rem', border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
-                            fontWeight: 600, fontSize: '0.85rem', fontFamily: 'inherit',
-                            background: activeTab === 'login' ? 'white' : 'transparent',
-                            color: activeTab === 'login' ? 'var(--primary)' : 'var(--text-secondary)',
-                            boxShadow: activeTab === 'login' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-                        }}
-                    >
-                        Sign In
-                    </button>
-                    <button
-                        onClick={() => { setActiveTab('signup'); setErrorMsg(''); setSuccessMsg(''); }}
-                        style={{
-                            flex: 1, padding: '0.5rem', border: 'none', borderRadius: '0.375rem', cursor: 'pointer',
-                            fontWeight: 600, fontSize: '0.85rem', fontFamily: 'inherit',
-                            background: activeTab === 'signup' ? 'white' : 'transparent',
-                            color: activeTab === 'signup' ? 'var(--primary)' : 'var(--text-secondary)',
-                            boxShadow: activeTab === 'signup' ? '0 1px 3px rgba(0,0,0,0.08)' : 'none'
-                        }}
-                    >
-                        Sign Up
-                    </button>
                 </div>
 
                 {/* Error / Success Messages */}
@@ -156,70 +124,87 @@ export default function LoginPage() {
                     </div>
                 )}
 
-                {/* LOGIN FORM */}
-                {activeTab === 'login' && (
-                    <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                        <div>
-                            <label style={labelStyle}>Email</label>
-                            <input type="email" name="email" value={credentials.email} onChange={handleChange} style={inputStyle} placeholder="email@bimbel.com" disabled={loading} />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Password</label>
-                            <input type="password" name="password" value={credentials.password} onChange={handleChange} style={inputStyle} placeholder="••••••••" disabled={loading} />
-                        </div>
-                        <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '0.25rem', display: 'flex', justifyContent: 'center' }} disabled={loading}>
-                            {loading ? 'Memproses...' : 'Masuk'}
-                        </button>
-                    </form>
-                )}
+                {/* LOGIN VIEW */}
+                {activeView === 'login' && (
+                    <>
+                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <div>
+                                <label style={labelStyle}>Email</label>
+                                <input type="email" name="email" value={credentials.email} onChange={handleChange} style={inputStyle} placeholder="email@bimbel.com" disabled={loading} />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Password</label>
+                                <input type="password" name="password" value={credentials.password} onChange={handleChange} style={inputStyle} placeholder="••••••••" disabled={loading} />
+                            </div>
+                            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', marginTop: '0.25rem', display: 'flex', justifyContent: 'center' }} disabled={loading}>
+                                {loading ? 'Memproses...' : 'Masuk'}
+                            </button>
+                        </form>
 
-                {/* SIGN UP FORM */}
-                {activeTab === 'signup' && (
-                    <form onSubmit={handleSignUp} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
-                        <div>
-                            <label style={labelStyle}>Nama Lengkap *</label>
-                            <input type="text" name="nama" value={signUpData.nama} onChange={handleSignUpChange} style={inputStyle} required placeholder="Nama lengkap" />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>No. WhatsApp *</label>
-                            <input type="tel" name="nowa" value={signUpData.nowa} onChange={handleSignUpChange} style={inputStyle} required placeholder="08xxxxxxxxxx" />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Email *</label>
-                            <input type="email" name="email" value={signUpData.email} onChange={handleSignUpChange} style={inputStyle} required placeholder="email@bimbel.com" />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Password *</label>
-                            <input type="password" name="password" value={signUpData.password} onChange={handleSignUpChange} style={inputStyle} required placeholder="Min 6 karakter" />
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Role</label>
-                            <select name="role" value={signUpData.role} onChange={handleSignUpChange} style={inputStyle}>
-                                <option value="Guru">Guru</option>
-                                <option value="Admin">Admin</option>
-                            </select>
-                        </div>
-                        <div>
-                            <label style={labelStyle}>Status</label>
-                            <select name="status" value={signUpData.status} onChange={handleSignUpChange} style={inputStyle}>
-                                <option value="Aktif">Aktif</option>
-                                <option value="Tidak Aktif">Tidak Aktif</option>
-                            </select>
-                        </div>
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={labelStyle}>Alamat Lengkap *</label>
-                            <textarea name="alamat" value={signUpData.alamat} onChange={handleSignUpChange} rows="2" style={{ ...inputStyle, fontFamily: 'inherit' }} required placeholder="Alamat lengkap"></textarea>
-                        </div>
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <label style={labelStyle}>Link Maps Rumah</label>
-                            <input type="url" name="maps" value={signUpData.maps} onChange={handleSignUpChange} style={inputStyle} placeholder="https://maps.google.com/..." />
-                        </div>
-                        <div style={{ gridColumn: 'span 2' }}>
-                            <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', display: 'flex', justifyContent: 'center' }} disabled={signUpLoading}>
-                                {signUpLoading ? 'Mendaftar...' : 'Daftar Akun'}
+                        <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            Belum punya akun?{' '}
+                            <button
+                                onClick={() => { setActiveView('signup'); setErrorMsg(''); setSuccessMsg(''); }}
+                                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', fontFamily: 'inherit', textDecoration: 'underline' }}
+                            >
+                                Sign Up
                             </button>
                         </div>
-                    </form>
+                    </>
+                )}
+
+                {/* SIGN UP VIEW */}
+                {activeView === 'signup' && (
+                    <>
+                        <form onSubmit={handleSignUp} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem' }}>
+                            <div>
+                                <label style={labelStyle}>Nama Lengkap *</label>
+                                <input type="text" name="nama" value={signUpData.nama} onChange={handleSignUpChange} style={inputStyle} required placeholder="Nama lengkap" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>No. WhatsApp *</label>
+                                <input type="tel" name="nowa" value={signUpData.nowa} onChange={handleSignUpChange} style={inputStyle} required placeholder="08xxxxxxxxxx" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Email *</label>
+                                <input type="email" name="email" value={signUpData.email} onChange={handleSignUpChange} style={inputStyle} required placeholder="email@bimbel.com" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Password *</label>
+                                <input type="password" name="password" value={signUpData.password} onChange={handleSignUpChange} style={inputStyle} required placeholder="Min 6 karakter" />
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Role</label>
+                                <select name="role" value={signUpData.role} onChange={handleSignUpChange} style={inputStyle}>
+                                    <option value="Guru">Guru</option>
+                                    <option value="Admin">Admin</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={labelStyle}>Link Maps Rumah</label>
+                                <input type="url" name="maps" value={signUpData.maps} onChange={handleSignUpChange} style={inputStyle} placeholder="https://maps.google.com/..." />
+                            </div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label style={labelStyle}>Alamat Lengkap *</label>
+                                <textarea name="alamat" value={signUpData.alamat} onChange={handleSignUpChange} rows="2" style={{ ...inputStyle, fontFamily: 'inherit' }} required placeholder="Alamat lengkap"></textarea>
+                            </div>
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '0.75rem', display: 'flex', justifyContent: 'center' }} disabled={signUpLoading}>
+                                    {signUpLoading ? 'Mendaftar...' : 'Daftar Akun'}
+                                </button>
+                            </div>
+                        </form>
+
+                        <div style={{ textAlign: 'center', marginTop: '1.25rem', fontSize: '0.9rem', color: 'var(--text-secondary)' }}>
+                            Sudah punya akun?{' '}
+                            <button
+                                onClick={() => { setActiveView('login'); setErrorMsg(''); setSuccessMsg(''); }}
+                                style={{ background: 'none', border: 'none', color: 'var(--primary)', fontWeight: 700, cursor: 'pointer', fontSize: '0.9rem', fontFamily: 'inherit', textDecoration: 'underline' }}
+                            >
+                                Sign In
+                            </button>
+                        </div>
+                    </>
                 )}
 
                 {/* Footer */}
