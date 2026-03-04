@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogIn, UserPlus, BookOpen } from 'lucide-react';
+import { LogIn, UserPlus, BookOpen, MapPin, Loader2, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function LoginPage() {
@@ -18,6 +18,43 @@ export default function LoginPage() {
         nowa: '', alamat: '', maps: ''
     });
     const [signUpLoading, setSignUpLoading] = useState(false);
+    const [gettingLocation, setGettingLocation] = useState(false);
+    const [locationCoords, setLocationCoords] = useState(null);
+
+    const getLocation = () => {
+        if (!navigator.geolocation) {
+            setErrorMsg('Browser Anda tidak mendukung geolokasi.');
+            return;
+        }
+        setGettingLocation(true);
+        setErrorMsg('');
+        navigator.geolocation.getCurrentPosition(
+            (position) => {
+                const { latitude, longitude } = position.coords;
+                const mapsLink = `https://www.google.com/maps?q=${latitude},${longitude}`;
+                setSignUpData(prev => ({ ...prev, maps: mapsLink }));
+                setLocationCoords({ lat: latitude, lng: longitude });
+                setGettingLocation(false);
+            },
+            (error) => {
+                setGettingLocation(false);
+                switch (error.code) {
+                    case error.PERMISSION_DENIED:
+                        setErrorMsg('Izin lokasi ditolak. Silakan aktifkan GPS dan izinkan akses lokasi di browser.');
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        setErrorMsg('Informasi lokasi tidak tersedia.');
+                        break;
+                    case error.TIMEOUT:
+                        setErrorMsg('Permintaan lokasi timeout. Coba lagi.');
+                        break;
+                    default:
+                        setErrorMsg('Gagal mendapatkan lokasi.');
+                }
+            },
+            { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        );
+    };
 
     const handleChange = (e) => {
         setCredentials(prev => ({ ...prev, [e.target.name]: e.target.value }));
@@ -175,8 +212,42 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <label style={labelStyle}>Link Maps Rumah</label>
-                                <input type="url" name="maps" value={signUpData.maps} onChange={handleSignUpChange} style={inputStyle} placeholder="https://maps.google.com/..." />
+                                <label style={labelStyle}>Lokasi Rumah (Maps)</label>
+                                {signUpData.maps && locationCoords ? (
+                                    <div style={{ borderRadius: '0.5rem', overflow: 'hidden', border: '1px solid var(--glass-border)', marginBottom: '0.5rem' }}>
+                                        <iframe
+                                            title="Lokasi Anda"
+                                            width="100%"
+                                            height="150"
+                                            style={{ border: 0, display: 'block' }}
+                                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${locationCoords.lng - 0.005},${locationCoords.lat - 0.003},${locationCoords.lng + 0.005},${locationCoords.lat + 0.003}&layer=mapnik&marker=${locationCoords.lat},${locationCoords.lng}`}
+                                        />
+                                        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0.5rem 0.75rem', background: '#f0fdf4', fontSize: '0.8rem', color: '#16a34a', fontWeight: 600 }}>
+                                            <span style={{ display: 'flex', alignItems: 'center', gap: '0.3rem' }}><CheckCircle2 size={14} /> Lokasi berhasil dipilih</span>
+                                            <button type="button" onClick={getLocation} style={{ background: 'none', border: 'none', color: 'var(--primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 700, fontFamily: 'inherit' }}>Ulangi</button>
+                                        </div>
+                                    </div>
+                                ) : (
+                                    <button
+                                        type="button"
+                                        onClick={getLocation}
+                                        disabled={gettingLocation}
+                                        style={{
+                                            width: '100%', padding: '0.75rem', borderRadius: '0.5rem',
+                                            border: '2px dashed var(--glass-border)', background: 'var(--surface-color)',
+                                            cursor: gettingLocation ? 'not-allowed' : 'pointer', display: 'flex',
+                                            alignItems: 'center', justifyContent: 'center', gap: '0.5rem',
+                                            fontSize: '0.9rem', fontFamily: 'inherit', color: 'var(--primary)',
+                                            fontWeight: 600, transition: 'all 0.2s'
+                                        }}
+                                    >
+                                        {gettingLocation ? (
+                                            <><Loader2 size={18} style={{ animation: 'spin 1s linear infinite' }} /> Mencari lokasi...</>
+                                        ) : (
+                                            <><MapPin size={18} /> Pilih Lokasi Saya di Peta</>
+                                        )}
+                                    </button>
+                                )}
                             </div>
                             <div style={{ gridColumn: 'span 2' }}>
                                 <label style={labelStyle}>Alamat Lengkap *</label>
