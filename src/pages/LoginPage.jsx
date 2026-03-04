@@ -69,7 +69,7 @@ export default function LoginPage() {
             const newId = 'GURU-' + Math.random().toString(36).substr(2, 6).toUpperCase();
             const { error } = await supabase
                 .from('gurus')
-                .insert([{ id: newId, status: 'Aktif', ...signUpData }]);
+                .insert([{ id: newId, status: 'Tidak Aktif', ...signUpData }]);
 
             if (error) throw error;
 
