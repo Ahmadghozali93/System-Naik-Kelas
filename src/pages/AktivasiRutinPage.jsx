@@ -271,8 +271,8 @@ export default function AktivasiRutinPage() {
                 {activeTab === 'tabel' ? (
                     <>
                         {/* Search & Filters */}
-                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
+                            <div style={{ position: 'relative', width: '100%' }}>
                                 <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                                 <input
                                     type="text"
@@ -282,21 +282,24 @@ export default function AktivasiRutinPage() {
                                     style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
                                 />
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
-                                <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', gridColumn: '1 / -1', marginBottom: '-0.25rem' }}>
+                                    <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filter:</span>
+                                </div>
+                                <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                     <option value="">Semua Unit</option>
                                     {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.unit).filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
-                                <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                     <option value="">Semua Program</option>
                                     {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_program).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
-                                <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                     <option value="">Semua Guru</option>
                                     {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_guru).filter(Boolean))].map(g => <option key={g} value={g}>{g}</option>)}
                                 </select>
-                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                     <option value="">Semua Status</option>
                                     <option value="Aktif">Aktif</option>
                                     <option value="Lulus">Lulus</option>
@@ -596,32 +599,45 @@ export default function AktivasiRutinPage() {
                         return (
                             <>
                                 {/* Search & Filters for Matrix */}
-                                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                                    <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
-                                        <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-                                        <input
-                                            type="text"
-                                            placeholder="Cari siswa / guru / program..."
-                                            value={search}
-                                            onChange={(e) => setSearch(e.target.value)}
-                                            style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
-                                        />
+                                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
+                                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap', alignItems: 'center', width: '100%' }}>
+                                        <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+                                            <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+                                            <input
+                                                type="text"
+                                                placeholder="Cari siswa / guru / program..."
+                                                value={search}
+                                                onChange={(e) => setSearch(e.target.value)}
+                                                style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                                            />
+                                        </div>
+                                        <button
+                                            onClick={handleExportExcel}
+                                            disabled={matrixData.length === 0}
+                                            className="btn"
+                                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: '#16a34a', color: 'white', fontSize: '0.85rem', fontWeight: 500, cursor: matrixData.length === 0 ? 'not-allowed' : 'pointer', opacity: matrixData.length === 0 ? 0.5 : 1, whiteSpace: 'nowrap' }}
+                                        >
+                                            <Download size={16} /> Export Excel
+                                        </button>
                                     </div>
-                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                        <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
-                                        <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', width: '100%' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', gridColumn: '1 / -1', marginBottom: '-0.25rem' }}>
+                                            <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
+                                            <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filter:</span>
+                                        </div>
+                                        <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                             <option value="">Semua Unit</option>
                                             {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.unit).filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
                                         </select>
-                                        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                             <option value="">Semua Program</option>
                                             {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_program).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
-                                        <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                        <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                             <option value="">Semua Guru</option>
                                             {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_guru).filter(Boolean))].map(g => <option key={g} value={g}>{g}</option>)}
                                         </select>
-                                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '120px' }}>
+                                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
                                             <option value="">Semua Status</option>
                                             <option value="Aktif">Aktif</option>
                                             <option value="Lulus">Lulus</option>
@@ -629,14 +645,6 @@ export default function AktivasiRutinPage() {
                                             <option value="Cancel">Cancel</option>
                                         </select>
                                     </div>
-                                    <button
-                                        onClick={handleExportExcel}
-                                        disabled={matrixData.length === 0}
-                                        className="btn"
-                                        style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: '#16a34a', color: 'white', fontSize: '0.85rem', fontWeight: 500, cursor: matrixData.length === 0 ? 'not-allowed' : 'pointer', opacity: matrixData.length === 0 ? 0.5 : 1 }}
-                                    >
-                                        <Download size={16} /> Export Excel
-                                    </button>
                                 </div>
 
                                 <div style={{ border: '1px solid var(--glass-border)', borderRadius: '0.75rem', overflow: 'hidden' }}>

@@ -24,6 +24,7 @@ import LoginPage from './pages/LoginPage';
 import RoleSetupPage from './pages/RoleSetupPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
+import LandingPage from './pages/LandingPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -92,7 +93,8 @@ function App() {
       <BrowserRouter>
         <Routes>
 
-          {/* PUBLIC ROUTE */}
+          {/* PUBLIC ROUTES */}
+          <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
 
           {/* PROTECTED LAYOUT */}
@@ -103,31 +105,25 @@ function App() {
               </ProtectedRoute>
             }
           >
-            {/* ROOT REDIRECT */}
-            <Route
-              index
-              element={<Navigate to="dashboard" replace />}
-            />
-
-            <Route path="dashboard" element={<DashboardPage />} />
-            <Route path="user" element={<UserPage />} />
-            <Route path="unit" element={<UnitPage />} />
-            <Route path="siswa" element={<SiswaPage />} />
-            <Route path="program" element={<ProgramPage />} />
-            <Route path="jadwal-master" element={<JadwalMasterPage />} />
-            <Route path="aktivasi-rutin" element={<AktivasiRutinPage />} />
-            <Route path="aktivasi-harian" element={<AktivasiHarianPage />} />
-            <Route path="kanban" element={<KanbanBoard />} />
-            <Route path="booking" element={<BookingPage />} />
-            <Route path="jadwal-kosong" element={<JadwalKosongPage />} />
-            <Route path="reschedule" element={<ReschedulePage />} />
-            <Route path="role-setup" element={<RoleSetupPage />} />
-            <Route path="pengaturan" element={<SettingsPage />} />
+            <Route path="/dashboard" element={<DashboardPage />} />
+            <Route path="/user" element={<UserPage />} />
+            <Route path="/unit" element={<UnitPage />} />
+            <Route path="/siswa" element={<SiswaPage />} />
+            <Route path="/program" element={<ProgramPage />} />
+            <Route path="/jadwal-master" element={<JadwalMasterPage />} />
+            <Route path="/aktivasi-rutin" element={<AktivasiRutinPage />} />
+            <Route path="/aktivasi-harian" element={<AktivasiHarianPage />} />
+            <Route path="/kanban" element={<KanbanBoard />} />
+            <Route path="/booking" element={<BookingPage />} />
+            <Route path="/jadwal-kosong" element={<JadwalKosongPage />} />
+            <Route path="/reschedule" element={<ReschedulePage />} />
+            <Route path="/role-setup" element={<RoleSetupPage />} />
+            <Route path="/pengaturan" element={<SettingsPage />} />
 
             {/* FALLBACK */}
             <Route
               path="*"
-              element={<Navigate to="dashboard" replace />}
+              element={<Navigate to="/" replace />}
             />
           </Route>
 

@@ -15,14 +15,70 @@ import {
     RefreshCw,
     LayoutDashboard,
     Settings,
-    X
+    X,
+    Database,
+    CalendarRange,
+    Wrench
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+
+const SidebarGroup = ({ title, icon: Icon, isOpen, onToggle, children }) => (
+    <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '0.25rem', marginTop: '0.25rem' }}>
+        <button
+            onClick={onToggle}
+            className="nav-item"
+            style={{
+                background: 'transparent',
+                border: 'none',
+                width: '100%',
+                display: 'flex',
+                justifyContent: 'space-between',
+                alignItems: 'center',
+                padding: '0.6rem 1rem',
+                cursor: 'pointer',
+                color: isOpen ? 'var(--primary)' : 'var(--text-secondary)',
+                fontWeight: 600,
+                fontSize: '0.9rem',
+                transition: 'all 0.2s',
+            }}
+        >
+            <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                {Icon && <Icon className="w-5 h-5" />}
+                <span>{title}</span>
+            </div>
+            {/* Arrows removed as requested */}
+        </button>
+        <div style={{
+            display: 'grid',
+            gridTemplateRows: isOpen ? '1fr' : '0fr',
+            transition: 'grid-template-rows 0.3s ease-out'
+        }}>
+            <div style={{ overflow: 'hidden' }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', marginTop: '0.15rem' }}>
+                    {children}
+                </div>
+            </div>
+        </div>
+    </div>
+);
 
 const Sidebar = ({ isOpen, setIsOpen }) => {
     const { user, permissions, logout } = useAuth();
     const navigate = useNavigate();
-    const [isAktivasiOpen, setIsAktivasiOpen] = useState(true);
+
+    // Store only the active group ID, or null if none are active
+    const [activeGroup, setActiveGroup] = useState('masterData');
+    const [isAktivasiOpen, setIsAktivasiOpen] = useState(false);
+
+    const toggleGroup = (group) => {
+        setActiveGroup(prevGroup => (prevGroup === group ? null : group));
+        // Also close the nested aktivasi dropdown when switching top-level groups
+        if (group !== 'jadwal') setIsAktivasiOpen(false);
+    };
+
+    const toggleAktivasi = () => {
+        setIsAktivasiOpen(prev => !prev);
+    };
 
     // App settings from localStorage
     const [appSettings, setAppSettings] = useState(() => {
@@ -48,25 +104,32 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         navigate('/login', { replace: true });
     };
 
-    const allLinks = [
-        { to: '/dashboard', icon: LayoutDashboard, label: 'Dashboard' },
+    const hasPermission = (path) => {
+        if (user?.role === 'Admin') return true;
+        return permissions.includes(path);
+    };
+
+    const masterDataLinks = [
         { to: '/user', icon: Users, label: 'User / Guru' },
         { to: '/unit', icon: Building, label: 'Unit' },
         { to: '/siswa', icon: GraduationCap, label: 'Siswa' },
         { to: '/program', icon: BookOpen, label: 'Program' },
-        { to: '/jadwal-master', icon: CalendarDays, label: 'Jadwal Master' },
-        { to: '/kanban', icon: Trello, label: 'Jadwal (10 Hari)' },
+        { to: '/jadwal-master', icon: CalendarDays, label: 'Master Jadwal' },
+    ].filter(link => hasPermission(link.to));
+
+    const extraJadwalLinks = [
+        { to: '/kanban', icon: Trello, label: 'Jadwal 10 Hari' },
         { to: '/booking', icon: CalendarCheck, label: 'Booking' },
-        { to: '/jadwal-kosong', icon: CalendarX2, label: 'Jadwal Kosong' },
+        { to: '/jadwal-kosong', icon: CalendarX2, label: 'Jadwal' },
         { to: '/reschedule', icon: RefreshCw, label: 'Reschedule' },
+    ].filter(link => hasPermission(link.to));
+
+    const pengaturanLinks = [
         { to: '/role-setup', icon: Shield, label: 'Setup Hak Akses' },
         { to: '/pengaturan', icon: Settings, label: 'Pengaturan' },
-    ];
+    ].filter(link => hasPermission(link.to));
 
-    const links = allLinks.filter(link => {
-        if (user?.role === 'Admin') return true;
-        return permissions.includes(link.to);
-    });
+    const showAktivasiSiswa = hasPermission('/aktivasi-rutin') || hasPermission('/aktivasi-harian');
 
     return (
         <aside className={`sidebar ${isOpen ? 'open' : ''}`}>
@@ -84,82 +147,167 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 </button>
             </div>
 
-            {/* User Info (Optional, keeping it simple to match original design) */}
             {user && (
-                <div style={{ padding: '0 1.5rem', marginTop: '1rem', fontSize: '0.9rem' }}>
-                    <div style={{ fontWeight: '600' }}>{user.nama}</div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{user.role}</div>
+                <div style={{ padding: '0 1.5rem', marginTop: '1.25rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
+                    <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{user.nama}</div>
+                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.1rem' }}>{user.role}</div>
                 </div>
             )}
 
-            <nav className="sidebar-nav">
-                {links.map((link) => {
-                    const isJadwalMaster = link.to === '/jadwal-master';
+            <nav className="sidebar-nav" style={{ paddingBottom: '2rem' }}>
+                <NavLink
+                    to="/dashboard"
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setIsOpen && setIsOpen(false)}
+                >
+                    <LayoutDashboard className="w-5 h-5" />
+                    <span style={{ fontWeight: 500 }}>Dashboard</span>
+                </NavLink>
 
-                    return (
-                        <div key={link.to} style={{ display: 'flex', flexDirection: 'column' }}>
+                {masterDataLinks.length > 0 && (
+                    <SidebarGroup
+                        title="Master Data"
+                        icon={Database}
+                        isOpen={activeGroup === 'masterData'}
+                        onToggle={() => toggleGroup('masterData')}
+                    >
+                        {masterDataLinks.map(link => (
                             <NavLink
+                                key={link.to}
                                 to={link.to}
                                 className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                                style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }}
                                 onClick={() => setIsOpen && setIsOpen(false)}
                             >
-                                <link.icon className="w-5 h-5" />
+                                <link.icon className="w-4 h-4" />
                                 <span>{link.label}</span>
                             </NavLink>
+                        ))}
+                    </SidebarGroup>
+                )}
 
-                            {/* Inject Submenu Aktivasi Siswa Right After Jadwal Master */}
-                            {isJadwalMaster && (user?.role === 'Admin' || permissions?.includes('/aktivasi-rutin') || permissions?.includes('/aktivasi-harian')) && (
-                                <div style={{ display: 'flex', flexDirection: 'column' }}>
-                                    <div
-                                        className="nav-item"
-                                        onClick={() => setIsAktivasiOpen(!isAktivasiOpen)}
-                                        style={{ cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%', paddingRight: '1rem' }}
-                                    >
-                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                                            <ClipboardList className="w-5 h-5" />
-                                            <span>Aktivasi Siswa</span>
-                                        </div>
-                                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{isAktivasiOpen ? '▼' : '▶'}</span>
+                {(extraJadwalLinks.length > 0 || showAktivasiSiswa) && (
+                    <SidebarGroup
+                        title="Jadwal"
+                        icon={CalendarRange}
+                        isOpen={activeGroup === 'jadwal'}
+                        onToggle={() => toggleGroup('jadwal')}
+                    >
+                        {/* Aktivasi Siswa */}
+                        {showAktivasiSiswa && (
+                            <div style={{ display: 'flex', flexDirection: 'column' }}>
+                                <div
+                                    className="nav-item"
+                                    onClick={toggleAktivasi}
+                                    style={{
+                                        cursor: 'pointer',
+                                        display: 'flex',
+                                        justifyContent: 'space-between',
+                                        alignItems: 'center',
+                                        width: '100%',
+                                        padding: '0.5rem 1rem 0.5rem 2.85rem',
+                                        color: isAktivasiOpen ? 'var(--primary)' : 'inherit',
+                                        backgroundColor: isAktivasiOpen ? 'var(--nav-hover)' : 'transparent'
+                                    }}
+                                >
+                                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                        <ClipboardList className="w-4 h-4" />
+                                        <span>Aktivasi</span>
                                     </div>
+                                    {/* Arrow removed */}
+                                </div>
 
-                                    {isAktivasiOpen && (
-                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem', marginTop: '0.25rem' }}>
-                                            {(user?.role === 'Admin' || permissions?.includes('/aktivasi-rutin')) && (
+                                <div style={{
+                                    display: 'grid',
+                                    gridTemplateRows: isAktivasiOpen ? '1fr' : '0fr',
+                                    transition: 'grid-template-rows 0.3s ease-out'
+                                }}>
+                                    <div style={{ overflow: 'hidden' }}>
+                                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.15rem', marginTop: '0.15rem' }}>
+                                            {hasPermission('/aktivasi-rutin') && (
                                                 <NavLink
                                                     to="/aktivasi-rutin"
                                                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                                                    style={{ padding: '0.6rem 1rem 0.6rem 3.25rem', fontSize: '0.9rem', minHeight: 'auto' }}
+                                                    style={{ padding: '0.45rem 1rem 0.45rem 4.5rem', fontSize: '0.85rem' }}
                                                     onClick={() => setIsOpen && setIsOpen(false)}
                                                 >
                                                     Jadwal Rutin
                                                 </NavLink>
                                             )}
-                                            {(user?.role === 'Admin' || permissions?.includes('/aktivasi-harian')) && (
+                                            {hasPermission('/aktivasi-harian') && (
                                                 <NavLink
                                                     to="/aktivasi-harian"
                                                     className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                                                    style={{ padding: '0.6rem 1rem 0.6rem 3.25rem', fontSize: '0.9rem', minHeight: 'auto' }}
+                                                    style={{ padding: '0.45rem 1rem 0.45rem 4.5rem', fontSize: '0.85rem' }}
                                                     onClick={() => setIsOpen && setIsOpen(false)}
                                                 >
                                                     Jadwal Harian
                                                 </NavLink>
                                             )}
                                         </div>
-                                    )}
+                                    </div>
                                 </div>
-                            )}
-                        </div>
-                    );
-                })}
+                            </div>
+                        )}
+
+                        {extraJadwalLinks.map(link => (
+                            <NavLink
+                                key={link.to}
+                                to={link.to}
+                                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                                style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }}
+                                onClick={() => setIsOpen && setIsOpen(false)}
+                            >
+                                <link.icon className="w-4 h-4" />
+                                <span>{link.label}</span>
+                            </NavLink>
+                        ))}
+                    </SidebarGroup>
+                )}
+
+                {pengaturanLinks.length > 0 && (
+                    <SidebarGroup
+                        title="Pengaturan"
+                        icon={Wrench}
+                        isOpen={activeGroup === 'pengaturan'}
+                        onToggle={() => toggleGroup('pengaturan')}
+                    >
+                        {pengaturanLinks.map(link => (
+                            <NavLink
+                                key={link.to}
+                                to={link.to}
+                                className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                                style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }}
+                                onClick={() => setIsOpen && setIsOpen(false)}
+                            >
+                                <link.icon className="w-4 h-4" />
+                                <span>{link.label}</span>
+                            </NavLink>
+                        ))}
+                    </SidebarGroup>
+                )}
             </nav>
 
-            <div style={{ padding: '1.5rem', marginTop: 'auto', borderTop: '1px solid var(--glass-border)' }}>
+            <div style={{ padding: '1.25rem 1.5rem', marginTop: 'auto', borderTop: '1px solid var(--glass-border)' }}>
                 <button
                     onClick={handleLogout}
                     className="nav-item"
-                    style={{ width: '100%', background: 'transparent', border: 'none', cursor: 'pointer', textAlign: 'left', color: '#b91c1c' }}
+                    style={{
+                        width: '100%',
+                        background: 'rgba(239, 68, 68, 0.1)',
+                        border: 'none',
+                        cursor: 'pointer',
+                        color: '#ef4444',
+                        padding: '0.65rem 1rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        gap: '0.5rem',
+                        fontWeight: 600,
+                        borderRadius: '0.5rem'
+                    }}
                 >
-                    <LogOut className="w-5 h-5" />
+                    <LogOut className="w-4 h-4" />
                     <span>Logout</span>
                 </button>
             </div>

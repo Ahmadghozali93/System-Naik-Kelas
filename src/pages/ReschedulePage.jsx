@@ -340,13 +340,16 @@ export default function ReschedulePage() {
                             </span>
                         </div>
 
-                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                            <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+                        <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
+                            <div style={{ position: 'relative', width: '100%' }}>
                                 <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                                 <input type="text" placeholder="Cari guru / program..." value={kuotaSearch} onChange={(e) => setKuotaSearch(e.target.value)} style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }} />
                             </div>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                                <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
+                            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', width: '100%' }}>
+                                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', gridColumn: '1 / -1', marginBottom: '-0.25rem' }}>
+                                    <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
+                                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filter:</span>
+                                </div>
                                 <select value={kuotaFilterUnit} onChange={(e) => setKuotaFilterUnit(e.target.value)} style={selStyle}><option value="">Semua Unit</option>{unitOpts.map(u => <option key={u} value={u}>{u}</option>)}</select>
                                 <select value={kuotaFilterProgram} onChange={(e) => setKuotaFilterProgram(e.target.value)} style={selStyle}><option value="">Semua Program</option>{progOpts.map(p => <option key={p} value={p}>{p}</option>)}</select>
                                 <select value={kuotaFilterGuru} onChange={(e) => setKuotaFilterGuru(e.target.value)} style={selStyle}><option value="">Semua Guru</option>{guruOpts.map(g => <option key={g} value={g}>{g}</option>)}</select>
@@ -428,8 +431,8 @@ export default function ReschedulePage() {
                     </div>
 
                     {/* Search & Filters */}
-                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexWrap: 'wrap', alignItems: 'center' }}>
-                        <div style={{ position: 'relative', flex: '1', minWidth: '200px' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
+                        <div style={{ position: 'relative', width: '100%' }}>
                             <Search size={16} style={{ position: 'absolute', left: '0.75rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
                             <input
                                 type="text"
@@ -439,8 +442,11 @@ export default function ReschedulePage() {
                                 style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
                             />
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                            <Filter size={16} style={{ color: 'var(--text-secondary)' }} />
+                        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '0.5rem', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', width: '100%', gridColumn: '1 / -1', marginBottom: '-0.25rem' }}>
+                                <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
+                                <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filter:</span>
+                            </div>
                             <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={selectStyle}>
                                 <option value="">Semua Status</option>
                                 <option value="Pending">Pending</option>

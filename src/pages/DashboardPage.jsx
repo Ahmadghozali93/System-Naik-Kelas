@@ -130,9 +130,9 @@ export default function DashboardPage() {
         { label: 'Total Guru', value: stats.totalGuru, icon: Users, color: '#8b5cf6', bg: 'rgba(139,92,246,0.1)' },
         { label: 'Total Program', value: stats.totalProgram, icon: TrendingUp, color: '#06b6d4', bg: 'rgba(6,182,212,0.1)' },
         { label: 'Total Unit', value: stats.totalUnit, icon: Building, color: '#0891b2', bg: 'rgba(8,145,178,0.1)' },
+        { label: 'Jadwal Aktif', value: stats.jadwalAktif, icon: ClipboardList, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
         { label: 'Booking', value: stats.totalBooking, icon: CalendarCheck, color: '#d97706', bg: 'rgba(217,119,6,0.1)' },
         { label: 'Reschedule Pending', value: stats.reschedulePending, icon: RefreshCw, color: '#ef4444', bg: 'rgba(239,68,68,0.1)' },
-        { label: 'Jadwal Aktif', value: stats.jadwalAktif, icon: ClipboardList, color: '#10b981', bg: 'rgba(16,185,129,0.1)' },
         { label: 'Aktivasi Hari Ini', value: stats.aktivasiHariIni, icon: CalendarDays, color: '#f59e0b', bg: 'rgba(245,158,11,0.1)' },
     ];
 
