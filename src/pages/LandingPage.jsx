@@ -14,7 +14,7 @@ export default function LandingPage() {
 
     const [formData, setFormData] = useState({
         nama: '', nama_ortu: '', unit: '', nowa: '', alamat: '',
-        ig: '', fb: '', tiktok: '', catatan: ''
+        ig: '', fb: '', tiktok: ''
     });
 
     const WA_NUMBER = '6282341988735';
@@ -47,7 +47,7 @@ export default function LandingPage() {
             const { error } = await supabase.from('siswa').insert([{ id: newId, dibuat_pada: today, status: 'Booking', ...formData }]);
             if (error) throw error;
             setSubmitSuccess(true);
-            setFormData({ nama: '', nama_ortu: '', unit: units.length > 0 ? units[0].nama : '', nowa: '', alamat: '', ig: '', fb: '', tiktok: '', catatan: '' });
+            setFormData({ nama: '', nama_ortu: '', unit: units.length > 0 ? units[0].nama : '', nowa: '', alamat: '', ig: '', fb: '', tiktok: '' });
         } catch (error) {
             console.error('Error:', error.message);
             alert('Gagal mengirim pendaftaran. Silakan coba lagi.');
@@ -623,13 +623,7 @@ export default function LandingPage() {
                                         <input type="text" name="tiktok" value={formData.tiktok} onChange={handleInputChange} placeholder="@username" />
                                     </div>
 
-                                    <div style={{ borderBottom: '1px solid #e2e8f0', paddingBottom: '0.25rem', marginBottom: '0.25rem', marginTop: '0.5rem' }}>
-                                        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, margin: 0 }}>Lain-lain</h3>
-                                    </div>
-                                    <div>
-                                        <label>Catatan</label>
-                                        <textarea name="catatan" value={formData.catatan} onChange={handleInputChange} rows="2" placeholder="Catatan terkait siswa (opsional)"></textarea>
-                                    </div>
+
 
                                     <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '0.75rem' }}>
                                         <button type="button" onClick={() => setIsModalOpen(false)} className="lp-btn lp-btn-sm" style={{ background: '#f3f4f6', color: '#334155' }}>Batal</button>
