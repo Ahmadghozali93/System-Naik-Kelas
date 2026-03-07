@@ -239,20 +239,18 @@ export default function SiswaPage() {
                     <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
                         <thead>
                             <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
-                                {/* ID disembunyikan di tabel utama spt user */}
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Lengkap</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Orang Tua/Wali</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No. WhatsApp</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>ID</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Siswa</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Program</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Sosial Media</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Memuat data...
                                     </td>
                                 </tr>
@@ -281,31 +279,80 @@ export default function SiswaPage() {
                                         </tr>
                                     ) : paginatedSiswas.map((s) => (
                                         <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                            <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama}</td>
-                                            <td style={{ padding: '1rem' }}>{s.nama_ortu}</td>
+                                            <td style={{ padding: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>{s.id}</td>
                                             <td style={{ padding: '1rem' }}>
-                                                {s.nowa ? (
-                                                    <a
-                                                        href={`https://wa.me/${s.nowa.replace(/^0/, '62')}`}
-                                                        target="_blank"
-                                                        rel="noreferrer"
-                                                        style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
-                                                        title={s.nowa}
-                                                    >
-                                                        <MessageCircle size={18} /> Chat
-                                                    </a>
-                                                ) : '-'}
+                                                <div style={{ fontWeight: 600, color: 'var(--primary)', marginBottom: '0.25rem' }}>{s.nama}</div>
+                                                {s.booking_program && (
+                                                    <span style={{
+                                                        display: 'inline-block',
+                                                        padding: '0.25rem 0.75rem',
+                                                        borderRadius: '9999px',
+                                                        fontSize: '0.75rem',
+                                                        fontWeight: 'bold',
+                                                        backgroundColor: '#e0e7ff',
+                                                        color: '#4f46e5'
+                                                    }}>
+                                                        {s.booking_program}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td style={{ padding: '1rem' }}>
                                                 <span className="badge" style={{ background: '#f3f4f6', color: '#4b5563' }}>
                                                     {s.unit}
                                                 </span>
                                             </td>
-                                            <td style={{ padding: '1rem' }}>{s.booking_program || '-'}</td>
                                             <td style={{ padding: '1rem' }}>
                                                 <span className="badge" style={{ background: s.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: s.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
                                                     {s.status}
                                                 </span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+                                                    {s.nowa && (
+                                                        <a
+                                                            href={`https://wa.me/${s.nowa.replace(/^0/, '62')}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            style={{ color: '#25D366' }}
+                                                            title="WhatsApp"
+                                                        >
+                                                            <MessageCircle size={18} />
+                                                        </a>
+                                                    )}
+                                                    {s.ig && (
+                                                        <a
+                                                            href={`https://instagram.com/${s.ig}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            style={{ color: '#E1306C' }}
+                                                            title="Instagram"
+                                                        >
+                                                            <Instagram size={18} />
+                                                        </a>
+                                                    )}
+                                                    {s.fb && (
+                                                        <a
+                                                            href={s.fb.includes('http') ? s.fb : `https://facebook.com/${s.fb}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            style={{ color: '#1877F2' }}
+                                                            title="Facebook"
+                                                        >
+                                                            <Facebook size={18} />
+                                                        </a>
+                                                    )}
+                                                    {s.tiktok && (
+                                                        <a
+                                                            href={`https://tiktok.com/@${s.tiktok.replace('@', '')}`}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            style={{ color: '#000000' }}
+                                                            title="TikTok"
+                                                        >
+                                                            <TikTokIcon size={18} />
+                                                        </a>
+                                                    )}
+                                                </div>
                                             </td>
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>

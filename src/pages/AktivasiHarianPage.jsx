@@ -23,6 +23,8 @@ export default function AktivasiHarianPage() {
 
     const [formData, setFormData] = useState({
         siswa_id: '',
+        program: '',
+        guru: '',
         jadwal_id: '',
         pertemuan: [{ tanggal: '', jam: '' }],
         spp: 0,
@@ -66,6 +68,8 @@ export default function AktivasiHarianPage() {
             setEditingId(aktivasi.id);
             setFormData({
                 siswa_id: aktivasi.siswa_id || '',
+                program: aktivasi.detail_jadwal?.nama_program || '',
+                guru: aktivasi.detail_jadwal?.nama_guru || '',
                 jadwal_id: aktivasi.jadwal_id || '',
                 pertemuan: [{ tanggal: aktivasi.tgl_mulai || '', jam: aktivasi.detail_jadwal?.jam_pertemuan || '' }],
                 spp: aktivasi.spp || 0,
@@ -77,6 +81,8 @@ export default function AktivasiHarianPage() {
             const today = new Date().toISOString().split('T')[0];
             setFormData({
                 siswa_id: '',
+                program: '',
+                guru: '',
                 jadwal_id: '',
                 pertemuan: [{ tanggal: today, jam: '' }],
                 spp: 0,
@@ -261,15 +267,37 @@ export default function AktivasiHarianPage() {
         return (currentKuota || 0) - activeCount;
     };
 
-    // Derived state for filtering
+    // Derived state for filtering and cascading selects
     const selectedSiswaObj = siswas.find(s => s.id === formData.siswa_id);
-    const filteredJadwals = selectedSiswaObj
+
+    // 1. Valid jadwals for the current unit
+    const validJadwalsUnit = selectedSiswaObj
         ? jadwals.filter(j => {
             const isSameUnit = j.unit === selectedSiswaObj.unit;
             const sisaKuota = getSisaKuota(j.id, j.kuota);
             const isCurrentJadwal = (formData.jadwal_id === j.id && editingId);
             return isSameUnit && (sisaKuota > 0 || isCurrentJadwal);
         })
+        : [];
+
+    // 2. Extract unique programs
+    const availablePrograms = selectedSiswaObj
+        ? [...new Set(validJadwalsUnit.map(j => j.nama_program))].filter(Boolean).sort()
+        : [];
+
+    // 3. Filter by program
+    const validJadwalsProgram = formData.program
+        ? validJadwalsUnit.filter(j => j.nama_program === formData.program)
+        : validJadwalsUnit;
+
+    // 4. Extract unique gurus
+    const availableGurus = formData.program
+        ? [...new Set(validJadwalsProgram.map(j => j.nama_guru))].filter(Boolean).sort()
+        : [];
+
+    // 5. Final filtered jadwals
+    const filteredJadwals = (formData.program && formData.guru)
+        ? validJadwalsProgram.filter(j => j.nama_guru === formData.guru)
         : [];
 
     return (
@@ -503,7 +531,7 @@ export default function AktivasiHarianPage() {
                                 <select
                                     name="siswa_id"
                                     value={formData.siswa_id}
-                                    onChange={handleInputChange}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, siswa_id: e.target.value, program: '', guru: '', jadwal_id: '' }))}
                                     style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                                     required
                                 >
@@ -526,27 +554,57 @@ export default function AktivasiHarianPage() {
                             </div>
 
                             <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Jadwal Master</label>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Program</label>
+                                <select
+                                    name="program"
+                                    value={formData.program}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, program: e.target.value, guru: '', jadwal_id: '' }))}
+                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    disabled={!formData.siswa_id}
+                                    required
+                                >
+                                    <option value="" disabled>-- Pilih Program --</option>
+                                    {availablePrograms.map(p => <option key={p} value={p}>{p}</option>)}
+                                </select>
+                            </div>
+
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Guru</label>
+                                <select
+                                    name="guru"
+                                    value={formData.guru}
+                                    onChange={(e) => setFormData(prev => ({ ...prev, guru: e.target.value, jadwal_id: '' }))}
+                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    disabled={!formData.program}
+                                    required
+                                >
+                                    <option value="" disabled>-- Pilih Guru --</option>
+                                    {availableGurus.map(g => <option key={g} value={g}>{g}</option>)}
+                                </select>
+                            </div>
+
+                            <div style={{ gridColumn: 'span 2' }}>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Jadwal Waktu</label>
                                 <select
                                     name="jadwal_id"
                                     value={formData.jadwal_id}
                                     onChange={handleInputChange}
                                     style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                                     required
-                                    disabled={!formData.siswa_id}
+                                    disabled={!formData.guru}
                                 >
                                     <option value="" disabled>-- Pilih Jadwal Tersedia --</option>
                                     {filteredJadwals.map(j => {
                                         const sisa = getSisaKuota(j.id, j.kuota);
                                         return (
                                             <option key={j.id} value={j.id}>
-                                                {j.nama_program} - {j.nama_guru} ({j.hari} : {j.jam}) - Sisa Kuota: {sisa}
+                                                {j.hari} : {j.jam} - Sisa Kuota: {sisa}
                                             </option>
                                         );
                                     })}
                                 </select>
-                                {formData.siswa_id && filteredJadwals.length === 0 && (
-                                    <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem' }}>Tidak ada jadwal tersedia untuk unit siswa ini.</p>
+                                {formData.guru && filteredJadwals.length === 0 && (
+                                    <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem' }}>Tidak ada jadwal tersedia untuk guru ini.</p>
                                 )}
                             </div>
 

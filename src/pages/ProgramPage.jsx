@@ -156,18 +156,6 @@ export default function ProgramPage() {
                         <BookOpen className="text-primary" size={24} /> Daftar Program
                     </h2>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <select
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(parseInt(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="btn"
-                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
-                        >
-                            <option value={20}>20 per hal</option>
-                            <option value={30}>30 per hal</option>
-                        </select>
                         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
                             + Tambah Program
                         </button>

@@ -148,18 +148,6 @@ export default function UnitPage() {
                         <Building className="text-primary" size={24} /> Daftar Unit
                     </h2>
                     <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <select
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(parseInt(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="btn"
-                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
-                        >
-                            <option value={20}>20 per hal</option>
-                            <option value={30}>30 per hal</option>
-                        </select>
                         <button className="btn btn-primary" onClick={() => handleOpenModal()}>
                             + Tambah Unit
                         </button>
@@ -242,105 +230,109 @@ export default function UnitPage() {
                         </tbody>
                     </table>
                 </div>
-            </div>
+            </div >
 
             {/* Pagination Controls */}
-            {(() => {
-                const totalPages = Math.ceil(units.length / itemsPerPage);
-                if (totalPages <= 1) return null;
-                const safePage = Math.min(currentPage, totalPages);
-                return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
-                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                            Halaman {safePage} dari {totalPages} ({units.length} data)
-                        </span>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
-                            <button
-                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
-                                disabled={safePage <= 1}
-                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
-                            >
-                                ← Sebelumnya
-                            </button>
-                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+            {
+                (() => {
+                    const totalPages = Math.ceil(units.length / itemsPerPage);
+                    if (totalPages <= 1) return null;
+                    const safePage = Math.min(currentPage, totalPages);
+                    return (
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                            <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                                Halaman {safePage} dari {totalPages} ({units.length} data)
+                            </span>
+                            <div style={{ display: 'flex', gap: '0.5rem' }}>
                                 <button
-                                    key={page}
-                                    onClick={() => setCurrentPage(page)}
-                                    style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                    onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                    disabled={safePage <= 1}
+                                    style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
                                 >
-                                    {page}
+                                    ← Sebelumnya
                                 </button>
-                            ))}
-                            <button
-                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
-                                disabled={safePage >= totalPages}
-                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
-                            >
-                                Selanjutnya →
-                            </button>
+                                {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                    <button
+                                        key={page}
+                                        onClick={() => setCurrentPage(page)}
+                                        style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                    >
+                                        {page}
+                                    </button>
+                                ))}
+                                <button
+                                    onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                    disabled={safePage >= totalPages}
+                                    style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                                >
+                                    Selanjutnya →
+                                </button>
+                            </div>
                         </div>
-                    </div>
-                );
-            })()}
+                    );
+                })()
+            }
 
             {/* Modal Form */}
-            {isModalOpen && (
-                <div className="modal-overlay">
-                    <div className="modal-content" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 className="text-xl font-bold">{editingId ? 'Edit Data Unit' : 'Tambah Unit Baru'}</h2>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                                <X className="w-5 h-5" />
-                            </button>
-                        </div>
-
-                        <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Unit</label>
-                                <input
-                                    type="text"
-                                    name="nama"
-                                    value={formData.nama}
-                                    onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    required
-                                    placeholder="Mis: Cabang Jakarta Pusat"
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Link Google Maps</label>
-                                <input
-                                    type="url"
-                                    name="maps"
-                                    value={formData.maps}
-                                    onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    placeholder="https://maps.google.com/?q=..."
-                                />
-                            </div>
-
-                            <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem' }}>
-                                <input
-                                    type="checkbox"
-                                    name="aktif"
-                                    checked={formData.aktif}
-                                    onChange={handleInputChange}
-                                    style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }}
-                                />
-                                <span style={{ fontWeight: 500 }}>Unit Aktif Beroperasi</span>
-                            </label>
-
-                            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
-                                <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Batal</button>
-                                <button type="submit" className="btn btn-primary">
-                                    {editingId ? 'Simpan Perubahan' : 'Tambahkan'}
+            {
+                isModalOpen && (
+                    <div className="modal-overlay">
+                        <div className="modal-content" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                                <h2 className="text-xl font-bold">{editingId ? 'Edit Data Unit' : 'Tambah Unit Baru'}</h2>
+                                <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                                    <X className="w-5 h-5" />
                                 </button>
                             </div>
-                        </form>
+
+                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Unit</label>
+                                    <input
+                                        type="text"
+                                        name="nama"
+                                        value={formData.nama}
+                                        onChange={handleInputChange}
+                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                        required
+                                        placeholder="Mis: Cabang Jakarta Pusat"
+                                    />
+                                </div>
+
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Link Google Maps</label>
+                                    <input
+                                        type="url"
+                                        name="maps"
+                                        value={formData.maps}
+                                        onChange={handleInputChange}
+                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                        placeholder="https://maps.google.com/?q=..."
+                                    />
+                                </div>
+
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem' }}>
+                                    <input
+                                        type="checkbox"
+                                        name="aktif"
+                                        checked={formData.aktif}
+                                        onChange={handleInputChange}
+                                        style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }}
+                                    />
+                                    <span style={{ fontWeight: 500 }}>Unit Aktif Beroperasi</span>
+                                </label>
+
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                                    <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Batal</button>
+                                    <button type="submit" className="btn btn-primary">
+                                        {editingId ? 'Simpan Perubahan' : 'Tambahkan'}
+                                    </button>
+                                </div>
+                            </form>
+                        </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
