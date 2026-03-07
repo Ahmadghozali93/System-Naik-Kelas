@@ -152,40 +152,23 @@ export default function UserPage() {
             </div>
 
             <div className="glass-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <Users className="text-primary" size={24} /> Daftar User
                     </h2>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <select
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(parseInt(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="btn"
-                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
-                        >
-                            <option value={20}>20 per hal</option>
-                            <option value={30}>30 per hal</option>
-                        </select>
-                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                            + Tambah User
-                        </button>
-                    </div>
-                </div>
-
-                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
-                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                        <div style={{ flex: 1, minWidth: '200px' }}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: '250px' }}>
                             <input
                                 type="text"
                                 placeholder="Cari nama atau email..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                                style={{ width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem' }}
                             />
                         </div>
+                        <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }} onClick={() => handleOpenModal()}>
+                            + Tambah User
+                        </button>
                     </div>
                 </div>
 
@@ -306,11 +289,11 @@ export default function UserPage() {
                 if (totalPages <= 1) return null;
                 const safePage = Math.min(currentPage, totalPages);
                 return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0', flexWrap: 'wrap', gap: '1rem' }}>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                             Halaman {safePage} dari {totalPages} ({filteredGurus.length} data)
                         </span>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={safePage <= 1}
@@ -334,6 +317,18 @@ export default function UserPage() {
                             >
                                 Selanjutnya →
                             </button>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(parseInt(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="btn"
+                                style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem', marginLeft: '0.5rem' }}
+                            >
+                                <option value={20}>20 per hal</option>
+                                <option value={30}>30 per hal</option>
+                            </select>
                         </div>
                     </div>
                 );
