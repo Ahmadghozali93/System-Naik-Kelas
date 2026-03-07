@@ -9,6 +9,8 @@ export default function UserPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [search, setSearch] = useState('');
+    const [editingId, setEditingId] = useState(null);
+    const [isViewing, setIsViewing] = useState(false);
 
     // Form state
     const [formData, setFormData] = useState({

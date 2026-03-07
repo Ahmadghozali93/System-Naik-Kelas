@@ -26,12 +26,12 @@ export default function SiswaPage() {
 
     // Form state
     const [formData, setFormData] = useState({
-        nama_siswa: '', // Changed from nama
+        nama: '',
         unit: '',
         status: 'Aktif',
-        nowa_wali: '', // Changed from nowa
+        nowa: '',
         alamat: '',
-        nama_wali: '', // Changed from nama_ortu
+        nama_ortu: '',
         ig: '',
         fb: '',
         tiktok: '',
@@ -82,12 +82,12 @@ export default function SiswaPage() {
         if (siswa) {
             setEditingId(siswa.id);
             setFormData({
-                nama_siswa: siswa.nama_siswa || '', // Changed from nama
+                nama: siswa.nama || '',
                 unit: siswa.unit || (units.length > 0 ? units[0].nama : ''),
                 status: siswa.status || 'Aktif',
-                nowa_wali: siswa.nowa_wali || '', // Changed from nowa
+                nowa: siswa.nowa || '',
                 alamat: siswa.alamat || '',
-                nama_wali: siswa.nama_wali || '', // Changed from nama_ortu
+                nama_ortu: siswa.nama_ortu || '',
                 ig: siswa.ig || '',
                 fb: siswa.fb || '',
                 tiktok: siswa.tiktok || '',
@@ -98,12 +98,12 @@ export default function SiswaPage() {
         } else {
             setEditingId(null);
             setFormData({
-                nama_siswa: '', // Changed from nama
+                nama: '',
                 unit: units.length > 0 ? units[0].nama : '',
                 status: 'Aktif',
-                nowa_wali: '', // Changed from nowa
+                nowa: '',
                 alamat: '',
-                nama_wali: '', // Changed from nama_ortu
+                nama_ortu: '',
                 ig: '',
                 fb: '',
                 tiktok: '',
@@ -279,8 +279,8 @@ export default function SiswaPage() {
                                 const filteredSiswas = siswas.filter(s => {
                                     const searchLower = search.toLowerCase();
                                     const matchSearch = !search ||
-                                        s.nama_siswa?.toLowerCase().includes(searchLower) ||
-                                        s.nama_wali?.toLowerCase().includes(searchLower) ||
+                                        s.nama?.toLowerCase().includes(searchLower) ||
+                                        s.nama_ortu?.toLowerCase().includes(searchLower) ||
                                         s.program?.toLowerCase().includes(searchLower);
                                     const matchUnit = !filterUnit || s.unit === filterUnit;
                                     return matchSearch && matchUnit;
@@ -299,16 +299,16 @@ export default function SiswaPage() {
                                     </tr>
                                 ) : paginatedSiswas.map((s) => (
                                     <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama_siswa}</td>
-                                        <td style={{ padding: '1rem' }}>{s.nama_wali}</td>
+                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama}</td>
+                                        <td style={{ padding: '1rem' }}>{s.nama_ortu}</td>
                                         <td style={{ padding: '1rem' }}>
-                                            {s.nowa_wali ? (
+                                            {s.nowa ? (
                                                 <a
-                                                    href={`https://wa.me/${s.nowa_wali.replace(/^0/, '62')}`}
+                                                    href={`https://wa.me/${s.nowa.replace(/^0/, '62')}`}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
-                                                    title={s.nowa_wali}
+                                                    title={s.nowa}
                                                 >
                                                     <MessageCircle size={18} /> Chat
                                                 </a>
@@ -363,8 +363,8 @@ export default function SiswaPage() {
                 const filteredSiswas = siswas.filter(s => {
                     const searchLower = search.toLowerCase();
                     const matchSearch = !search ||
-                        s.nama_siswa?.toLowerCase().includes(searchLower) ||
-                        s.nama_wali?.toLowerCase().includes(searchLower) ||
+                        s.nama?.toLowerCase().includes(searchLower) ||
+                        s.nama_ortu?.toLowerCase().includes(searchLower) ||
                         s.program?.toLowerCase().includes(searchLower);
                     const matchUnit = !filterUnit || s.unit === filterUnit;
                     return matchSearch && matchUnit;
