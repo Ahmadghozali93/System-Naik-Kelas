@@ -205,157 +205,140 @@ export default function SiswaPage() {
             </div>
 
             <div className="glass-card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem', flexWrap: 'wrap', gap: '1rem' }}>
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <GraduationCap className="text-primary" size={24} /> Daftar Siswa
                     </h2>
-                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
-                        <select
-                            value={itemsPerPage}
-                            onChange={(e) => {
-                                setItemsPerPage(parseInt(e.target.value));
-                                setCurrentPage(1);
-                            }}
-                            className="btn"
-                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
-                        >
-                            <option value={20}>20 per hal</option>
-                            <option value={30}>30 per hal</option>
-                        </select>
-                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+                        <div style={{ minWidth: '250px' }}>
+                            <input
+                                type="text"
+                                placeholder="Cari nama, wali, atau program..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem' }}
+                            />
+                        </div>
+                        <div style={{ minWidth: '150px' }}>
+                            <select
+                                value={filterUnit}
+                                onChange={(e) => setFilterUnit(e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem' }}
+                            >
+                                <option value="">Semua Unit</option>
+                                {units.map(u => <option key={u.nama} value={u.nama}>{u.nama}</option>)}
+                            </select>
+                        </div>
+                        <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }} onClick={() => handleOpenModal()}>
                             + Tambah Siswa
                         </button>
                     </div>
                 </div>
-            </div>
 
-            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
-                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
-                    <div style={{ flex: 1, minWidth: '200px' }}>
-                        <input
-                            type="text"
-                            placeholder="Cari nama, wali, atau program..."
-                            value={search}
-                            onChange={(e) => setSearch(e.target.value)}
-                            style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
-                        />
-                    </div>
-                    <div style={{ minWidth: '150px' }}>
-                        <select
-                            value={filterUnit}
-                            onChange={(e) => setFilterUnit(e.target.value)}
-                            style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
-                        >
-                            <option value="">Semua Unit</option>
-                            {units.map(u => <option key={u.nama} value={u.nama}>{u.nama}</option>)}
-                        </select>
-                    </div>
-                </div>
-            </div>
-
-            <div style={{ overflowX: 'auto' }}>
-                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                    <thead>
-                        <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
-                            {/* ID disembunyikan di tabel utama spt user */}
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Siswa</th>
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Wali</th>
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No WA Wali</th>
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Program</th>
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
-                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {isLoading ? (
-                            <tr>
-                                <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                    Memuat data...
-                                </td>
+                <div style={{ overflowX: 'auto' }}>
+                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                        <thead>
+                            <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
+                                {/* ID disembunyikan di tabel utama spt user */}
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Lengkap</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Orang Tua/Wali</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No. WhatsApp</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Program</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
                             </tr>
-                        ) : (
-                            (() => {
-                                const filteredSiswas = siswas.filter(s => {
-                                    const searchLower = search.toLowerCase();
-                                    const matchSearch = !search ||
-                                        s.nama?.toLowerCase().includes(searchLower) ||
-                                        s.nama_ortu?.toLowerCase().includes(searchLower) ||
-                                        s.program?.toLowerCase().includes(searchLower);
-                                    const matchUnit = !filterUnit || s.unit === filterUnit;
-                                    return matchSearch && matchUnit;
-                                });
+                        </thead>
+                        <tbody>
+                            {isLoading ? (
+                                <tr>
+                                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                        Memuat data...
+                                    </td>
+                                </tr>
+                            ) : (
+                                (() => {
+                                    const filteredSiswas = siswas.filter(s => {
+                                        const searchLower = search.toLowerCase();
+                                        const matchSearch = !search ||
+                                            s.nama?.toLowerCase().includes(searchLower) ||
+                                            s.nama_ortu?.toLowerCase().includes(searchLower) ||
+                                            s.program?.toLowerCase().includes(searchLower);
+                                        const matchUnit = !filterUnit || s.unit === filterUnit;
+                                        return matchSearch && matchUnit;
+                                    });
 
-                                const totalPages = Math.ceil(filteredSiswas.length / itemsPerPage);
-                                const safePage = Math.min(currentPage, totalPages || 1);
-                                const startIdx = (safePage - 1) * itemsPerPage;
-                                const paginatedSiswas = filteredSiswas.slice(startIdx, startIdx + itemsPerPage);
+                                    const totalPages = Math.ceil(filteredSiswas.length / itemsPerPage);
+                                    const safePage = Math.min(currentPage, totalPages || 1);
+                                    const startIdx = (safePage - 1) * itemsPerPage;
+                                    const paginatedSiswas = filteredSiswas.slice(startIdx, startIdx + itemsPerPage);
 
-                                return filteredSiswas.length === 0 ? (
-                                    <tr>
-                                        <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                            Tidak ada siswa yang cocok.
-                                        </td>
-                                    </tr>
-                                ) : paginatedSiswas.map((s) => (
-                                    <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama}</td>
-                                        <td style={{ padding: '1rem' }}>{s.nama_ortu}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {s.nowa ? (
-                                                <a
-                                                    href={`https://wa.me/${s.nowa.replace(/^0/, '62')}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
-                                                    title={s.nowa}
-                                                >
-                                                    <MessageCircle size={18} /> Chat
-                                                </a>
-                                            ) : '-'}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="badge" style={{ background: '#f3f4f6', color: '#4b5563' }}>
-                                                {s.unit}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>{s.booking_program || '-'}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="badge" style={{ background: s.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: s.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
-                                                {s.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button
-                                                    onClick={() => handleOpenModal(s, true)}
-                                                    style={{ color: 'var(--secondary)', background: 'rgba(16,185,129,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Lihat Detail"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenModal(s)}
-                                                    style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(s.id)}
-                                                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Hapus"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ));
-                            })()
-                        )}
-                    </tbody>
-                </table>
+                                    return filteredSiswas.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                                Tidak ada siswa yang cocok.
+                                            </td>
+                                        </tr>
+                                    ) : paginatedSiswas.map((s) => (
+                                        <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                            <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama}</td>
+                                            <td style={{ padding: '1rem' }}>{s.nama_ortu}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {s.nowa ? (
+                                                    <a
+                                                        href={`https://wa.me/${s.nowa.replace(/^0/, '62')}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
+                                                        title={s.nowa}
+                                                    >
+                                                        <MessageCircle size={18} /> Chat
+                                                    </a>
+                                                ) : '-'}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span className="badge" style={{ background: '#f3f4f6', color: '#4b5563' }}>
+                                                    {s.unit}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>{s.booking_program || '-'}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span className="badge" style={{ background: s.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: s.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
+                                                    {s.status}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button
+                                                        onClick={() => handleOpenModal(s, true)}
+                                                        style={{ color: 'var(--secondary)', background: 'rgba(16,185,129,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Lihat Detail"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleOpenModal(s)}
+                                                        style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(s.id)}
+                                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Hapus"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ));
+                                })()
+                            )}
+                        </tbody>
+                    </table>
+                </div>
             </div>
 
             {/* Pagination Controls */}
@@ -374,11 +357,11 @@ export default function SiswaPage() {
                 if (totalPages <= 1) return null;
                 const safePage = Math.min(currentPage, totalPages);
                 return (
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0', flexWrap: 'wrap', gap: '1rem' }}>
                         <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                             Halaman {safePage} dari {totalPages} ({filteredSiswas.length} data)
                         </span>
-                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
                             <button
                                 onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                                 disabled={safePage <= 1}
@@ -402,6 +385,18 @@ export default function SiswaPage() {
                             >
                                 Selanjutnya →
                             </button>
+                            <select
+                                value={itemsPerPage}
+                                onChange={(e) => {
+                                    setItemsPerPage(parseInt(e.target.value));
+                                    setCurrentPage(1);
+                                }}
+                                className="btn"
+                                style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem', marginLeft: '0.5rem' }}
+                            >
+                                <option value={20}>20 per hal</option>
+                                <option value={30}>30 per hal</option>
+                            </select>
                         </div>
                     </div>
                 );
