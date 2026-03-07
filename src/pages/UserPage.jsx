@@ -9,8 +9,6 @@ export default function UserPage() {
     const [currentPage, setCurrentPage] = useState(1);
     const [itemsPerPage, setItemsPerPage] = useState(20);
     const [search, setSearch] = useState('');
-    const [filterUnit, setFilterUnit] = useState('');
-    const [units, setUnits] = useState([]);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -28,16 +26,13 @@ export default function UserPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [guruRes, unitRes] = await Promise.all([
-                supabase.from('gurus').select('*').order('created_at', { ascending: false }),
-                supabase.from('units').select('nama').eq('aktif', true)
-            ]);
+            const { data, error } = await supabase
+                .from('gurus')
+                .select('*')
+                .order('created_at', { ascending: false });
 
-            if (guruRes.error) throw guruRes.error;
-            if (unitRes.error) throw unitRes.error;
-
-            if (guruRes.data) setGurus(guruRes.data);
-            if (unitRes.data) setUnits(unitRes.data);
+            if (error) throw error;
+            if (data) setGurus(data);
         } catch (error) {
             console.error('Error fetching data:', error.message);
             alert('Gagal mengambil data dari database.');
@@ -189,16 +184,6 @@ export default function UserPage() {
                                 style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
                             />
                         </div>
-                        <div style={{ minWidth: '150px' }}>
-                            <select
-                                value={filterUnit}
-                                onChange={(e) => setFilterUnit(e.target.value)}
-                                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
-                            >
-                                <option value="">Semua Unit</option>
-                                {units.map(u => <option key={u.nama} value={u.nama}>{u.nama}</option>)}
-                            </select>
-                        </div>
                     </div>
                 </div>
 
@@ -230,14 +215,7 @@ export default function UserPage() {
                             ) : (
                                 (() => {
                                     const filteredGurus = gurus.filter(g => {
-                                        const matchSearch = !search || g.nama?.toLowerCase().includes(search.toLowerCase()) || g.email?.toLowerCase().includes(search.toLowerCase());
-                                        const matchUnit = !filterUnit || g.alamat?.toLowerCase().includes(filterUnit.toLowerCase()); // Assuming area/unit might be in address, or we need a specific unit field. If no unit field exists on guru, we search alamat or just let it pass if no strict mapping. For now checking address conceptually if no unit. 
-                                        // Wait, user data structure in UserPage.jsx has: email, password, nama, role, nowa, status, alamat, maps. It DOES NOT have a 'unit' field. 
-                                        // I will filter by unit based on 'alamat' conceptually, or if there's no unit field, I should probably add one or ignore it for Gurus if not applicable, but user requested searching by unit on Guru. Let's assume it's part of the address string or we'll filter by address for now until schema update.
-                                        // ACTUALLY, if Guru doesn't have a unit field in DB, filtering by unit might require looking at JadwalMaster. But for now, let's filter by checking if alamat contains the unit name as a proxy, or just leave it open. Wait, usually tutors belong to units. I'll add 'unit' to the filter logic, if it exists in the data. If not, it won't filter out things if filterUnit is empty.
-
-                                        // Correction: Since Guru schema does not have 'unit', filtering by unit on Guru page might not be fully accurate unless 'alamat' contains it. I'll implement the filter on whatever text matches if 'unit' is selected, or just name/email. I will check 'alamat' for the unit name.
-                                        return matchSearch && (!filterUnit || (g.alamat && g.alamat.toLowerCase().includes(filterUnit.toLowerCase())));
+                                        return !search || g.nama?.toLowerCase().includes(search.toLowerCase()) || g.email?.toLowerCase().includes(search.toLowerCase());
                                     });
 
                                     const totalPages = Math.ceil(filteredGurus.length / itemsPerPage);
@@ -319,8 +297,7 @@ export default function UserPage() {
             {/* Pagination Controls */}
             {(() => {
                 const filteredGurus = gurus.filter(g => {
-                    const matchSearch = !search || g.nama?.toLowerCase().includes(search.toLowerCase()) || g.email?.toLowerCase().includes(search.toLowerCase());
-                    return matchSearch && (!filterUnit || (g.alamat && g.alamat.toLowerCase().includes(filterUnit.toLowerCase())));
+                    return !search || g.nama?.toLowerCase().includes(search.toLowerCase()) || g.email?.toLowerCase().includes(search.toLowerCase());
                 });
 
                 const totalPages = Math.ceil(filteredGurus.length / itemsPerPage);
