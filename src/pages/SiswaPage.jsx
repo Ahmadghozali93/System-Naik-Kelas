@@ -45,7 +45,7 @@ export default function SiswaPage() {
         setIsLoading(true);
         try {
             const [siswaRes, unitRes, progRes, jamRes] = await Promise.all([
-                supabase.from('siswas').select('*').order('created_at', { ascending: false }),
+                supabase.from('siswa').select('*').order('created_at', { ascending: false }),
                 supabase.from('units').select('nama, aktif').eq('aktif', true),
                 supabase.from('programs').select('id, nama').eq('status', 'Aktif'),
                 supabase.from('master_jam').select('*').order('waktu', { ascending: true })
@@ -139,7 +139,7 @@ export default function SiswaPage() {
             if (editingId) {
                 // Edit existing in Supabase
                 const { error } = await supabase
-                    .from('siswas') // Changed from siswa
+                    .from('siswa') // Changed from siswa
                     .update(formData)
                     .eq('id', editingId);
 
@@ -156,7 +156,7 @@ export default function SiswaPage() {
                 const newSiswaData = { id: newId, dibuat_pada: today, ...formData };
 
                 const { error } = await supabase
-                    .from('siswas') // Changed from siswa
+                    .from('siswa') // Changed from siswa
                     .insert([newSiswaData]);
 
                 if (error) throw error;
@@ -177,7 +177,7 @@ export default function SiswaPage() {
         if (window.confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
             try {
                 const { error } = await supabase
-                    .from('siswas') // Changed from siswa
+                    .from('siswa') // Changed from siswa
                     .delete()
                     .eq('id', id);
 
