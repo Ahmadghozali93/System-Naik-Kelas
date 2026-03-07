@@ -8,6 +8,8 @@ export default function ProgramPage() {
     const [editingId, setEditingId] = useState(null);
     const [isViewing, setIsViewing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -94,7 +96,7 @@ export default function ProgramPage() {
                 // Add new to Supabase
                 const newId = 'PROG-' + Math.random().toString(36).substr(2, 6).toUpperCase();
                 const today = new Date().toISOString().split('T')[0];
-                const newProgramData = { id: newId, dibuat_pada: today, ...formData };
+                const newProgramData = { id: newId, created_at: today, ...formData }; // Changed 'dibuat_pada' to 'created_at'
 
                 const { error } = await supabase
                     .from('programs')
@@ -136,6 +138,11 @@ export default function ProgramPage() {
         }
     };
 
+    const totalPages = Math.ceil(programs.length / itemsPerPage);
+    const safePage = Math.min(currentPage, totalPages || 1);
+    const startIdx = (safePage - 1) * itemsPerPage;
+    const paginatedPrograms = programs.slice(startIdx, startIdx + itemsPerPage);
+
     return (
         <div className="page-container">
             <div className="page-header">
@@ -148,9 +155,23 @@ export default function ProgramPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <BookOpen className="text-primary" size={24} /> Daftar Program
                     </h2>
-                    <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                        + Tambah Program
-                    </button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                            className="btn"
+                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
+                        >
+                            <option value={20}>20 per hal</option>
+                            <option value={30}>30 per hal</option>
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                            + Tambah Program
+                        </button>
+                    </div>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -161,13 +182,14 @@ export default function ProgramPage() {
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Program</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Jenis</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Dibuat Pada</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="5" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Memuat data...
                                     </td>
                                 </tr>
@@ -178,7 +200,7 @@ export default function ProgramPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                programs.map((p) => (
+                                paginatedPrograms.map((p) => (
                                     <tr key={p.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
                                         <td style={{ padding: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>{p.id}</td>
                                         <td style={{ padding: '1rem', fontWeight: 600, color: 'var(--primary)' }}>{p.nama}</td>
@@ -199,6 +221,9 @@ export default function ProgramPage() {
                                             <span className="badge" style={{ background: p.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: p.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
                                                 {p.status}
                                             </span>
+                                        </td>
+                                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
+                                            {new Date(p.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric' })}
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -232,6 +257,45 @@ export default function ProgramPage() {
                     </table>
                 </div>
             </div>
+
+            {/* Pagination Controls */}
+            {(() => {
+                const totalPages = Math.ceil(programs.length / itemsPerPage);
+                if (totalPages <= 1) return null;
+                const safePage = Math.min(currentPage, totalPages);
+                return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Halaman {safePage} dari {totalPages} ({programs.length} data)
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safePage <= 1}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                ← Sebelumnya
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safePage >= totalPages}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                Selanjutnya →
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Modal Form */}
             {isModalOpen && (

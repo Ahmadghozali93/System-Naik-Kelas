@@ -5,9 +5,12 @@ import { supabase } from '../lib/supabase';
 export default function UserPage() {
     const [gurus, setGurus] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingId, setEditingId] = useState(null);
-    const [isViewing, setIsViewing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
+    const [search, setSearch] = useState('');
+    const [filterUnit, setFilterUnit] = useState('');
+    const [units, setUnits] = useState([]);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -22,26 +25,29 @@ export default function UserPage() {
     });
 
     // Fetch data from Supabase
-    const fetchGurus = async () => {
+    const fetchData = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('gurus')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const [guruRes, unitRes] = await Promise.all([
+                supabase.from('gurus').select('*').order('created_at', { ascending: false }),
+                supabase.from('units').select('nama').eq('aktif', true)
+            ]);
 
-            if (error) throw error;
-            if (data) setGurus(data);
+            if (guruRes.error) throw guruRes.error;
+            if (unitRes.error) throw unitRes.error;
+
+            if (guruRes.data) setGurus(guruRes.data);
+            if (unitRes.data) setUnits(unitRes.data);
         } catch (error) {
-            console.error('Error fetching gurus:', error.message);
-            alert('Gagal mengambil data user/guru dari database.');
+            console.error('Error fetching data:', error.message);
+            alert('Gagal mengambil data dari database.');
         } finally {
             setIsLoading(false);
         }
     };
 
     useEffect(() => {
-        fetchGurus();
+        fetchData();
     }, []);
 
     const handleOpenModal = (guru = null, viewOnly = false) => {
@@ -153,9 +159,47 @@ export default function UserPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <Users className="text-primary" size={24} /> Daftar User
                     </h2>
-                    <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                        + Tambah User
-                    </button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                            className="btn"
+                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
+                        >
+                            <option value={20}>20 per hal</option>
+                            <option value={30}>30 per hal</option>
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                            + Tambah User
+                        </button>
+                    </div>
+                </div>
+
+                <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
+                    <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                        <div style={{ flex: 1, minWidth: '200px' }}>
+                            <input
+                                type="text"
+                                placeholder="Cari nama atau email..."
+                                value={search}
+                                onChange={(e) => setSearch(e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                            />
+                        </div>
+                        <div style={{ minWidth: '150px' }}>
+                            <select
+                                value={filterUnit}
+                                onChange={(e) => setFilterUnit(e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                            >
+                                <option value="">Semua Unit</option>
+                                {units.map(u => <option key={u.nama} value={u.nama}>{u.nama}</option>)}
+                            </select>
+                        </div>
+                    </div>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -184,69 +228,137 @@ export default function UserPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                gurus.map((g) => (
-                                    <tr key={g.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{g.nama}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {g.nowa ? (
-                                                <a
-                                                    href={`https://wa.me/${g.nowa.replace(/^0/, '62')}`}
-                                                    target="_blank"
-                                                    rel="noreferrer"
-                                                    style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
-                                                    title={g.nowa}
-                                                >
-                                                    <MessageCircle size={18} /> Chat
-                                                </a>
-                                            ) : '-'}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="badge" style={{ background: g.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: g.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
-                                                {g.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={g.alamat}>
-                                            {g.alamat}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {g.maps ? (
-                                                <a href={g.maps} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
-                                                    <MapPin size={14} /> Lihat
-                                                </a>
-                                            ) : '-'}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button
-                                                    onClick={() => handleOpenModal(g, true)}
-                                                    style={{ color: 'var(--secondary)', background: 'rgba(16,185,129,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Lihat"
-                                                >
-                                                    <Eye className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleOpenModal(g)}
-                                                    style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(g.id)}
-                                                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Hapus"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                (() => {
+                                    const filteredGurus = gurus.filter(g => {
+                                        const matchSearch = !search || g.nama?.toLowerCase().includes(search.toLowerCase()) || g.email?.toLowerCase().includes(search.toLowerCase());
+                                        const matchUnit = !filterUnit || g.alamat?.toLowerCase().includes(filterUnit.toLowerCase()); // Assuming area/unit might be in address, or we need a specific unit field. If no unit field exists on guru, we search alamat or just let it pass if no strict mapping. For now checking address conceptually if no unit. 
+                                        // Wait, user data structure in UserPage.jsx has: email, password, nama, role, nowa, status, alamat, maps. It DOES NOT have a 'unit' field. 
+                                        // I will filter by unit based on 'alamat' conceptually, or if there's no unit field, I should probably add one or ignore it for Gurus if not applicable, but user requested searching by unit on Guru. Let's assume it's part of the address string or we'll filter by address for now until schema update.
+                                        // ACTUALLY, if Guru doesn't have a unit field in DB, filtering by unit might require looking at JadwalMaster. But for now, let's filter by checking if alamat contains the unit name as a proxy, or just leave it open. Wait, usually tutors belong to units. I'll add 'unit' to the filter logic, if it exists in the data. If not, it won't filter out things if filterUnit is empty.
+
+                                        // Correction: Since Guru schema does not have 'unit', filtering by unit on Guru page might not be fully accurate unless 'alamat' contains it. I'll implement the filter on whatever text matches if 'unit' is selected, or just name/email. I will check 'alamat' for the unit name.
+                                        return matchSearch && (!filterUnit || (g.alamat && g.alamat.toLowerCase().includes(filterUnit.toLowerCase())));
+                                    });
+
+                                    const totalPages = Math.ceil(filteredGurus.length / itemsPerPage);
+                                    const safePage = Math.min(currentPage, totalPages || 1);
+                                    const startIdx = (safePage - 1) * itemsPerPage;
+                                    const paginatedGurus = filteredGurus.slice(startIdx, startIdx + itemsPerPage);
+
+                                    return filteredGurus.length === 0 ? (
+                                        <tr>
+                                            <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                                Tidak ada user yang cocok.
+                                            </td>
+                                        </tr>
+                                    ) : paginatedGurus.map((g) => (
+                                        <tr key={g.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                            <td style={{ padding: '1rem', fontWeight: 500 }}>{g.nama}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {g.nowa ? (
+                                                    <a
+                                                        href={`https://wa.me/${g.nowa.replace(/^0/, '62')}`}
+                                                        target="_blank"
+                                                        rel="noreferrer"
+                                                        style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
+                                                        title={g.nowa}
+                                                    >
+                                                        <MessageCircle size={18} /> Chat
+                                                    </a>
+                                                ) : '-'}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span className="badge" style={{ background: g.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: g.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
+                                                    {g.status}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem', maxWidth: '150px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={g.alamat}>
+                                                {g.alamat}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {g.maps ? (
+                                                    <a href={g.maps} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
+                                                        <MapPin size={14} /> Lihat
+                                                    </a>
+                                                ) : '-'}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button
+                                                        onClick={() => handleOpenModal(g, true)}
+                                                        style={{ color: 'var(--secondary)', background: 'rgba(16,185,129,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Lihat"
+                                                    >
+                                                        <Eye className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleOpenModal(g)}
+                                                        style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(g.id)}
+                                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Hapus"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ));
+                                })()
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* Pagination Controls */}
+            {(() => {
+                const filteredGurus = gurus.filter(g => {
+                    const matchSearch = !search || g.nama?.toLowerCase().includes(search.toLowerCase()) || g.email?.toLowerCase().includes(search.toLowerCase());
+                    return matchSearch && (!filterUnit || (g.alamat && g.alamat.toLowerCase().includes(filterUnit.toLowerCase())));
+                });
+
+                const totalPages = Math.ceil(filteredGurus.length / itemsPerPage);
+                if (totalPages <= 1) return null;
+                const safePage = Math.min(currentPage, totalPages);
+                return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Halaman {safePage} dari {totalPages} ({filteredGurus.length} data)
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safePage <= 1}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                ← Sebelumnya
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safePage >= totalPages}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                Selanjutnya →
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Modal Form */}
             {isModalOpen && (

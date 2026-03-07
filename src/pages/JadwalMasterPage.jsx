@@ -656,20 +656,22 @@ export default function JadwalMasterPage() {
                             </button>
                         </div>
 
-                        <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
-                            {masterJam.length === 0 ? (
-                                <li style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada data jam.</li>
-                            ) : (
-                                masterJam.map(jam => (
-                                    <li key={jam.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                                        <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{jam.waktu}</div>
-                                        <button onClick={() => handleDeleteJam(jam.id)} style={{ color: '#ef4444', background: 'none', border: 'none', padding: '4px', cursor: 'pointer' }}>
-                                            <Trash2 size={16} />
-                                        </button>
-                                    </li>
-                                ))
-                            )}
-                        </ul>
+                        <div style={{ maxHeight: '300px', overflowY: 'auto', paddingRight: '0.5rem' }}>
+                            <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                                {masterJam.length === 0 ? (
+                                    <li style={{ textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada data jam.</li>
+                                ) : (
+                                    masterJam.map(jam => (
+                                        <li key={jam.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.75rem', borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
+                                            <div style={{ fontWeight: 500, color: 'var(--text-primary)' }}>{jam.waktu}</div>
+                                            <button onClick={() => handleDeleteJam(jam.id)} style={{ color: '#ef4444', background: 'none', border: 'none', padding: '4px', cursor: 'pointer' }}>
+                                                <Trash2 size={16} />
+                                            </button>
+                                        </li>
+                                    ))
+                                )}
+                            </ul>
+                        </div>
                     </div>
                 </div>
             )}

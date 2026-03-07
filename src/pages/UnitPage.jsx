@@ -7,6 +7,8 @@ export default function UnitPage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1);
+    const [itemsPerPage, setItemsPerPage] = useState(20);
 
     // Form state
     const [formData, setFormData] = useState({
@@ -145,9 +147,23 @@ export default function UnitPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <Building className="text-primary" size={24} /> Daftar Unit
                     </h2>
-                    <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                        + Tambah Unit
-                    </button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                            className="btn"
+                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
+                        >
+                            <option value={20}>20 per hal</option>
+                            <option value={30}>30 per hal</option>
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                            + Tambah Unit
+                        </button>
+                    </div>
                 </div>
 
                 <div style={{ overflowX: 'auto' }}>
@@ -176,50 +192,96 @@ export default function UnitPage() {
                                     </td>
                                 </tr>
                             ) : (
-                                units.map((u) => (
-                                    <tr key={u.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={{ padding: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>{u.id}</td>
-                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{u.nama}</td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {u.maps ? (
-                                                <a href={u.maps} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
-                                                    <MapPin size={14} /> Lihat Maps
-                                                </a>
-                                            ) : '-'}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="badge" style={{ background: u.aktif ? '#d1fae5' : '#fee2e2', color: u.aktif ? '#047857' : '#b91c1c' }}>
-                                                {u.aktif ? 'Aktif' : 'Nonaktif'}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
-                                            {u.dibuat_pada}
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                <button
-                                                    onClick={() => handleOpenModal(u)}
-                                                    style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(u.id)}
-                                                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Hapus"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
-                                        </td>
-                                    </tr>
-                                ))
+                                (() => {
+                                    const totalPages = Math.ceil(units.length / itemsPerPage);
+                                    const safePage = Math.min(currentPage, totalPages || 1);
+                                    const startIdx = (safePage - 1) * itemsPerPage;
+                                    const paginatedUnits = units.slice(startIdx, startIdx + itemsPerPage);
+
+                                    return paginatedUnits.map((u) => (
+                                        <tr key={u.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
+                                            <td style={{ padding: '1rem', fontWeight: 500, color: 'var(--text-secondary)' }}>{u.id}</td>
+                                            <td style={{ padding: '1rem', fontWeight: 500 }}>{u.nama}</td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {u.maps ? (
+                                                    <a href={u.maps} target="_blank" rel="noreferrer" style={{ color: 'var(--primary)', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none' }}>
+                                                        <MapPin size={14} /> Lihat Maps
+                                                    </a>
+                                                ) : '-'}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <span className="badge" style={{ background: u.aktif ? '#d1fae5' : '#fee2e2', color: u.aktif ? '#047857' : '#b91c1c' }}>
+                                                    {u.aktif ? 'Aktif' : 'Nonaktif'}
+                                                </span>
+                                            </td>
+                                            <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
+                                                {u.dibuat_pada}
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                    <button
+                                                        onClick={() => handleOpenModal(u)}
+                                                        style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(u.id)}
+                                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Hapus"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ));
+                                })()
                             )}
                         </tbody>
                     </table>
                 </div>
             </div>
+
+            {/* Pagination Controls */}
+            {(() => {
+                const totalPages = Math.ceil(units.length / itemsPerPage);
+                if (totalPages <= 1) return null;
+                const safePage = Math.min(currentPage, totalPages);
+                return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Halaman {safePage} dari {totalPages} ({units.length} data)
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safePage <= 1}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                ← Sebelumnya
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safePage >= totalPages}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                Selanjutnya →
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Modal Form */}
             {isModalOpen && (

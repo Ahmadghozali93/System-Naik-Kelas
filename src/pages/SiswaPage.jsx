@@ -10,23 +10,28 @@ const TikTokIcon = ({ size }) => (
 );
 
 export default function SiswaPage() {
-    const [siswaList, setSiswaList] = useState([]);
+    const [siswas, setSiswas] = useState([]); // Changed from siswaList to siswas
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
     const [isViewing, setIsViewing] = useState(false);
+    const [isSaving, setIsSaving] = useState(false); // New state
     const [isLoading, setIsLoading] = useState(true);
+    const [currentPage, setCurrentPage] = useState(1); // New state
+    const [itemsPerPage, setItemsPerPage] = useState(20); // New state
+    const [search, setSearch] = useState(''); // New state
+    const [filterUnit, setFilterUnit] = useState(''); // New state
     const [units, setUnits] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [masterJam, setMasterJam] = useState([]);
 
     // Form state
     const [formData, setFormData] = useState({
-        nama: '',
+        nama_siswa: '', // Changed from nama
         unit: '',
         status: 'Aktif',
-        nowa: '',
+        nowa_wali: '', // Changed from nowa
         alamat: '',
-        nama_ortu: '',
+        nama_wali: '', // Changed from nama_ortu
         ig: '',
         fb: '',
         tiktok: '',
@@ -39,44 +44,27 @@ export default function SiswaPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            // Fetch Siswa
-            const { data: siswaData, error: siswaError } = await supabase
-                .from('siswa')
-                .select('*')
-                .order('created_at', { ascending: false });
+            const [siswaRes, unitRes, progRes, jamRes] = await Promise.all([
+                supabase.from('siswas').select('*').order('created_at', { ascending: false }),
+                supabase.from('units').select('nama, aktif').eq('aktif', true),
+                supabase.from('programs').select('id, nama').eq('status', 'Aktif'),
+                supabase.from('master_jam').select('*').order('waktu', { ascending: true })
+            ]);
 
-            if (siswaError) throw siswaError;
-            if (siswaData) setSiswaList(siswaData);
+            if (siswaRes.error) throw siswaRes.error;
+            if (unitRes.error) throw unitRes.error;
+            if (progRes.error) throw progRes.error;
+            if (jamRes.error) throw jamRes.error;
 
-            // Fetch Units untuk Dropdown Unit
-            const { data: unitData, error: unitError } = await supabase
-                .from('units')
-                .select('nama, aktif')
-                .eq('aktif', true);
-
-            if (unitError) throw unitError;
-            if (unitData) {
-                setUnits(unitData);
-                if (unitData.length > 0 && !formData.unit) {
-                    setFormData(prev => ({ ...prev, unit: unitData[0].nama }));
+            if (siswaRes.data) setSiswas(siswaRes.data);
+            if (unitRes.data) {
+                setUnits(unitRes.data);
+                if (unitRes.data.length > 0 && !formData.unit) {
+                    setFormData(prev => ({ ...prev, unit: unitRes.data[0].nama }));
                 }
             }
-
-            // Fetch Programs for Booking dropdown
-            const { data: progData, error: progError } = await supabase
-                .from('programs')
-                .select('id, nama')
-                .eq('status', 'Aktif');
-            if (progError) throw progError;
-            setPrograms(progData || []);
-
-            // Fetch Master Jam for Booking dropdown
-            const { data: jamData, error: jamError } = await supabase
-                .from('master_jam')
-                .select('*')
-                .order('waktu', { ascending: true });
-            if (jamError) throw jamError;
-            setMasterJam(jamData || []);
+            setPrograms(progRes.data || []);
+            setMasterJam(jamRes.data || []);
         } catch (error) {
             console.error('Error fetching data:', error.message);
             alert('Gagal mengambil data dari database.');
@@ -94,12 +82,12 @@ export default function SiswaPage() {
         if (siswa) {
             setEditingId(siswa.id);
             setFormData({
-                nama: siswa.nama || '',
+                nama_siswa: siswa.nama_siswa || '', // Changed from nama
                 unit: siswa.unit || (units.length > 0 ? units[0].nama : ''),
                 status: siswa.status || 'Aktif',
-                nowa: siswa.nowa || '',
+                nowa_wali: siswa.nowa_wali || '', // Changed from nowa
                 alamat: siswa.alamat || '',
-                nama_ortu: siswa.nama_ortu || '',
+                nama_wali: siswa.nama_wali || '', // Changed from nama_ortu
                 ig: siswa.ig || '',
                 fb: siswa.fb || '',
                 tiktok: siswa.tiktok || '',
@@ -110,12 +98,12 @@ export default function SiswaPage() {
         } else {
             setEditingId(null);
             setFormData({
-                nama: '',
+                nama_siswa: '', // Changed from nama
                 unit: units.length > 0 ? units[0].nama : '',
                 status: 'Aktif',
-                nowa: '',
+                nowa_wali: '', // Changed from nowa
                 alamat: '',
-                nama_ortu: '',
+                nama_wali: '', // Changed from nama_ortu
                 ig: '',
                 fb: '',
                 tiktok: '',
@@ -131,6 +119,7 @@ export default function SiswaPage() {
         setIsModalOpen(false);
         setEditingId(null);
         setIsViewing(false);
+        setIsSaving(false); // Reset saving state
     };
 
     const handleInputChange = (e) => {
@@ -144,19 +133,20 @@ export default function SiswaPage() {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        setIsSaving(true); // Set saving state
 
         try {
             if (editingId) {
                 // Edit existing in Supabase
                 const { error } = await supabase
-                    .from('siswa')
+                    .from('siswas') // Changed from siswa
                     .update(formData)
                     .eq('id', editingId);
 
                 if (error) throw error;
 
                 // Update local state
-                setSiswaList(siswaList.map(s =>
+                setSiswas(siswas.map(s => // Changed from siswaList
                     s.id === editingId ? { ...s, ...formData } : s
                 ));
             } else {
@@ -166,18 +156,20 @@ export default function SiswaPage() {
                 const newSiswaData = { id: newId, dibuat_pada: today, ...formData };
 
                 const { error } = await supabase
-                    .from('siswa')
+                    .from('siswas') // Changed from siswa
                     .insert([newSiswaData]);
 
                 if (error) throw error;
 
                 // Add to local state
-                setSiswaList([newSiswaData, ...siswaList]);
+                setSiswas([newSiswaData, ...siswas]); // Changed from siswaList
             }
             handleCloseModal();
         } catch (error) {
             console.error('Error saving siswa:', error.message);
             alert('Gagal menyimpan data siswa ke database.');
+        } finally {
+            setIsSaving(false); // Reset saving state
         }
     };
 
@@ -185,7 +177,7 @@ export default function SiswaPage() {
         if (window.confirm("Apakah Anda yakin ingin menghapus data siswa ini?")) {
             try {
                 const { error } = await supabase
-                    .from('siswa')
+                    .from('siswas') // Changed from siswa
                     .delete()
                     .eq('id', id);
 
@@ -197,7 +189,7 @@ export default function SiswaPage() {
                     throw error;
                 }
 
-                setSiswaList(siswaList.filter(s => s.id !== id));
+                setSiswas(siswas.filter(s => s.id !== id)); // Changed from siswaList
             } catch (error) {
                 console.error('Error deleting siswa:', error.message);
                 alert('Gagal menghapus data siswa dari database.');
@@ -217,76 +209,121 @@ export default function SiswaPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <GraduationCap className="text-primary" size={24} /> Daftar Siswa
                     </h2>
-                    <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                        + Tambah Siswa
-                    </button>
+                    <div style={{ display: 'flex', gap: '1rem', alignItems: 'center' }}>
+                        <select
+                            value={itemsPerPage}
+                            onChange={(e) => {
+                                setItemsPerPage(parseInt(e.target.value));
+                                setCurrentPage(1);
+                            }}
+                            className="btn"
+                            style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem' }}
+                        >
+                            <option value={20}>20 per hal</option>
+                            <option value={30}>30 per hal</option>
+                        </select>
+                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                            + Tambah Siswa
+                        </button>
+                    </div>
                 </div>
+            </div>
 
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
-                                {/* ID disembunyikan di tabel utama spt user */}
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Siswa</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No WA</th>
-                                {/* Alamat, Nama Ortu disembunyikan untuk menjaga kerapian, bisa dilihat di View */}
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Sosial Media</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Dibuat Pada</th>
-                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
+            <div style={{ display: 'flex', gap: '0.75rem', marginBottom: '1.25rem', flexDirection: 'column', width: '100%' }}>
+                <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
+                    <div style={{ flex: 1, minWidth: '200px' }}>
+                        <input
+                            type="text"
+                            placeholder="Cari nama, wali, atau program..."
+                            value={search}
+                            onChange={(e) => setSearch(e.target.value)}
+                            style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                        />
+                    </div>
+                    <div style={{ minWidth: '150px' }}>
+                        <select
+                            value={filterUnit}
+                            onChange={(e) => setFilterUnit(e.target.value)}
+                            style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                        >
+                            <option value="">Semua Unit</option>
+                            {units.map(u => <option key={u.nama} value={u.nama}>{u.nama}</option>)}
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <div style={{ overflowX: 'auto' }}>
+                <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+                    <thead>
+                        <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
+                            {/* ID disembunyikan di tabel utama spt user */}
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Siswa</th>
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Nama Wali</th>
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No WA Wali</th>
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Program</th>
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
+                            <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {isLoading ? (
+                            <tr>
+                                <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    Memuat data...
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading ? (
-                                <tr>
-                                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        Memuat data...
-                                    </td>
-                                </tr>
-                            ) : siswaList.length === 0 ? (
-                                <tr>
-                                    <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
-                                        Belum ada data siswa.
-                                    </td>
-                                </tr>
-                            ) : (
-                                siswaList.map((s) => (
+                        ) : (
+                            (() => {
+                                const filteredSiswas = siswas.filter(s => {
+                                    const searchLower = search.toLowerCase();
+                                    const matchSearch = !search ||
+                                        s.nama_siswa?.toLowerCase().includes(searchLower) ||
+                                        s.nama_wali?.toLowerCase().includes(searchLower) ||
+                                        s.program?.toLowerCase().includes(searchLower);
+                                    const matchUnit = !filterUnit || s.unit === filterUnit;
+                                    return matchSearch && matchUnit;
+                                });
+
+                                const totalPages = Math.ceil(filteredSiswas.length / itemsPerPage);
+                                const safePage = Math.min(currentPage, totalPages || 1);
+                                const startIdx = (safePage - 1) * itemsPerPage;
+                                const paginatedSiswas = filteredSiswas.slice(startIdx, startIdx + itemsPerPage);
+
+                                return filteredSiswas.length === 0 ? (
+                                    <tr>
+                                        <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                            Tidak ada siswa yang cocok.
+                                        </td>
+                                    </tr>
+                                ) : paginatedSiswas.map((s) => (
                                     <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }} onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'} onMouseOut={(e) => e.currentTarget.style.backgroundColor = 'transparent'}>
-                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama}</td>
+                                        <td style={{ padding: '1rem', fontWeight: 500 }}>{s.nama_siswa}</td>
+                                        <td style={{ padding: '1rem' }}>{s.nama_wali}</td>
                                         <td style={{ padding: '1rem' }}>
-                                            <span className="badge" style={{ background: '#f3f4f6', color: '#4b5563' }}>
-                                                {s.unit}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            <span className="badge" style={{ background: s.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: s.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
-                                                {s.status}
-                                            </span>
-                                        </td>
-                                        <td style={{ padding: '1rem' }}>
-                                            {s.nowa ? (
+                                            {s.nowa_wali ? (
                                                 <a
-                                                    href={`https://wa.me/${s.nowa.replace(/^0/, '62')}`}
+                                                    href={`https://wa.me/${s.nowa_wali.replace(/^0/, '62')}`}
                                                     target="_blank"
                                                     rel="noreferrer"
                                                     style={{ color: '#25D366', display: 'inline-flex', alignItems: 'center', gap: '4px', textDecoration: 'none', fontWeight: 500 }}
-                                                    title={s.nowa}
+                                                    title={s.nowa_wali}
                                                 >
                                                     <MessageCircle size={18} /> Chat
                                                 </a>
                                             ) : '-'}
                                         </td>
                                         <td style={{ padding: '1rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.5rem', color: 'var(--text-secondary)' }}>
-                                                {s.ig && s.ig !== '-' && <a href={`https://instagram.com/${s.ig.replace('@', '')}`} target="_blank" rel="noreferrer" style={{ color: '#E1306C' }}><Instagram size={16} /></a>}
-                                                {s.fb && s.fb !== '-' && <a href={`https://facebook.com/search/top/?q=${s.fb}`} target="_blank" rel="noreferrer" style={{ color: '#1877F2' }}><Facebook size={16} /></a>}
-                                                {s.tiktok && s.tiktok !== '-' && <a href={`https://tiktok.com/${s.tiktok.startsWith('@') ? s.tiktok : '@' + s.tiktok}`} target="_blank" rel="noreferrer" style={{ color: '#000000' }}><TikTokIcon size={16} /></a>}
-                                                {(!s.ig || s.ig === '-') && (!s.fb || s.fb === '-') && (!s.tiktok || s.tiktok === '-') && '-'}
-                                            </div>
+                                            <span className="badge" style={{ background: '#f3f4f6', color: '#4b5563' }}>
+                                                {s.unit}
+                                            </span>
                                         </td>
-                                        <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>
-                                            {s.dibuat_pada}
+                                        <td style={{ padding: '1rem' }}>{s.booking_program || '-'}</td>
+                                        <td style={{ padding: '1rem' }}>
+                                            <span className="badge" style={{ background: s.status === 'Aktif' ? '#d1fae5' : '#fee2e2', color: s.status === 'Aktif' ? '#047857' : '#b91c1c' }}>
+                                                {s.status}
+                                            </span>
                                         </td>
                                         <td style={{ padding: '1rem' }}>
                                             <div style={{ display: 'flex', gap: '0.5rem' }}>
@@ -314,12 +351,61 @@ export default function SiswaPage() {
                                             </div>
                                         </td>
                                     </tr>
-                                ))
-                            )}
-                        </tbody>
-                    </table>
-                </div>
+                                ));
+                            })()
+                        )}
+                    </tbody>
+                </table>
             </div>
+
+            {/* Pagination Controls */}
+            {(() => {
+                const filteredSiswas = siswas.filter(s => {
+                    const searchLower = search.toLowerCase();
+                    const matchSearch = !search ||
+                        s.nama_siswa?.toLowerCase().includes(searchLower) ||
+                        s.nama_wali?.toLowerCase().includes(searchLower) ||
+                        s.program?.toLowerCase().includes(searchLower);
+                    const matchUnit = !filterUnit || s.unit === filterUnit;
+                    return matchSearch && matchUnit;
+                });
+
+                const totalPages = Math.ceil(filteredSiswas.length / itemsPerPage);
+                if (totalPages <= 1) return null;
+                const safePage = Math.min(currentPage, totalPages);
+                return (
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0' }}>
+                        <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                            Halaman {safePage} dari {totalPages} ({filteredSiswas.length} data)
+                        </span>
+                        <div style={{ display: 'flex', gap: '0.5rem' }}>
+                            <button
+                                onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                                disabled={safePage <= 1}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                ← Sebelumnya
+                            </button>
+                            {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                                <button
+                                    key={page}
+                                    onClick={() => setCurrentPage(page)}
+                                    style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: page === safePage ? 'var(--primary)' : 'var(--surface-color)', color: page === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: page === safePage ? 600 : 400 }}
+                                >
+                                    {page}
+                                </button>
+                            ))}
+                            <button
+                                onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                                disabled={safePage >= totalPages}
+                                style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+                            >
+                                Selanjutnya →
+                            </button>
+                        </div>
+                    </div>
+                );
+            })()}
 
             {/* Modal Form */}
             {isModalOpen && (
@@ -331,6 +417,8 @@ export default function SiswaPage() {
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
+
+
 
                         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
 
