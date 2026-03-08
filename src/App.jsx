@@ -25,6 +25,8 @@ import RoleSetupPage from './pages/RoleSetupPage';
 import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
+import PengajuanReschedulePage from './pages/PengajuanReschedulePage';
+
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -96,6 +98,8 @@ function App() {
           {/* PUBLIC ROUTES */}
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/pengajuan-reschedule" element={<PengajuanReschedulePage />} />
+
 
           {/* PROTECTED LAYOUT */}
           <Route
@@ -119,6 +123,7 @@ function App() {
             <Route path="/reschedule" element={<ReschedulePage />} />
             <Route path="/role-setup" element={<RoleSetupPage />} />
             <Route path="/pengaturan" element={<SettingsPage />} />
+
 
             {/* FALLBACK */}
             <Route
