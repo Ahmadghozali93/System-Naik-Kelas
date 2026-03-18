@@ -16,6 +16,7 @@ const AVAILABLE_MENUS = [
     { path: '/unit', label: 'Manajemen Unit' },
     { path: '/user', label: 'Manajemen User / Guru' },
     { path: '/role-setup', label: 'Setup Hak Akses' },
+    { path: '/jurnal', label: 'Jurnal' },
 ];
 
 export default function RoleSetupPage() {

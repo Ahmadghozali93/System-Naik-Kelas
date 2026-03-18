@@ -26,6 +26,7 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import PengajuanReschedulePage from './pages/PengajuanReschedulePage';
+import JurnalPage from './pages/JurnalPage';
 
 
 import { AuthProvider } from './context/AuthContext';
@@ -123,6 +124,7 @@ function App() {
             <Route path="/reschedule" element={<ReschedulePage />} />
             <Route path="/role-setup" element={<RoleSetupPage />} />
             <Route path="/pengaturan" element={<SettingsPage />} />
+            <Route path="/jurnal" element={<JurnalPage />} />
 
 
             {/* FALLBACK */}

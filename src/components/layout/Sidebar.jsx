@@ -18,7 +18,8 @@ import {
     X,
     Database,
     CalendarRange,
-    Wrench
+    Wrench,
+    FileText
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 
@@ -263,6 +264,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                             </NavLink>
                         ))}
                     </SidebarGroup>
+                )}
+
+                {hasPermission('/jurnal') && (
+                    <NavLink
+                        to="/jurnal"
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen && setIsOpen(false)}
+                    >
+                        <FileText className="w-5 h-5" />
+                        <span style={{ fontWeight: 500 }}>Jurnal</span>
+                    </NavLink>
                 )}
 
                 {pengaturanLinks.length > 0 && (
