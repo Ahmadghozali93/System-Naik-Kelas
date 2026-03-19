@@ -108,8 +108,10 @@ export default function JurnalPage() {
 
   // Fetch datatable jurnal based on filters
   useEffect(() => {
-    fetchJurnals();
-  }, [filterType, filterBulan, filterStartDate, filterEndDate]);
+    if (user) {
+      fetchJurnals();
+    }
+  }, [filterType, filterBulan, filterStartDate, filterEndDate, user]);
 
   const fetchJurnals = async () => {
     setIsLoadingJurnals(true);
@@ -118,9 +120,13 @@ export default function JurnalPage() {
         .from('jurnal_entries')
         .select(`
           id, created_at, timestamp, guru_id, siswa_id, program, unit, level, materi, halaman, hasil, keterangan,
-          gurus ( nama ),
+          gurus!inner ( nama ),
           siswa ( nama )
         `);
+      
+      if (user?.role === 'Guru' && user?.nama) {
+        query = query.ilike('gurus.nama', user.nama);
+      }
       
       // Menerapkan Filter Tanggal
       if (filterType === 'bulan' && filterBulan) {

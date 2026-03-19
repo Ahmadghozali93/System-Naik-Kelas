@@ -156,14 +156,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             )}
 
             <nav className="sidebar-nav" style={{ paddingBottom: '2rem' }}>
-                <NavLink
-                    to="/dashboard"
-                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                    onClick={() => setIsOpen && setIsOpen(false)}
-                >
-                    <LayoutDashboard className="w-5 h-5" />
-                    <span style={{ fontWeight: 500 }}>Dashboard</span>
-                </NavLink>
+                {user?.role !== 'Guru' && (
+                    <NavLink
+                        to="/dashboard"
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen && setIsOpen(false)}
+                    >
+                        <LayoutDashboard className="w-5 h-5" />
+                        <span style={{ fontWeight: 500 }}>Dashboard</span>
+                    </NavLink>
+                )}
 
                 {masterDataLinks.length > 0 && (
                     <SidebarGroup

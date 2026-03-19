@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Plus, X, Search, Filter, Trash2, CalendarX2, Eye, EyeOff, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export default function ReschedulePage() {
+    const { user } = useAuth();
     const [reschedules, setReschedules] = useState([]);
     const [aktivasis, setAktivasis] = useState([]);
     const [jadwals, setJadwals] = useState([]);
@@ -453,9 +455,11 @@ export default function ReschedulePage() {
                                 {showDone ? <EyeOff size={16} /> : <Eye size={16} />}
                                 {showDone ? 'Sembunyikan Selesai' : 'Tampilkan Selesai'}
                             </button>
-                            <button className="btn btn-primary" onClick={handleOpenModal}>
-                                <Plus size={18} /> Reschedule Baru
-                            </button>
+                            {user?.role !== 'Guru' && (
+                                <button className="btn btn-primary" onClick={handleOpenModal}>
+                                    <Plus size={18} /> Reschedule Baru
+                                </button>
+                            )}
                         </div>
                     </div>
 
@@ -525,63 +529,67 @@ export default function ReschedulePage() {
                                                 </span>
                                             </td>
                                             <td style={{ padding: '1rem' }}>
-                                                <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
-                                                    {r.status === 'Pending' && (
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(r.id, 'Approved')}
-                                                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#dbeafe', color: '#1e40af' }}
-                                                        >Approve</button>
-                                                    )}
-                                                    {(r.status === 'Pending' || r.status === 'Approved') && (
-                                                        <button
-                                                            onClick={() => handleUpdateStatus(r.id, 'Done')}
-                                                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#d1fae5', color: '#047857' }}
-                                                        >Done</button>
-                                                    )}
-                                                    {(r.status === 'Approved' || r.status === 'Cancelled') && (() => {
-                                                        const nowa = getSiswaNoWa(r);
-                                                        const waNumber = nowa ? nowa.replace(/^0/, '62') : null;
-                                                        return (
-                                                            <>
-                                                                {waNumber && (
+                                                {user?.role !== 'Guru' ? (
+                                                    <div style={{ display: 'flex', gap: '0.25rem', flexWrap: 'wrap' }}>
+                                                        {r.status === 'Pending' && (
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(r.id, 'Approved')}
+                                                                style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#dbeafe', color: '#1e40af' }}
+                                                            >Approve</button>
+                                                        )}
+                                                        {(r.status === 'Pending' || r.status === 'Approved') && (
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(r.id, 'Done')}
+                                                                style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#d1fae5', color: '#047857' }}
+                                                            >Done</button>
+                                                        )}
+                                                        {(r.status === 'Approved' || r.status === 'Cancelled') && (() => {
+                                                            const nowa = getSiswaNoWa(r);
+                                                            const waNumber = nowa ? nowa.replace(/^0/, '62') : null;
+                                                            return (
+                                                                <>
+                                                                    {waNumber && (
+                                                                        <button
+                                                                            onClick={() => {
+                                                                                const text = buildWaText(r);
+                                                                                window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank');
+                                                                            }}
+                                                                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#16a34a', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                                                            title="Kirim ke Wali Murid"
+                                                                        >
+                                                                            <Send size={12} /> Wali
+                                                                        </button>
+                                                                    )}
                                                                     <button
                                                                         onClick={() => {
                                                                             const text = buildWaText(r);
-                                                                            window.open(`https://wa.me/${waNumber}?text=${encodeURIComponent(text)}`, '_blank');
+                                                                            window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
                                                                         }}
-                                                                        style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#16a34a', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                                        title="Kirim ke Wali Murid"
+                                                                        style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#22c55e', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
+                                                                        title="Kirim ke WA (pilih kontak)"
                                                                     >
-                                                                        <Send size={12} /> Wali
+                                                                        <Send size={12} /> Group
                                                                     </button>
-                                                                )}
-                                                                <button
-                                                                    onClick={() => {
-                                                                        const text = buildWaText(r);
-                                                                        window.open(`https://wa.me/?text=${encodeURIComponent(text)}`, '_blank');
-                                                                    }}
-                                                                    style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#22c55e', color: 'white', display: 'flex', alignItems: 'center', gap: '0.25rem' }}
-                                                                    title="Kirim ke WA (pilih kontak)"
-                                                                >
-                                                                    <Send size={12} /> Group
-                                                                </button>
-                                                            </>
-                                                        );
-                                                    })()}
-                                                    {r.status !== 'Cancelled' && r.status !== 'Done' && (
+                                                                </>
+                                                            );
+                                                        })()}
+                                                        {r.status !== 'Cancelled' && r.status !== 'Done' && (
+                                                            <button
+                                                                onClick={() => handleUpdateStatus(r.id, 'Cancelled')}
+                                                                style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#fee2e2', color: '#b91c1c' }}
+                                                            >Cancel</button>
+                                                        )}
                                                         <button
-                                                            onClick={() => handleUpdateStatus(r.id, 'Cancelled')}
-                                                            style={{ fontSize: '0.7rem', padding: '0.25rem 0.5rem', borderRadius: '0.25rem', border: 'none', cursor: 'pointer', background: '#fee2e2', color: '#b91c1c' }}
-                                                        >Cancel</button>
-                                                    )}
-                                                    <button
-                                                        onClick={() => handleDelete(r.id)}
-                                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.25rem 0.4rem', borderRadius: '0.25rem', display: 'flex', alignItems: 'center' }}
-                                                        title="Hapus"
-                                                    >
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
+                                                            onClick={() => handleDelete(r.id)}
+                                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.25rem 0.4rem', borderRadius: '0.25rem', display: 'flex', alignItems: 'center' }}
+                                                            title="Hapus"
+                                                        >
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Tidak ada akses</div>
+                                                )}
                                             </td>
                                         </tr>
                                     ))

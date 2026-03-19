@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export default function AktivasiHarianPage() {
+    const { user } = useAuth();
     const [aktivasis, setAktivasis] = useState([]);
     const [siswas, setSiswas] = useState([]);
     const [jadwals, setJadwals] = useState([]);
@@ -321,9 +323,11 @@ export default function AktivasiHarianPage() {
                             {showSelesai ? <EyeOff size={16} /> : <Eye size={16} />}
                             {showSelesai ? 'Sembunyikan Selesai' : 'Tampilkan Selesai'}
                         </button>
-                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                            <Plus size={18} /> Aktivasi Baru
-                        </button>
+                        {user?.role !== 'Guru' && (
+                            <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                                <Plus size={18} /> Aktivasi Baru
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -484,21 +488,25 @@ export default function AktivasiHarianPage() {
                                                 </div>
 
                                                 {/* Actions per entry */}
-                                                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginLeft: 'auto' }}>
-                                                    <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
-                                                        <span style={{ position: 'relative', display: 'inline-block', width: '34px', height: '18px' }}>
-                                                            <input type="checkbox" checked={!!a.selesai} onChange={() => handleToggleSelesai(a.id, a.selesai)} style={{ opacity: 0, width: 0, height: 0 }} />
-                                                            <span style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: a.selesai ? '#10b981' : '#d1d5db', borderRadius: '9999px', transition: 'all 0.3s' }} />
-                                                            <span style={{ position: 'absolute', top: '2px', left: a.selesai ? '17px' : '2px', width: '14px', height: '14px', background: 'white', borderRadius: '50%', transition: 'all 0.3s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
-                                                        </span>
-                                                    </label>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleOpenModal(a); }} style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.35rem', borderRadius: '0.3rem', display: 'flex' }} title="Edit">
-                                                        <Edit size={14} />
-                                                    </button>
-                                                    <button onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }} style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.35rem', borderRadius: '0.3rem', display: 'flex' }} title="Hapus">
-                                                        <Trash2 size={14} />
-                                                    </button>
-                                                </div>
+                                                {user?.role !== 'Guru' ? (
+                                                    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center', marginLeft: 'auto' }}>
+                                                        <label style={{ display: 'flex', alignItems: 'center', gap: '0.25rem', cursor: 'pointer', fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
+                                                            <span style={{ position: 'relative', display: 'inline-block', width: '34px', height: '18px' }}>
+                                                                <input type="checkbox" checked={!!a.selesai} onChange={() => handleToggleSelesai(a.id, a.selesai)} style={{ opacity: 0, width: 0, height: 0 }} />
+                                                                <span style={{ position: 'absolute', top: 0, left: 0, right: 0, bottom: 0, background: a.selesai ? '#10b981' : '#d1d5db', borderRadius: '9999px', transition: 'all 0.3s' }} />
+                                                                <span style={{ position: 'absolute', top: '2px', left: a.selesai ? '17px' : '2px', width: '14px', height: '14px', background: 'white', borderRadius: '50%', transition: 'all 0.3s', boxShadow: '0 1px 2px rgba(0,0,0,0.2)' }} />
+                                                            </span>
+                                                        </label>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleOpenModal(a); }} style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.35rem', borderRadius: '0.3rem', display: 'flex' }} title="Edit">
+                                                            <Edit size={14} />
+                                                        </button>
+                                                        <button onClick={(e) => { e.stopPropagation(); handleDelete(a.id); }} style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.35rem', borderRadius: '0.3rem', display: 'flex' }} title="Hapus">
+                                                            <Trash2 size={14} />
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div style={{ marginLeft: 'auto', fontSize: '0.8rem', fontStyle: 'italic', color: 'var(--text-secondary)' }}>Tidak ada akses</div>
+                                                )}
                                             </div>
                                         );
                                     })}

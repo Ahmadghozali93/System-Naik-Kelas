@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, Clock, Save, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 
 export default function JadwalMasterPage() {
+    const { user } = useAuth();
     const [jadwals, setJadwals] = useState([]);
     const [masterJam, setMasterJam] = useState([]);
     const [gurus, setGurus] = useState([]);
@@ -258,14 +260,16 @@ export default function JadwalMasterPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <CalendarDays className="text-primary" size={24} /> Timetable Master
                     </h2>
-                    <div style={{ display: 'flex', gap: '0.75rem' }}>
-                        <button className="btn" style={{ background: '#f3f4f6', color: 'var(--text-primary)' }} onClick={() => setIsJamModalOpen(true)}>
-                            <Clock size={18} /> Kelola Jam
-                        </button>
-                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                            + Buat Jadwal Baru
-                        </button>
-                    </div>
+                    {user?.role !== 'Guru' && (
+                        <div style={{ display: 'flex', gap: '0.75rem' }}>
+                            <button className="btn" style={{ background: '#f3f4f6', color: 'var(--text-primary)' }} onClick={() => setIsJamModalOpen(true)}>
+                                <Clock size={18} /> Kelola Jam
+                            </button>
+                            <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                                + Buat Jadwal Baru
+                            </button>
+                        </div>
+                    )}
                 </div>
 
                 {/* Search & Filters */}
@@ -381,17 +385,21 @@ export default function JadwalMasterPage() {
                                             })()}
                                         </td>
                                         <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
-                                            <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', cursor: 'pointer' }}>
+                                            <label style={{ position: 'relative', display: 'inline-block', width: '44px', height: '24px', cursor: user?.role === 'Guru' ? 'not-allowed' : 'pointer' }}>
                                                 <input
                                                     type="checkbox"
                                                     checked={!!j.reschedule}
-                                                    onChange={() => handleToggleReschedule(j)}
+                                                    onChange={() => {
+                                                        if (user?.role !== 'Guru') handleToggleReschedule(j);
+                                                    }}
+                                                    disabled={user?.role === 'Guru'}
                                                     style={{ opacity: 0, width: 0, height: 0 }}
                                                 />
                                                 <span style={{
                                                     position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
                                                     background: j.reschedule ? '#4f46e5' : '#d1d5db',
-                                                    borderRadius: '24px', transition: 'background 0.3s'
+                                                    borderRadius: '24px', transition: 'background 0.3s',
+                                                    opacity: user?.role === 'Guru' ? 0.6 : 1
                                                 }}>
                                                     <span style={{
                                                         position: 'absolute', height: '18px', width: '18px',
@@ -403,22 +411,26 @@ export default function JadwalMasterPage() {
                                             </label>
                                         </td>
                                         <td style={{ padding: '0.6rem 0.5rem' }}>
-                                            <div style={{ display: 'flex', gap: '0.35rem' }}>
-                                                <button
-                                                    onClick={() => handleOpenModal(j)}
-                                                    style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Edit"
-                                                >
-                                                    <Edit className="w-4 h-4" />
-                                                </button>
-                                                <button
-                                                    onClick={() => handleDelete(j.id)}
-                                                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                    title="Hapus"
-                                                >
-                                                    <Trash2 className="w-4 h-4" />
-                                                </button>
-                                            </div>
+                                            {user?.role !== 'Guru' ? (
+                                                <div style={{ display: 'flex', gap: '0.35rem' }}>
+                                                    <button
+                                                        onClick={() => handleOpenModal(j)}
+                                                        style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Edit"
+                                                    >
+                                                        <Edit className="w-4 h-4" />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => handleDelete(j.id)}
+                                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                        title="Hapus"
+                                                    >
+                                                        <Trash2 className="w-4 h-4" />
+                                                    </button>
+                                                </div>
+                                            ) : (
+                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>Tidak ada akses</span>
+                                            )}
                                         </td>
                                     </tr>
                                 ));

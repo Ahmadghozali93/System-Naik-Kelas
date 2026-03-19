@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Search, Filter, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { useAuth } from '../context/AuthContext';
 import * as XLSX from 'xlsx';
 
 export default function AktivasiRutinPage() {
+    const { user } = useAuth();
     const [aktivasis, setAktivasis] = useState([]);
     const [siswas, setSiswas] = useState([]);
     const [jadwals, setJadwals] = useState([]);
@@ -290,9 +292,11 @@ export default function AktivasiRutinPage() {
                                 Mode Matrix (Jam/Program)
                             </button>
                         </div>
-                        <button className="btn btn-primary" onClick={() => handleOpenModal()}>
-                            <Plus size={18} /> Aktivasi Baru
-                        </button>
+                        {user?.role !== 'Guru' && (
+                            <button className="btn btn-primary" onClick={() => handleOpenModal()}>
+                                <Plus size={18} /> Aktivasi Baru
+                            </button>
+                        )}
                     </div>
                 </div>
 
@@ -421,22 +425,26 @@ export default function AktivasiRutinPage() {
                                                             </span>
                                                         </td>
                                                         <td style={{ padding: '1rem' }}>
-                                                            <div style={{ display: 'flex', gap: '0.5rem' }}>
-                                                                <button
-                                                                    onClick={() => handleOpenModal(a)}
-                                                                    style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                                    title="Edit"
-                                                                >
-                                                                    <Edit className="w-4 h-4" />
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDelete(a.id)}
-                                                                    style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                                                    title="Hapus"
-                                                                >
-                                                                    <Trash2 className="w-4 h-4" />
-                                                                </button>
-                                                            </div>
+                                                            {user?.role !== 'Guru' ? (
+                                                                <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                                                    <button
+                                                                        onClick={() => handleOpenModal(a)}
+                                                                        style={{ color: 'var(--primary)', background: 'rgba(79,70,229,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                        title="Edit"
+                                                                    >
+                                                                        <Edit className="w-4 h-4" />
+                                                                    </button>
+                                                                    <button
+                                                                        onClick={() => handleDelete(a.id)}
+                                                                        style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                                        title="Hapus"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                    </button>
+                                                                </div>
+                                                            ) : (
+                                                                <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', fontStyle: 'italic' }}>Tidak ada akses</span>
+                                                            )}
                                                         </td>
                                                     </tr>
                                                 );
