@@ -33,8 +33,72 @@ import {
     PenSquare,
     BarChart2,
     CalendarOff,
+    KeyRound,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
+import { supabase } from '../../lib/supabase';
+
+function GantiPasswordModal({ onClose }) {
+    const [passwordBaru, setPasswordBaru] = useState('');
+    const [konfirmasi, setKonfirmasi] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [pesan, setPesan] = useState('');
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        if (passwordBaru.length < 6) return setPesan('Password minimal 6 karakter.');
+        if (passwordBaru !== konfirmasi) return setPesan('Konfirmasi password tidak cocok.');
+        setLoading(true);
+        const { error } = await supabase.auth.updateUser({ password: passwordBaru });
+        setLoading(false);
+        if (error) return setPesan('Gagal: ' + error.message);
+        setPesan('✅ Password berhasil diganti!');
+        setTimeout(onClose, 1500);
+    };
+
+    return (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div style={{ background: 'var(--bg-card, #fff)', borderRadius: '1rem', padding: '2rem', width: '100%', maxWidth: '380px', boxShadow: '0 20px 60px rgba(0,0,0,0.3)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+                    <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Ganti Password</h3>
+                    <button onClick={onClose} style={{ background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                </div>
+                <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Password Baru</label>
+                        <input
+                            type="password"
+                            value={passwordBaru}
+                            onChange={e => setPasswordBaru(e.target.value)}
+                            placeholder="Minimal 6 karakter"
+                            required
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '0.5rem', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                        />
+                    </div>
+                    <div>
+                        <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Konfirmasi Password</label>
+                        <input
+                            type="password"
+                            value={konfirmasi}
+                            onChange={e => setKonfirmasi(e.target.value)}
+                            placeholder="Ulangi password baru"
+                            required
+                            style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '0.5rem', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                        />
+                    </div>
+                    {pesan && <p style={{ margin: 0, fontSize: '0.85rem', color: pesan.startsWith('✅') ? 'green' : 'red' }}>{pesan}</p>}
+                    <button
+                        type="submit"
+                        disabled={loading}
+                        style={{ padding: '0.7rem', background: 'var(--primary, #4f46e5)', color: '#fff', border: 'none', borderRadius: '0.5rem', fontWeight: 600, cursor: loading ? 'not-allowed' : 'pointer', opacity: loading ? 0.7 : 1 }}
+                    >
+                        {loading ? 'Menyimpan...' : 'Simpan Password'}
+                    </button>
+                </form>
+            </div>
+        </div>
+    );
+}
 
 const SidebarGroup = ({ title, icon: Icon, isOpen, onToggle, children }) => (
     <div style={{ display: 'flex', flexDirection: 'column', marginBottom: '0.25rem', marginTop: '0.25rem' }}>
@@ -79,6 +143,7 @@ const SidebarGroup = ({ title, icon: Icon, isOpen, onToggle, children }) => (
 const Sidebar = ({ isOpen, setIsOpen }) => {
     const { user, permissions, logout } = useAuth();
     const navigate = useNavigate();
+    const [showGantiPassword, setShowGantiPassword] = useState(false);
 
     // Store only the active group ID, or null if none are active
     const [activeGroup, setActiveGroup] = useState('masterData');
@@ -164,11 +229,21 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             </div>
 
             {user && (
-                <div style={{ padding: '0 1.5rem', marginTop: '1.25rem', marginBottom: '0.5rem', fontSize: '0.9rem' }}>
-                    <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{user.nama}</div>
-                    <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.1rem' }}>{user.role}</div>
+                <div style={{ padding: '0 1.5rem', marginTop: '1.25rem', marginBottom: '0.5rem', fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                    <div>
+                        <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{user.nama}</div>
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.1rem' }}>{user.role}</div>
+                    </div>
+                    <button
+                        onClick={() => setShowGantiPassword(true)}
+                        title="Ganti Password"
+                        style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem', borderRadius: '0.4rem', display: 'flex', alignItems: 'center' }}
+                    >
+                        <KeyRound size={16} />
+                    </button>
                 </div>
             )}
+            {showGantiPassword && <GantiPasswordModal onClose={() => setShowGantiPassword(false)} />}
 
             <nav className="sidebar-nav" style={{ paddingBottom: '2rem' }}>
                 {user?.role !== 'Guru' && (
