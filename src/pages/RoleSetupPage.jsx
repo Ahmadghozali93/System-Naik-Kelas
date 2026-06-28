@@ -4,19 +4,40 @@ import { Shield, Save, CheckSquare, Square } from 'lucide-react';
 import { useAuth } from '../context/authStore';
 
 const AVAILABLE_MENUS = [
-    { path: '/kanban', label: 'Jadwal (10 Hari)' },
-    { path: '/jadwal-master', label: 'Jadwal Master' },
-    { path: '/aktivasi-rutin', label: 'Aktivasi Siswa - Jadwal Rutin' },
-    { path: '/aktivasi-harian', label: 'Aktivasi Siswa - Jadwal Harian' },
-    { path: '/booking', label: 'Booking' },
-    { path: '/jadwal-kosong', label: 'Jadwal Kosong' },
-    { path: '/reschedule', label: 'Reschedule' },
-    { path: '/siswa', label: 'Manajemen Siswa' },
-    { path: '/program', label: 'Manajemen Program' },
-    { path: '/unit', label: 'Manajemen Unit' },
-    { path: '/user', label: 'Manajemen User / Guru' },
-    { path: '/role-setup', label: 'Setup Hak Akses' },
-    { path: '/jurnal', label: 'Jurnal' },
+    // ── Master Data ──────────────────────────────────
+    { path: '/siswa',            label: 'Manajemen Siswa' },
+    { path: '/program',          label: 'Manajemen Program' },
+    { path: '/unit',             label: 'Manajemen Unit' },
+    { path: '/user',             label: 'Manajemen User / Guru' },
+    // ── Jadwal ───────────────────────────────────────
+    { path: '/jadwal-master',    label: 'Jadwal Master' },
+    { path: '/kanban',           label: 'Jadwal (10 Hari)' },
+    { path: '/booking',          label: 'Booking' },
+    { path: '/jadwal-kosong',    label: 'Jadwal Kosong' },
+    { path: '/reschedule',       label: 'Reschedule' },
+    // ── Aktivasi ─────────────────────────────────────
+    { path: '/aktivasi-rutin',   label: 'Aktivasi Siswa - Jadwal Rutin' },
+    { path: '/aktivasi-harian',  label: 'Aktivasi Siswa - Jadwal Harian' },
+    // ── SPP ──────────────────────────────────────────
+    { path: '/spp/tagihan',      label: 'SPP - Tagihan Siswa' },
+    { path: '/spp/rekonsiliasi', label: 'SPP - Rekonsiliasi' },
+    { path: '/spp/faktur-odoo',  label: 'SPP - Faktur Odoo' },
+    { path: '/spp/laporan',      label: 'SPP - Laporan' },
+    // ── Jurnal ───────────────────────────────────────
+    { path: '/jurnal',           label: 'Jurnal Mengajar' },
+    // ── Absensi ──────────────────────────────────────
+    { path: '/absensi/check',        label: 'Absensi - Check In/Out' },
+    { path: '/absensi/dashboard',    label: 'Absensi - Dashboard' },
+    { path: '/absensi/shift',        label: 'Absensi - Master Shift' },
+    { path: '/absensi/jadwal-shift', label: 'Absensi - Jadwal Shift' },
+    { path: '/absensi/izin',         label: 'Absensi - Izin & Cuti' },
+    { path: '/absensi/lembur',       label: 'Absensi - Lembur' },
+    { path: '/absensi/koreksi',      label: 'Absensi - Koreksi Absen' },
+    { path: '/absensi/rekap',        label: 'Absensi - Rekap' },
+    { path: '/absensi/hari-libur',   label: 'Absensi - Hari Libur' },
+    // ── Pengaturan ───────────────────────────────────
+    { path: '/role-setup',       label: 'Setup Hak Akses' },
+    { path: '/pengaturan',       label: 'Pengaturan Aplikasi' },
 ];
 
 export default function RoleSetupPage() {
