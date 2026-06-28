@@ -370,73 +370,91 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {/* SPP GROUP */}
-                {user?.role === 'Admin' && (
+                {['/spp/tagihan','/spp/rekonsiliasi','/spp/faktur-odoo','/spp/laporan'].some(p => hasPermission(p)) && (
                     <SidebarGroup
                         title="SPP"
                         icon={Wallet}
                         isOpen={activeGroup === 'spp'}
                         onToggle={() => toggleGroup('spp')}
                     >
-                        <NavLink to="/spp/tagihan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <Receipt className="w-4 h-4" /><span>Tagihan Siswa</span>
-                        </NavLink>
-                        <NavLink to="/spp/rekonsiliasi" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <ClipboardCheck className="w-4 h-4" /><span>Setor SPP</span>
-                        </NavLink>
-                        <NavLink to="/spp/faktur-odoo" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <FileSpreadsheet className="w-4 h-4" /><span>Faktur Odoo</span>
-                        </NavLink>
-                        <NavLink to="/spp/laporan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <BarChart3 className="w-4 h-4" /><span>Laporan SPP</span>
-                        </NavLink>
+                        {hasPermission('/spp/tagihan') && (
+                            <NavLink to="/spp/tagihan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Receipt className="w-4 h-4" /><span>Tagihan Siswa</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/spp/rekonsiliasi') && (
+                            <NavLink to="/spp/rekonsiliasi" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ClipboardCheck className="w-4 h-4" /><span>Setor SPP</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/spp/faktur-odoo') && (
+                            <NavLink to="/spp/faktur-odoo" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <FileSpreadsheet className="w-4 h-4" /><span>Faktur Odoo</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/spp/laporan') && (
+                            <NavLink to="/spp/laporan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <BarChart3 className="w-4 h-4" /><span>Laporan SPP</span>
+                            </NavLink>
+                        )}
                     </SidebarGroup>
                 )}
 
                 {/* ABSENSI GROUP */}
-                <SidebarGroup
-                    title="Absensi"
-                    icon={Clock}
-                    isOpen={activeGroup === 'absensi'}
-                    onToggle={() => { setActiveGroup(p => p === 'absensi' ? null : 'absensi'); setIsAktivasiOpen(false); }}
-                >
-                    <NavLink to="/absensi/check" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                        <ScanFace className="w-4 h-4" /><span>Check-in / Check-out</span>
-                    </NavLink>
-                    {user?.role === 'Admin' && (
-                        <NavLink to="/absensi/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <BarChart2 className="w-4 h-4" /><span>Dashboard Absensi</span>
-                        </NavLink>
-                    )}
-                    {user?.role === 'Admin' && (
-                        <NavLink to="/absensi/shift" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <CalendarClock className="w-4 h-4" /><span>Master Shift</span>
-                        </NavLink>
-                    )}
-                    {user?.role === 'Admin' && (
-                        <NavLink to="/absensi/jadwal-shift" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <CalendarDays className="w-4 h-4" /><span>Jadwal Shift</span>
-                        </NavLink>
-                    )}
-                    <NavLink to="/absensi/izin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                        <Umbrella className="w-4 h-4" /><span>Izin & Cuti</span>
-                    </NavLink>
-                    <NavLink to="/absensi/lembur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                        <Timer className="w-4 h-4" /><span>Lembur</span>
-                    </NavLink>
-                    <NavLink to="/absensi/koreksi" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                        <PenSquare className="w-4 h-4" /><span>Koreksi Absen</span>
-                    </NavLink>
-                    {user?.role === 'Admin' && (
-                        <NavLink to="/absensi/rekap" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <BarChart3 className="w-4 h-4" /><span>Rekap Absensi</span>
-                        </NavLink>
-                    )}
-                    {user?.role === 'Admin' && (
-                        <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                            <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>
-                        </NavLink>
-                    )}
-                </SidebarGroup>
+                {['/absensi/check','/absensi/dashboard','/absensi/shift','/absensi/jadwal-shift','/absensi/izin','/absensi/lembur','/absensi/koreksi','/absensi/rekap','/absensi/hari-libur'].some(p => hasPermission(p)) && (
+                    <SidebarGroup
+                        title="Absensi"
+                        icon={Clock}
+                        isOpen={activeGroup === 'absensi'}
+                        onToggle={() => { setActiveGroup(p => p === 'absensi' ? null : 'absensi'); setIsAktivasiOpen(false); }}
+                    >
+                        {hasPermission('/absensi/check') && (
+                            <NavLink to="/absensi/check" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ScanFace className="w-4 h-4" /><span>Check-in / Check-out</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/dashboard') && (
+                            <NavLink to="/absensi/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <BarChart2 className="w-4 h-4" /><span>Dashboard Absensi</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/shift') && (
+                            <NavLink to="/absensi/shift" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <CalendarClock className="w-4 h-4" /><span>Master Shift</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/jadwal-shift') && (
+                            <NavLink to="/absensi/jadwal-shift" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <CalendarDays className="w-4 h-4" /><span>Jadwal Shift</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/izin') && (
+                            <NavLink to="/absensi/izin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Umbrella className="w-4 h-4" /><span>Izin & Cuti</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/lembur') && (
+                            <NavLink to="/absensi/lembur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Timer className="w-4 h-4" /><span>Lembur</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/koreksi') && (
+                            <NavLink to="/absensi/koreksi" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <PenSquare className="w-4 h-4" /><span>Koreksi Absen</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/rekap') && (
+                            <NavLink to="/absensi/rekap" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <BarChart3 className="w-4 h-4" /><span>Rekap Absensi</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/hari-libur') && (
+                            <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>
+                            </NavLink>
+                        )}
+                    </SidebarGroup>
+                )}
 
                 {pengaturanLinks.length > 0 && (
                     <SidebarGroup
