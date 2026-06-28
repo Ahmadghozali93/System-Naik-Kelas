@@ -1,22 +1,22 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authStore';
 import { LogIn, UserPlus, BookOpen, MapPin } from 'lucide-react';
-import { supabase } from '../lib/supabase';
 import MapPicker from '../components/MapPicker';
+import DatePicker from '../components/DatePicker';
 
 export default function LoginPage() {
     const [activeView, setActiveView] = useState('login');
     const [credentials, setCredentials] = useState({ email: '', password: '' });
     const [errorMsg, setErrorMsg] = useState('');
     const [successMsg, setSuccessMsg] = useState('');
-    const { login, loading } = useAuth();
+    const { login, signUp, loading } = useAuth();
     const navigate = useNavigate();
 
     // Sign Up form (no status field — admin controls that)
     const [signUpData, setSignUpData] = useState({
         email: '', password: '', nama: '', role: 'Guru',
-        nowa: '', alamat: '', maps: ''
+        nowa: '', alamat: '', maps: '', tanggal_lahir: ''
     });
     const [signUpLoading, setSignUpLoading] = useState(false);
     const [locationCoords, setLocationCoords] = useState(null);
@@ -63,26 +63,39 @@ export default function LoginPage() {
             setSignUpLoading(false);
             return;
         }
+        if (!signUpData.tanggal_lahir) {
+            setErrorMsg('Tanggal lahir wajib diisi.');
+            setSignUpLoading(false);
+            return;
+        }
+        if (!signUpData.maps) {
+            setErrorMsg('Lokasi rumah (maps) wajib dipilih di peta.');
+            setSignUpLoading(false);
+            return;
+        }
 
         try {
-            const { data: existing } = await supabase
-                .from('gurus').select('id').eq('email', signUpData.email).single();
+            const result = await signUp({
+                email: signUpData.email,
+                password: signUpData.password,
+                nama: signUpData.nama,
+                nowa: signUpData.nowa,
+                alamat: signUpData.alamat,
+                maps: signUpData.maps,
+                tanggal_lahir: signUpData.tanggal_lahir,
+            });
 
-            if (existing) {
-                setErrorMsg('Email sudah terdaftar. Silakan gunakan email lain atau login.');
+            if (!result.success) {
+                // Pesan umum agar tidak membocorkan email mana yang terdaftar
+                setErrorMsg(result.error?.includes('already')
+                    ? 'Email sudah terdaftar. Silakan login atau gunakan email lain.'
+                    : 'Gagal mendaftar. Silakan coba lagi.');
                 setSignUpLoading(false);
                 return;
             }
 
-            const newId = 'GURU-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-            const { error } = await supabase
-                .from('gurus')
-                .insert([{ id: newId, status: 'Tidak Aktif', ...signUpData }]);
-
-            if (error) throw error;
-
             setSuccessMsg('Pendaftaran berhasil! Akun Anda akan diaktifkan oleh admin terlebih dahulu sebelum bisa digunakan.');
-            setSignUpData({ email: '', password: '', nama: '', role: 'Guru', nowa: '', alamat: '', maps: '' });
+            setSignUpData({ email: '', password: '', nama: '', role: 'Guru', nowa: '', alamat: '', maps: '', tanggal_lahir: '' });
             setTimeout(() => setActiveView('login'), 2000);
         } catch (error) {
             console.error('Error:', error.message);
@@ -170,6 +183,15 @@ export default function LoginPage() {
                                 <input type="text" name="nama" value={signUpData.nama} onChange={handleSignUpChange} style={inputStyle} required placeholder="Nama lengkap" />
                             </div>
                             <div>
+                                <label style={labelStyle}>Tanggal Lahir *</label>
+                                <DatePicker
+                                    name="tanggal_lahir"
+                                    value={signUpData.tanggal_lahir}
+                                    onChange={handleSignUpChange}
+                                    required
+                                />
+                            </div>
+                            <div>
                                 <label style={labelStyle}>No. WhatsApp *</label>
                                 <input type="tel" name="nowa" value={signUpData.nowa} onChange={handleSignUpChange} style={inputStyle} required placeholder="08xxxxxxxxxx" />
                             </div>
@@ -183,7 +205,7 @@ export default function LoginPage() {
                             </div>
 
                             <div>
-                                <label style={labelStyle}>Lokasi Rumah (Maps)</label>
+                                <label style={labelStyle}>Lokasi Rumah (Maps) *</label>
                                 {showMapPicker ? (
                                     <MapPicker
                                         onLocationSelect={handleLocationSelect}

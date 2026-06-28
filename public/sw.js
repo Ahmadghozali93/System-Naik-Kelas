@@ -1,5 +1,5 @@
 // Basic Service Worker for PWA — Network-first strategy
-const CACHE_NAME = 'bimbel-app-cache-v2';
+const CACHE_NAME = 'bimbel-app-cache-v3';
 const urlsToCache = [
     '/vite.svg'
 ];
@@ -15,6 +15,15 @@ self.addEventListener('install', event => {
 });
 
 self.addEventListener('fetch', event => {
+    const requestUrl = new URL(event.request.url);
+
+    // Jangan cache panggilan API / lintas-origin (mis. Supabase) atau method non-GET.
+    // Ini mencegah data basi dan respons sensitif tersimpan di disk browser.
+    const isSameOrigin = requestUrl.origin === self.location.origin;
+    if (event.request.method !== 'GET' || !isSameOrigin) {
+        return; // biarkan browser menanganinya langsung ke jaringan
+    }
+
     // For navigation requests (HTML pages), always go network-first
     if (event.request.mode === 'navigate') {
         event.respondWith(

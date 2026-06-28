@@ -1,24 +1,22 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Settings, Upload, Save, Image, Type, RotateCcw } from 'lucide-react';
 
-export default function SettingsPage() {
-    const [appName, setAppName] = useState('BimbelPro');
-    const [logoUrl, setLogoUrl] = useState('');
-    const [previewLogo, setPreviewLogo] = useState('');
-    const [saved, setSaved] = useState(false);
+// Baca setting tersimpan sekali saja (dipakai sebagai nilai awal state)
+function loadSettings() {
+    try {
+        return JSON.parse(localStorage.getItem('app_settings') || '{}');
+    } catch (e) {
+        console.error('Error loading settings:', e);
+        return {};
+    }
+}
 
-    useEffect(() => {
-        try {
-            const settings = JSON.parse(localStorage.getItem('app_settings') || '{}');
-            if (settings.appName) setAppName(settings.appName);
-            if (settings.logoUrl) {
-                setLogoUrl(settings.logoUrl);
-                setPreviewLogo(settings.logoUrl);
-            }
-        } catch (e) {
-            console.error('Error loading settings:', e);
-        }
-    }, []);
+export default function SettingsPage() {
+    const [initial] = useState(loadSettings);
+    const [appName, setAppName] = useState(initial.appName || 'BimbelPro');
+    const [logoUrl, setLogoUrl] = useState(initial.logoUrl || '');
+    const [previewLogo, setPreviewLogo] = useState(initial.logoUrl || '');
+    const [saved, setSaved] = useState(false);
 
     const handleLogoUpload = (e) => {
         const file = e.target.files[0];

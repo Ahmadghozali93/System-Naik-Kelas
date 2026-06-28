@@ -1,11 +1,10 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { useAuth } from '../context/AuthContext';
 import { X, MessageCircle, Send, UserPlus, CheckCircle2, BookOpen, Users, Star, ChevronRight, Award, GraduationCap, LogIn, Target, Gamepad2, Layers, FileText, Brain, PencilLine, Puzzle, ArrowDown, Heart, TrendingUp, Smile } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import DatePicker from '../components/DatePicker';
 
 export default function LandingPage() {
-    const { user } = useAuth();
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
@@ -13,7 +12,7 @@ export default function LandingPage() {
     const [programs, setPrograms] = useState([]);
 
     const [formData, setFormData] = useState({
-        nama: '', nama_ortu: '', unit: '', nowa: '', alamat: '',
+        nama: '', tanggal_lahir: '', nama_ortu: '', unit: '', nowa: '', alamat: '',
         ig: '', fb: '', tiktok: ''
     });
 
@@ -47,7 +46,7 @@ export default function LandingPage() {
             const { error } = await supabase.from('siswa').insert([{ id: newId, dibuat_pada: today, status: 'Booking', ...formData }]);
             if (error) throw error;
             setSubmitSuccess(true);
-            setFormData({ nama: '', nama_ortu: '', unit: units.length > 0 ? units[0].nama : '', nowa: '', alamat: '', ig: '', fb: '', tiktok: '' });
+            setFormData({ nama: '', tanggal_lahir: '', nama_ortu: '', unit: units.length > 0 ? units[0].nama : '', nowa: '', alamat: '', ig: '', fb: '', tiktok: '' });
         } catch (error) {
             console.error('Error:', error.message);
             alert('Gagal mengirim pendaftaran. Silakan coba lagi.');
@@ -587,6 +586,15 @@ export default function LandingPage() {
                                     <div>
                                         <label>Nama Lengkap Siswa *</label>
                                         <input type="text" name="nama" value={formData.nama} onChange={handleInputChange} required placeholder="Nama siswa" />
+                                    </div>
+                                    <div>
+                                        <label>Tanggal Lahir *</label>
+                                        <DatePicker
+                                            name="tanggal_lahir"
+                                            value={formData.tanggal_lahir}
+                                            onChange={handleInputChange}
+                                            required
+                                        />
                                     </div>
                                     <div>
                                         <label>Nama Orang Tua/Wali *</label>

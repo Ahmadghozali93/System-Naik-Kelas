@@ -1,14 +1,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { RefreshCw, Plus, X, Search, Filter, Trash2, CalendarX2, Eye, EyeOff, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authStore';
 
 export default function ReschedulePage() {
     const { user } = useAuth();
     const [reschedules, setReschedules] = useState([]);
     const [aktivasis, setAktivasis] = useState([]);
     const [jadwals, setJadwals] = useState([]);
-    const [masterJam, setMasterJam] = useState([]);
+    const [, setMasterJam] = useState([]);
     const [siswas, setSiswas] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
@@ -125,28 +125,8 @@ export default function ReschedulePage() {
         return jams;
     };
 
-    // Available target jadwals = slot kosong dari Jadwal 10 Hari (sisa kuota > 0)
-    const getAvailableTargetJadwals = () => {
-        if (!selectedAktivasi) return [];
-
-        return jadwals
-            .filter(j => {
-                if (!j.reschedule) return false; // only jadwals with reschedule enabled
-                if (j.id === selectedAktivasi.jadwal_id) return false; // can't reschedule to same jadwal
-                return true;
-            })
-            .map(j => {
-                const activeCount = aktivasis.filter(a => a.jadwal_id === j.id && a.status === 'Aktif').length;
-                const sisaKuota = (j.kuota || 0) - activeCount;
-                return { ...j, sisaKuota };
-            })
-            .filter(j => j.sisaKuota > 0);
-    };
-
-    const availableTargets = getAvailableTargetJadwals();
 
     const handleOpenModal = () => {
-        const today = new Date().toISOString().split('T')[0];
         setFormData({
             aktivasi_id: '',
             tanggal_asal: '',
@@ -197,19 +177,6 @@ export default function ReschedulePage() {
             const { error } = await supabase.from('reschedules').update({ status: newStatus }).eq('id', id);
             if (error) throw error;
 
-            // Jika status Done → jadwal asal dikosongkan (aktivasi diubah ke 'Reschedule')
-            if (newStatus === 'Done') {
-                const reschedule = reschedules.find(r => r.id === id);
-                if (reschedule && reschedule.aktivasi_id) {
-                    const { error: aktError } = await supabase
-                        .from('aktivasi_siswa')
-                        .update({ status: 'Reschedule' })
-                        .eq('id', reschedule.aktivasi_id);
-                    if (aktError) {
-                        console.error('Gagal mengosongkan jadwal asal:', aktError.message);
-                    }
-                }
-            }
 
             setReschedules(reschedules.map(r => r.id === id ? { ...r, status: newStatus } : r));
             // Refresh data to update kuota

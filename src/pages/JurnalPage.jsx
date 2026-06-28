@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from '../lib/supabase';
 import { Save, Plus, Trash2, BookOpen, X, FileText, ChevronDown, Download, Calendar, Filter, Users } from 'lucide-react';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authStore';
 
 const SearchableStudentDropdown = ({ siswas, value, onChange, placeholder = "-- Pilih Anak Didik --" }) => {
   const [isOpen, setIsOpen] = useState(false);
@@ -86,7 +86,7 @@ export default function JurnalPage() {
   // Form State
   const [guruId, setGuruId] = useState('');
   const [items, setItems] = useState([
-    { siswa_id: '', program: '', unit: '', level: '', materi: '', halaman: '', hasil: '', ket: '' }
+    { _siswa_key: '', siswa_id: '', program: '', unit: '', level: '', materi: '', halaman: '', hasil: '', ket: '' }
   ]);
   const [expandedIndex, setExpandedIndex] = useState(0); // Accordion state
   const [isSaving, setIsSaving] = useState(false);
@@ -98,8 +98,15 @@ export default function JurnalPage() {
   // Filter States
   const [filterType, setFilterType] = useState('bulan'); // 'semua', 'bulan', 'custom'
   const [filterBulan, setFilterBulan] = useState(new Date().toISOString().slice(0, 7)); // YYYY-MM
+  const [filterBulanNum, setFilterBulanNum] = useState(String(new Date().getMonth() + 1));
+  const [filterBulanTahun, setFilterBulanTahun] = useState(String(new Date().getFullYear()));
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [search, setSearch] = useState('');
+
+  // Pagination State
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(50);
 
   // Fetch init master data
   useEffect(() => {
@@ -116,41 +123,48 @@ export default function JurnalPage() {
   const fetchJurnals = async () => {
     setIsLoadingJurnals(true);
     try {
-      let query = supabase
-        .from('jurnal_entries')
-        .select(`
-          id, created_at, timestamp, guru_id, siswa_id, program, unit, level, materi, halaman, hasil, keterangan,
-          gurus!inner ( nama ),
-          siswa ( nama )
-        `);
-      
-      if (user?.role === 'Guru' && user?.nama) {
-        query = query.ilike('gurus.nama', user.nama);
+      const PAGE_SIZE = 1000;
+      let allData = [];
+      let from = 0;
+
+      while (true) {
+        let query = supabase
+          .from('jurnal_entries')
+          .select(`
+            id, created_at, timestamp, guru_id, siswa_id, program, unit, level, materi, halaman, hasil, keterangan,
+            gurus!inner ( nama ),
+            siswa ( nama )
+          `);
+
+        if (user?.role === 'Guru' && user?.nama) {
+          query = query.ilike('gurus.nama', user.nama);
+        }
+
+        if (filterType === 'bulan' && filterBulan) {
+          const startDate = `${filterBulan}-01T00:00:00.000Z`;
+          const nextMonthDate = new Date(`${filterBulan}-01`);
+          nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
+          const endDate = nextMonthDate.toISOString();
+          query = query.gte('created_at', startDate).lt('created_at', endDate);
+        } else if (filterType === 'custom' && filterStartDate && filterEndDate) {
+          const startDate = new Date(filterStartDate);
+          startDate.setHours(0, 0, 0, 0);
+          const endDate = new Date(filterEndDate);
+          endDate.setHours(23, 59, 59, 999);
+          query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
+        }
+
+        query = query.order('created_at', { ascending: false }).range(from, from + PAGE_SIZE - 1);
+
+        const { data, error } = await query;
+        if (error) throw error;
+
+        allData = allData.concat(data || []);
+        if (!data || data.length < PAGE_SIZE) break;
+        from += PAGE_SIZE;
       }
-      
-      // Menerapkan Filter Tanggal
-      if (filterType === 'bulan' && filterBulan) {
-        const startDate = `${filterBulan}-01T00:00:00.000Z`;
-        const nextMonthDate = new Date(`${filterBulan}-01`);
-        nextMonthDate.setMonth(nextMonthDate.getMonth() + 1);
-        const endDate = nextMonthDate.toISOString();
-        
-        query = query.gte('created_at', startDate).lt('created_at', endDate);
-      } else if (filterType === 'custom' && filterStartDate && filterEndDate) {
-        const startDate = new Date(filterStartDate);
-        startDate.setHours(0,0,0,0);
-        
-        const endDate = new Date(filterEndDate);
-        endDate.setHours(23,59,59,999);
-        
-        query = query.gte('created_at', startDate.toISOString()).lte('created_at', endDate.toISOString());
-      }
-      
-      query = query.order('created_at', { ascending: false });
-        
-      const { data, error } = await query;
-      if (error) throw error;
-      setJurnals(data || []);
+
+      setJurnals(allData);
     } catch (err) {
       console.error('Error fetching jurnals:', err);
     } finally {
@@ -182,32 +196,33 @@ export default function JurnalPage() {
         setGuruId(guruRes.data[0].id);
       }
 
-      // Olah data aktivasi siswa agar unik (mencegah duplikat jika 1 anak punya 2 jadwal)
+      // Olah data aktivasi: 1 siswa dengan 2 program → 2 entri terpisah di dropdown
       if (aktivasiRes.data) {
-        const uniqueSiswas = {};
-        
-        aktivasiRes.data.forEach(as => {
-          if (!uniqueSiswas[as.siswa_id]) {
-            let unitVal = as.siswa?.unit || '';
-            let programVal = '';
-            
-            // Coba ambil dari snapshot detail_jadwal jika tersedia
-            if (as.detail_jadwal) {
-               if (as.detail_jadwal.unit) unitVal = as.detail_jadwal.unit;
-               if (as.detail_jadwal.nama_program) programVal = as.detail_jadwal.nama_program;
-            }
+        const uniqueEntries = {};
 
-            uniqueSiswas[as.siswa_id] = {
-              id: as.siswa_id,
+        aktivasiRes.data.forEach(as => {
+          let unitVal = as.siswa?.unit || '';
+          let programVal = '';
+
+          if (as.detail_jadwal) {
+            if (as.detail_jadwal.unit) unitVal = as.detail_jadwal.unit;
+            if (as.detail_jadwal.nama_program) programVal = as.detail_jadwal.nama_program;
+          }
+
+          // Key unik per kombinasi siswa + program
+          const compositeKey = `${as.siswa_id}::${programVal}`;
+          if (!uniqueEntries[compositeKey]) {
+            uniqueEntries[compositeKey] = {
+              id: compositeKey,      // dipakai oleh dropdown sebagai value
+              siswa_id: as.siswa_id, // ID asli untuk disimpan ke DB
               nama: as.nama_siswa,
               unit: unitVal,
               program: programVal
             };
           }
         });
-        
-        // Urutkan berdasarkan nama
-        setSiswas(Object.values(uniqueSiswas).sort((a,b) => a.nama.localeCompare(b.nama)));
+
+        setSiswas(Object.values(uniqueEntries).sort((a, b) => a.nama.localeCompare(b.nama)));
       }
 
     } catch (err) {
@@ -219,7 +234,7 @@ export default function JurnalPage() {
     const newIndex = items.length;
     setItems([
       ...items,
-      { siswa_id: '', program: '', unit: '', level: '', materi: '', halaman: '', hasil: '', ket: '' }
+      { _siswa_key: '', siswa_id: '', program: '', unit: '', level: '', materi: '', halaman: '', hasil: '', ket: '' }
     ]);
     // Otomatis expand form yang baru ditambahkan
     setExpandedIndex(newIndex);
@@ -244,12 +259,14 @@ export default function JurnalPage() {
     const newItems = [...items];
     newItems[index][field] = value;
 
-    if (field === 'siswa_id') {
+    if (field === '_siswa_key') {
       const selectedSiswa = siswas.find(s => s.id === value);
       if (selectedSiswa) {
+        newItems[index].siswa_id = selectedSiswa.siswa_id;
         newItems[index].unit = selectedSiswa.unit || '';
         newItems[index].program = selectedSiswa.program || '';
       } else {
+        newItems[index].siswa_id = '';
         newItems[index].unit = '';
         newItems[index].program = '';
       }
@@ -291,7 +308,7 @@ export default function JurnalPage() {
       
       alert('Yeay! Berhasil menyimpan jurnal ke Database!');
 
-      setItems([{ siswa_id: '', program: '', unit: '', level: '', materi: '', halaman: '', hasil: '', ket: '' }]);
+      setItems([{ _siswa_key: '', siswa_id: '', program: '', unit: '', level: '', materi: '', halaman: '', hasil: '', ket: '' }]);
       setExpandedIndex(0);
       setIsModalOpen(false); 
 
@@ -363,11 +380,30 @@ export default function JurnalPage() {
     }
   };
 
+  // Filter pencarian lokal
+  const filteredJurnals = jurnals.filter(j => {
+    if (!search) return true;
+    const q = search.toLowerCase();
+    return (
+      j.gurus?.nama?.toLowerCase().includes(q) ||
+      j.siswa?.nama?.toLowerCase().includes(q) ||
+      j.program?.toLowerCase().includes(q) ||
+      j.unit?.toLowerCase().includes(q) ||
+      j.materi?.toLowerCase().includes(q) ||
+      j.level?.toLowerCase().includes(q)
+    );
+  });
+
+  // Pagination kalkulasi
+  const totalPages = Math.ceil(filteredJurnals.length / itemsPerPage);
+  const safePage = Math.min(currentPage, totalPages || 1);
+  const paginatedJurnals = filteredJurnals.slice((safePage - 1) * itemsPerPage, safePage * itemsPerPage);
+
   // Analytics Calculation
   // 1. Total murid diinput
-  const totalSiswaDiinput = jurnals.length;
+  const totalSiswaDiinput = filteredJurnals.length;
   // 2. Breakdown per Program
-  const programCounts = jurnals.reduce((acc, curr) => {
+  const programCounts = filteredJurnals.reduce((acc, curr) => {
     const prog = curr.program || 'Tanpa Program';
     acc[prog] = (acc[prog] || 0) + 1;
     return acc;
@@ -447,6 +483,13 @@ export default function JurnalPage() {
       <div className="glass-card" style={{ padding: '1.5rem', marginBottom: '1.5rem', display: 'flex', flexWrap: 'wrap', gap: '1rem', justifyContent: 'space-between', alignItems: 'center' }}>
          
          <div style={{ display: 'flex', gap: '1rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <input
+              type="text"
+              placeholder="Cari guru, siswa, program..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
+              style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', minWidth: '220px' }}
+            />
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
                 <Filter className="w-4 h-4" /> Filter Waktu:
             </div>
@@ -462,13 +505,34 @@ export default function JurnalPage() {
             </select>
             
             {filterType === 'bulan' && (
-               <input
-                 type="month"
-                 value={filterBulan}
-                 onChange={(e) => setFilterBulan(e.target.value)}
-                 className="form-input"
-                 style={{ padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-               />
+               <div style={{ display: 'flex', gap: '0.4rem' }}>
+                 <select
+                   value={filterBulanNum}
+                   onChange={(e) => {
+                     const b = e.target.value;
+                     setFilterBulanNum(b);
+                     setFilterBulan(`${filterBulanTahun}-${String(b).padStart(2,'0')}`);
+                   }}
+                   style={{ padding: '0.5rem 0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit', fontSize: '0.88rem' }}
+                 >
+                   {['Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'].map((b,i) => (
+                     <option key={i} value={String(i+1)}>{b}</option>
+                   ))}
+                 </select>
+                 <select
+                   value={filterBulanTahun}
+                   onChange={(e) => {
+                     const y = e.target.value;
+                     setFilterBulanTahun(y);
+                     setFilterBulan(`${y}-${String(filterBulanNum).padStart(2,'0')}`);
+                   }}
+                   style={{ padding: '0.5rem 0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit', fontSize: '0.88rem' }}
+                 >
+                   {Array.from({ length: 5 }, (_,i) => new Date().getFullYear() - 2 + i).map(y => (
+                     <option key={y} value={String(y)}>{y}</option>
+                   ))}
+                 </select>
+               </div>
             )}
 
             {filterType === 'custom' && (
@@ -526,7 +590,7 @@ export default function JurnalPage() {
                                 Memuat data jurnal...
                             </td>
                         </tr>
-                    ) : jurnals.length === 0 ? (
+                    ) : filteredJurnals.length === 0 ? (
                         <tr>
                             <td colSpan="7" style={{ padding: '3rem 2rem', textAlign: 'center' }}>
                                 <FileText className="w-12 h-12 text-primary" style={{ margin: '0 auto', opacity: 0.3, marginBottom: '1rem' }} />
@@ -535,7 +599,7 @@ export default function JurnalPage() {
                             </td>
                         </tr>
                     ) : (
-                        jurnals.map((jurnal) => {
+                        paginatedJurnals.map((jurnal) => {
                             const dateObj = new Date(jurnal.created_at);
                             const tglFormated = dateObj.toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' });
                             const timeFormated = dateObj.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
@@ -589,6 +653,68 @@ export default function JurnalPage() {
         </div>
       </div>
 
+      {/* Pagination Controls */}
+      {!isLoadingJurnals && totalPages > 1 && (
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem', padding: '0.5rem 0', flexWrap: 'wrap', gap: '1rem' }}>
+          <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+            Halaman {safePage} dari {totalPages} &nbsp;·&nbsp; {filteredJurnals.length} data
+          </span>
+          <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setCurrentPage(1)}
+              disabled={safePage <= 1}
+              style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+            >«</button>
+            <button
+              onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+              disabled={safePage <= 1}
+              style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage <= 1 ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage <= 1 ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage <= 1 ? '#9ca3af' : 'var(--text-primary)' }}
+            >← Sebelumnya</button>
+
+            {Array.from({ length: totalPages }, (_, i) => i + 1)
+              .filter(p => p === 1 || p === totalPages || Math.abs(p - safePage) <= 2)
+              .reduce((acc, p, idx, arr) => {
+                if (idx > 0 && p - arr[idx - 1] > 1) acc.push('...');
+                acc.push(p);
+                return acc;
+              }, [])
+              .map((item, idx) =>
+                item === '...' ? (
+                  <span key={`ellipsis-${idx}`} style={{ padding: '0 0.25rem', color: 'var(--text-secondary)' }}>…</span>
+                ) : (
+                  <button
+                    key={item}
+                    onClick={() => setCurrentPage(item)}
+                    style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: item === safePage ? 'var(--primary)' : 'var(--surface-color)', color: item === safePage ? 'white' : 'var(--text-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: item === safePage ? 600 : 400 }}
+                  >{item}</button>
+                )
+              )}
+
+            <button
+              onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+              disabled={safePage >= totalPages}
+              style={{ padding: '0.4rem 0.85rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+            >Selanjutnya →</button>
+            <button
+              onClick={() => setCurrentPage(totalPages)}
+              disabled={safePage >= totalPages}
+              style={{ padding: '0.4rem 0.7rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: safePage >= totalPages ? '#f3f4f6' : 'var(--surface-color)', cursor: safePage >= totalPages ? 'not-allowed' : 'pointer', fontSize: '0.85rem', color: safePage >= totalPages ? '#9ca3af' : 'var(--text-primary)' }}
+            >»</button>
+
+            <select
+              value={itemsPerPage}
+              onChange={(e) => { setItemsPerPage(parseInt(e.target.value)); setCurrentPage(1); }}
+              className="btn"
+              style={{ padding: '0.4rem 0.5rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', fontSize: '0.875rem', marginLeft: '0.5rem' }}
+            >
+              <option value={25}>25 per hal</option>
+              <option value={50}>50 per hal</option>
+              <option value={100}>100 per hal</option>
+            </select>
+          </div>
+        </div>
+      )}
+
       {/* Modal Form Jurnal (Satu Kolom - Accordion Style) */}
       {isModalOpen && (
         <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 0' }}>
@@ -631,7 +757,10 @@ export default function JurnalPage() {
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
                   {items.map((item, index) => {
                     const isExpanded = expandedIndex === index;
-                    const selectedName = siswas.find(s => s.id === item.siswa_id)?.nama || 'Belum dipilih';
+                    const selectedEntry = siswas.find(s => s.id === item._siswa_key);
+                    const selectedName = selectedEntry
+                      ? selectedEntry.program ? `${selectedEntry.nama} — ${selectedEntry.program}` : selectedEntry.nama
+                      : 'Belum dipilih';
 
                     return (
                       <div key={index} style={{ border: '1px solid var(--glass-border)', borderRadius: '0.5rem', background: 'var(--surface-color)', overflow: 'hidden' }}>
@@ -676,10 +805,10 @@ export default function JurnalPage() {
                           <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div>
                               <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Nama Siswa</label>
-                              <SearchableStudentDropdown 
+                              <SearchableStudentDropdown
                                 siswas={siswas}
-                                value={item.siswa_id}
-                                onChange={(val) => handleItemChange(index, 'siswa_id', val)}
+                                value={item._siswa_key}
+                                onChange={(val) => handleItemChange(index, '_siswa_key', val)}
                               />
                             </div>
                             

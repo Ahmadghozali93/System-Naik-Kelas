@@ -23,6 +23,49 @@ export default function MapPicker({ onLocationSelect, initialCoords }) {
     const defaultZoom = 5;
     const selectedZoom = 16;
 
+    // --- Helper didefinisikan sebelum useEffect agar tidak ada akses sebelum deklarasi ---
+    const updateCoords = (lat, lng) => {
+        const coords = { lat, lng };
+        setSelectedCoords(coords);
+        const mapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
+        onLocationSelect(coords, mapsLink);
+    };
+
+    const setupMarkerDrag = (marker) => {
+        marker.on('dragend', () => {
+            const pos = marker.getLatLng();
+            updateCoords(pos.lat, pos.lng);
+        });
+    };
+
+    const placeMarker = (map, lat, lng) => {
+        if (markerRef.current) {
+            markerRef.current.setLatLng([lat, lng]);
+        } else {
+            markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(map);
+            setupMarkerDrag(markerRef.current);
+        }
+        updateCoords(lat, lng);
+    };
+
+    const locateUser = (map) => {
+        if (!navigator.geolocation) return;
+        setIsLocating(true);
+        navigator.geolocation.getCurrentPosition(
+            (pos) => {
+                const { latitude, longitude } = pos.coords;
+                map = map || mapInstanceRef.current;
+                map.setView([latitude, longitude], selectedZoom);
+                placeMarker(map, latitude, longitude);
+                setIsLocating(false);
+            },
+            () => {
+                setIsLocating(false);
+            },
+            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+        );
+    };
+
     useEffect(() => {
         if (mapInstanceRef.current) return; // already initialized
 
@@ -63,49 +106,8 @@ export default function MapPicker({ onLocationSelect, initialCoords }) {
                 mapInstanceRef.current = null;
             }
         };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
-
-    const setupMarkerDrag = (marker) => {
-        marker.on('dragend', () => {
-            const pos = marker.getLatLng();
-            updateCoords(pos.lat, pos.lng);
-        });
-    };
-
-    const placeMarker = (map, lat, lng) => {
-        if (markerRef.current) {
-            markerRef.current.setLatLng([lat, lng]);
-        } else {
-            markerRef.current = L.marker([lat, lng], { draggable: true }).addTo(map);
-            setupMarkerDrag(markerRef.current);
-        }
-        updateCoords(lat, lng);
-    };
-
-    const updateCoords = (lat, lng) => {
-        const coords = { lat, lng };
-        setSelectedCoords(coords);
-        const mapsLink = `https://www.google.com/maps?q=${lat},${lng}`;
-        onLocationSelect(coords, mapsLink);
-    };
-
-    const locateUser = (map) => {
-        if (!navigator.geolocation) return;
-        setIsLocating(true);
-        navigator.geolocation.getCurrentPosition(
-            (pos) => {
-                const { latitude, longitude } = pos.coords;
-                map = map || mapInstanceRef.current;
-                map.setView([latitude, longitude], selectedZoom);
-                placeMarker(map, latitude, longitude);
-                setIsLocating(false);
-            },
-            () => {
-                setIsLocating(false);
-            },
-            { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-        );
-    };
 
     const btnStyle = {
         display: 'inline-flex', alignItems: 'center', gap: '0.35rem',

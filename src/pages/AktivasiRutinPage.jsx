@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Search, Filter, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authStore';
 import * as XLSX from 'xlsx';
 
 export default function AktivasiRutinPage() {
@@ -555,7 +555,14 @@ export default function AktivasiRutinPage() {
                         filteredJadwals.forEach(j => {
                             if (j.hari) allHarisSet.add(j.hari);
                         });
-                        const allHaris = Array.from(allHarisSet).sort();
+                        const URUTAN_HARI = ['Senin','Selasa','Rabu','Kamis','Jumat','Sabtu','Minggu'];
+                        const firstHari = (h) => URUTAN_HARI.indexOf(h.split(',')[0].trim());
+                        const allHaris = Array.from(allHarisSet).sort((a, b) => {
+                            const ai = firstHari(a);
+                            const bi = firstHari(b);
+                            if (ai !== bi) return (ai === -1 ? 99 : ai) - (bi === -1 ? 99 : bi);
+                            return a.localeCompare(b);
+                        });
 
                         // Build matrix rows: one row per aktivasi entry
                         // Each row: Jam, Program (Kelas), Unit, Guru, and the siswa name placed under the correct Hari column

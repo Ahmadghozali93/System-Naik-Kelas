@@ -9,7 +9,7 @@ export default function ProgramPage() {
     const [isViewing, setIsViewing] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
     const [currentPage, setCurrentPage] = useState(1);
-    const [itemsPerPage, setItemsPerPage] = useState(20);
+    const [itemsPerPage] = useState(20);
 
     // Form state
     const [formData, setFormData] = useState({

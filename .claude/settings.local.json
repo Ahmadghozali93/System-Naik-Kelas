@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pg_dump --version)",
+      "Bash(psql --version)"
+    ]
+  }
+}

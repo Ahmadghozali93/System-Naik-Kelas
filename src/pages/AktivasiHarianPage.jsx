@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authStore';
 
 export default function AktivasiHarianPage() {
     const { user } = useAuth();

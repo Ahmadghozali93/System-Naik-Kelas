@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Users, Edit, Trash2, X, MapPin, MessageCircle, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import DatePicker from '../components/DatePicker';
 
 export default function UserPage() {
     const [gurus, setGurus] = useState([]);
@@ -15,8 +16,8 @@ export default function UserPage() {
     // Form state
     const [formData, setFormData] = useState({
         email: '',
-        password: '',
         nama: '',
+        tanggal_lahir: '',
         role: 'Guru',
         nowa: '',
         status: 'Aktif',
@@ -53,8 +54,8 @@ export default function UserPage() {
             setEditingId(guru.id);
             setFormData({
                 email: guru.email || '',
-                password: guru.password || '',
                 nama: guru.nama || '',
+                tanggal_lahir: guru.tanggal_lahir || '',
                 role: guru.role || 'Guru',
                 nowa: guru.nowa || '',
                 status: guru.status || 'Aktif',
@@ -65,8 +66,8 @@ export default function UserPage() {
             setEditingId(null);
             setFormData({
                 email: '',
-                password: '',
                 nama: '',
+                tanggal_lahir: '',
                 role: 'Guru',
                 nowa: '',
                 status: 'Aktif',
@@ -372,6 +373,15 @@ export default function UserPage() {
                                         disabled={isViewing}
                                     />
                                 </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Lahir</label>
+                                    <DatePicker
+                                        name="tanggal_lahir"
+                                        value={formData.tanggal_lahir}
+                                        onChange={handleInputChange}
+                                        disabled={isViewing}
+                                    />
+                                </div>
                             </div>
 
                             <div>
@@ -383,19 +393,6 @@ export default function UserPage() {
                                     onChange={handleInputChange}
                                     style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                                     required
-                                    disabled={isViewing}
-                                />
-                            </div>
-
-                            <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Password {isViewing && '(Disembunyikan)'}</label>
-                                <input
-                                    type={isViewing ? "password" : "text"}
-                                    name="password"
-                                    value={isViewing ? '********' : formData.password}
-                                    onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    required={!editingId}
                                     disabled={isViewing}
                                 />
                             </div>

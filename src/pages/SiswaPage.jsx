@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { GraduationCap, Edit, Trash2, X, MapPin, MessageCircle, Eye, Instagram, Facebook } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import DatePicker from '../components/DatePicker';
 
 // Ikona kustom sederhana untuk TikTok karena tidak ada di lucid default
 const TikTokIcon = ({ size }) => (
@@ -27,6 +28,7 @@ export default function SiswaPage() {
     // Form state
     const [formData, setFormData] = useState({
         nama: '',
+        tanggal_lahir: '',
         unit: '',
         status: 'Aktif',
         nowa: '',
@@ -83,6 +85,7 @@ export default function SiswaPage() {
             setEditingId(siswa.id);
             setFormData({
                 nama: siswa.nama || '',
+                tanggal_lahir: siswa.tanggal_lahir || '',
                 unit: siswa.unit || (units.length > 0 ? units[0].nama : ''),
                 status: siswa.status || 'Aktif',
                 nowa: siswa.nowa || '',
@@ -99,6 +102,7 @@ export default function SiswaPage() {
             setEditingId(null);
             setFormData({
                 nama: '',
+                tanggal_lahir: '',
                 unit: units.length > 0 ? units[0].nama : '',
                 status: 'Aktif',
                 nowa: '',
@@ -490,6 +494,17 @@ export default function SiswaPage() {
                             </div>
 
                             <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Lahir *</label>
+                                <DatePicker
+                                    name="tanggal_lahir"
+                                    value={formData.tanggal_lahir}
+                                    onChange={handleInputChange}
+                                    required
+                                    disabled={isViewing}
+                                />
+                            </div>
+
+                            <div>
                                 <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Orang Tua/Wali</label>
                                 <input
                                     type="text"
@@ -671,8 +686,8 @@ export default function SiswaPage() {
                             <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Tutup</button>
                                 {!isViewing && (
-                                    <button type="submit" className="btn btn-primary">
-                                        {editingId ? 'Simpan Perubahan' : 'Tambahkan'}
+                                    <button type="submit" className="btn btn-primary" disabled={isSaving}>
+                                        {isSaving ? 'Menyimpan…' : (editingId ? 'Simpan Perubahan' : 'Tambahkan')}
                                     </button>
                                 )}
                             </div>

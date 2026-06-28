@@ -27,7 +27,19 @@ import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import PengajuanReschedulePage from './pages/PengajuanReschedulePage';
 import JurnalPage from './pages/JurnalPage';
-
+import TagihanSiswaPage from './pages/TagihanSiswaPage';
+import LaporanSppPage from './pages/LaporanSppPage';
+import RekonsiliasiPage from './pages/RekonsiliasiPage';
+import FakturOdooPage from './pages/FakturOdooPage';
+import AbsensiCheckPage from './pages/absensi/AbsensiCheckPage';
+import AbsensiDashboardPage from './pages/absensi/AbsensiDashboardPage';
+import ShiftMasterPage from './pages/absensi/ShiftMasterPage';
+import ShiftSchedulePage from './pages/absensi/ShiftSchedulePage';
+import LeaveRequestPage from './pages/absensi/LeaveRequestPage';
+import OvertimePage from './pages/absensi/OvertimePage';
+import CorrectionPage from './pages/absensi/CorrectionPage';
+import RekapAbsensiPage from './pages/absensi/RekapAbsensiPage';
+import HariLiburPage from './pages/absensi/HariLiburPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -125,7 +137,21 @@ function App() {
             <Route path="/role-setup" element={<RoleSetupPage />} />
             <Route path="/pengaturan" element={<SettingsPage />} />
             <Route path="/jurnal" element={<JurnalPage />} />
+            <Route path="/spp/tagihan" element={<TagihanSiswaPage />} />
+            <Route path="/spp/rekonsiliasi" element={<RekonsiliasiPage />} />
+            <Route path="/spp/faktur-odoo" element={<FakturOdooPage />} />
+            <Route path="/spp/laporan" element={<LaporanSppPage />} />
 
+            {/* ABSENSI */}
+            <Route path="/absensi/check"       element={<AbsensiCheckPage />} />
+            <Route path="/absensi/dashboard"   element={<AbsensiDashboardPage />} />
+            <Route path="/absensi/shift"       element={<ShiftMasterPage />} />
+            <Route path="/absensi/jadwal-shift" element={<ShiftSchedulePage />} />
+            <Route path="/absensi/izin"        element={<LeaveRequestPage />} />
+            <Route path="/absensi/lembur"      element={<OvertimePage />} />
+            <Route path="/absensi/koreksi"     element={<CorrectionPage />} />
+            <Route path="/absensi/rekap"       element={<RekapAbsensiPage />} />
+            <Route path="/absensi/hari-libur"  element={<HariLiburPage />} />
 
             {/* FALLBACK */}
             <Route

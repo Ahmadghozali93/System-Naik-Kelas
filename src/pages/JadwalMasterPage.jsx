@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, Clock, Save, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useAuth } from '../context/AuthContext';
+import { useAuth } from '../context/authStore';
 
 export default function JadwalMasterPage() {
     const { user } = useAuth();
@@ -31,7 +31,8 @@ export default function JadwalMasterPage() {
         hari: [],
         jam: '',
         unit: '',
-        kuota: 0
+        kuota: 0,
+        nominal_spp: 0
     });
 
     const fetchData = async () => {
@@ -80,7 +81,8 @@ export default function JadwalMasterPage() {
                 hari: jadwal.hari ? jadwal.hari.split(', ') : [],
                 jam: jadwal.jam || '',
                 unit: jadwal.unit || '',
-                kuota: jadwal.kuota || 0
+                kuota: jadwal.kuota || 0,
+                nominal_spp: jadwal.nominal_spp || 0
             });
         } else {
             setEditingId(null);
@@ -90,7 +92,8 @@ export default function JadwalMasterPage() {
                 hari: [],
                 jam: '',
                 unit: '',
-                kuota: 0
+                kuota: 0,
+                nominal_spp: 0
             });
         }
         setIsModalOpen(true);
@@ -133,7 +136,8 @@ export default function JadwalMasterPage() {
                 hari: isHarian ? '' : formData.hari.join(', '),
                 jam: isHarian ? '' : formData.jam,
                 unit: formData.unit,
-                kuota: parseInt(formData.kuota, 10) || 0
+                kuota: parseInt(formData.kuota, 10) || 0,
+                nominal_spp: Number(formData.nominal_spp) || 0
             };
 
             if (editingId) {
@@ -624,6 +628,19 @@ export default function JadwalMasterPage() {
                                     min="0"
                                     style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                                     required
+                                />
+                            </div>
+
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nominal SPP (Rp)</label>
+                                <input
+                                    type="number"
+                                    name="nominal_spp"
+                                    value={formData.nominal_spp}
+                                    onChange={handleInputChange}
+                                    min="0"
+                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    placeholder="0"
                                 />
                             </div>
 

@@ -1,7 +1,7 @@
 {
-  "name": "Jadwal BimbelApp",
-  "short_name": "BimbelApp",
-  "description": "Aplikasi Manajemen Jadwal dan Aktivasi Bimbel",
+  "name": "Ahe Naik Kelas",
+  "short_name": "Ahe Naik Kelas",
+  "description": "Aplikasi Manajemen Bimbel Ahe Naik Kelas",
   "start_url": "/",
   "display": "standalone",
   "background_color": "#f3f4f6",

@@ -1,16 +1,48 @@
-# React + Vite
+# System Naik Kelas — Aplikasi Jadwal Bimbel
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Aplikasi manajemen operasional bimbingan belajar (multi-cabang): data master, penjadwalan, aktivasi siswa, reschedule, jurnal, dan papan Kanban. Dibangun dengan React 19 + Vite, dengan Supabase sebagai backend.
 
-Currently, two official plugins are available:
+## Tech Stack
+- **Frontend:** React 19, React Router v7, Vite 7
+- **Backend:** Supabase (PostgreSQL)
+- **UI/Util:** lucide-react (ikon), @hello-pangea/dnd (drag & drop Kanban), Leaflet (peta), date-fns, xlsx (export Excel)
+- **PWA:** Service worker (network-first)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+## Menjalankan secara lokal
 
-## React Compiler
+```bash
+npm install
+cp .env.example .env   # lalu isi kredensial Supabase
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+### Environment variables
+Buat file `.env` di root (lihat `.env.example`):
 
-## Expanding the ESLint configuration
+```
+VITE_SUPABASE_URL=https://xxxx.supabase.co
+VITE_SUPABASE_ANON_KEY=xxxx
+```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+> File `.env` sudah masuk `.gitignore` — jangan pernah di-commit.
+
+## Script
+| Perintah | Fungsi |
+|----------|--------|
+| `npm run dev` | Jalankan dev server |
+| `npm run build` | Build produksi ke `dist/` |
+| `npm run preview` | Preview hasil build |
+| `npm run lint` | Cek ESLint |
+
+## Setup Database
+Jalankan file SQL di folder root pada SQL Editor Supabase, sesuai urutan kebutuhan
+(`supabase_schema.sql` lebih dulu sebagai dasar, lalu file migrasi lainnya).
+
+## Struktur Halaman
+- **Master:** User, Unit, Siswa, Program, Jadwal Master
+- **Operasional:** Aktivasi Rutin/Harian, Kanban, Booking, Jadwal Kosong, Reschedule, Jurnal
+- **Sistem:** Login, Role Setup, Dashboard, Settings, Landing Page, Pengajuan Reschedule (publik)
+
+## Catatan Keamanan
+Auth & RLS sedang dalam proses pengetatan (migrasi ke Supabase Auth + RLS berbasis sesi).
+Lihat catatan audit untuk detail.
