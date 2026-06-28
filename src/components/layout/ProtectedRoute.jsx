@@ -24,10 +24,6 @@ export default function ProtectedRoute({ children }) {
         return <Navigate to="/login" replace />;
     }
 
-    // Ambil path utama (contoh: /siswa dari /siswa/123)
-    const pathSegment = location.pathname.split('/')[1];
-    const currentPath = pathSegment ? `/${pathSegment}` : '/dashboard';
-
     // Admin bypass
     if (user.role === 'Admin') {
         return children;
@@ -43,8 +39,13 @@ export default function ProtectedRoute({ children }) {
         );
     }
 
+    // Cek full path dulu (/absensi/check), lalu fallback ke segmen pertama (/siswa)
+    const pathSegment = location.pathname.split('/')[1];
+    const firstSegment = pathSegment ? `/${pathSegment}` : '/dashboard';
+    const hasAccess = permissions.includes(location.pathname) || permissions.includes(firstSegment);
+
     // Jika tidak punya akses
-    if (!permissions.includes(currentPath)) {
+    if (!hasAccess) {
         return (
             <div style={{ padding: '2rem', textAlign: 'center', marginTop: '10%' }}>
                 <h2 style={{ color: '#ef4444' }}>Akses Dilarang (403)</h2>
