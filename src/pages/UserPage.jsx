@@ -127,7 +127,7 @@ export default function UserPage() {
             handleCloseModal();
         } catch (error) {
             console.error('Error saving guru:', error.message);
-            alert('Gagal menyimpan data ke database.');
+            alert('Gagal menyimpan: ' + error.message);
         }
     };
 
