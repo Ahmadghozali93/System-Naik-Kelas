@@ -14,6 +14,11 @@ const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px soli
 const STATUS_COLOR = { Hadir:'#047857', Telat:'#d97706', Izin:'#7c3aed', Sakit:'#b91c1c', Cuti:'#0891b2', Alpha:'#6b7280' };
 const STATUS_LABEL = { Alpha:'Mangkir' };
 const SBadge = ({s}) => <span style={{background:`${STATUS_COLOR[s]||'#6b7280'}1a`,color:STATUS_COLOR[s]||'#6b7280',padding:'0.15rem 0.55rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{STATUS_LABEL[s]||s||'Mangkir'}</span>;
+const SeragamBadge = ({v}) => {
+  if (!v) return <span style={{color:'var(--text-secondary)',fontSize:'0.75rem'}}>—</span>;
+  const ok = v==='Sesuai';
+  return <span style={{background:ok?'#d1fae5':'#fee2e2',color:ok?'#047857':'#b91c1c',padding:'0.15rem 0.55rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{v}</span>;
+};
 
 export default function RekapAbsensiPage() {
   const { user } = useAuth();
@@ -64,7 +69,7 @@ export default function RekapAbsensiPage() {
   }, [records]);
 
   const exportCSV = () => {
-    const header = ['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Status','Durasi'];
+    const header = ['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Status','Durasi','Seragam','Catatan'];
     const rows = records.map(r => [
       r.tanggal,
       r.gurus?.nama||'-',
@@ -72,8 +77,10 @@ export default function RekapAbsensiPage() {
       r.shift_schedules?.shifts?.nama||'-',
       r.check_in ? new Date(r.check_in).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}) : '-',
       r.check_out ? new Date(r.check_out).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}) : '-',
-      r.status||'Alpha',
+      STATUS_LABEL[r.status]||r.status||'Mangkir',
       r.durasi_menit != null ? mntToStr(r.durasi_menit) : '-',
+      r.seragam||'-',
+      `"${(r.catatan||'').replace(/"/g,'""')}"`,
     ]);
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');
     const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -176,7 +183,7 @@ export default function RekapAbsensiPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
-                  {['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Durasi','Status'].map(h=>(
+                  {['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Durasi','Status','Seragam','Catatan'].map(h=>(
                     <th key={h} style={{ padding:'0.65rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -194,6 +201,8 @@ export default function RekapAbsensiPage() {
                     <td style={{ padding:'0.7rem 0.75rem' }}>{fmtTime(r.check_out)}</td>
                     <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(r.durasi_menit)}</td>
                     <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={r.status}/></td>
+                    <td style={{ padding:'0.7rem 0.75rem' }}><SeragamBadge v={r.seragam}/></td>
+                    <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.catatan||''}>{r.catatan||'—'}</td>
                   </tr>
                 ))}
               </tbody>

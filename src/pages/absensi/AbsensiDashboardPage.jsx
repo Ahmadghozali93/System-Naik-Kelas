@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, CheckCircle2, Clock, AlertCircle, XCircle, Eye, UserX } from 'lucide-react';
+import { Users, CheckCircle2, Clock, AlertCircle, XCircle, Eye, UserX, ShirtIcon } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
@@ -7,9 +7,15 @@ const todayWIB = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/
 const fmtTime  = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' }) : '-';
 const fmtTgl   = (d)  => d  ? new Date(d+'T12:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : '-';
 
-const BADGE = { Hadir:['#d1fae5','#047857'], Telat:['#fef3c7','#92400e'], Izin:['#dbeafe','#1e40af'], Alpha:['#fee2e2','#b91c1c'] };
+const BADGE   = { Hadir:['#d1fae5','#047857'], Telat:['#fef3c7','#92400e'], Izin:['#dbeafe','#1e40af'], Alpha:['#fee2e2','#b91c1c'] };
 const DISPLAY = { Hadir:'Hadir', Telat:'Telat', Izin:'Izin', Alpha:'Mangkir' };
-const SBadge = ({s}) => { const [bg,c]=BADGE[s]||['#f3f4f6','#374151']; return <span style={{background:bg,color:c,padding:'0.18rem 0.6rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{DISPLAY[s]||s}</span>; };
+const SBadge  = ({s}) => { const [bg,c]=BADGE[s]||['#f3f4f6','#374151']; return <span style={{background:bg,color:c,padding:'0.18rem 0.6rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{DISPLAY[s]||s}</span>; };
+
+const SeragamBadge = ({v}) => {
+  if (!v) return <span style={{color:'var(--text-secondary)',fontSize:'0.75rem'}}>—</span>;
+  const ok = v === 'Sesuai';
+  return <span style={{background:ok?'#d1fae5':'#fee2e2',color:ok?'#047857':'#b91c1c',padding:'0.18rem 0.6rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{v}</span>;
+};
 
 const Card = ({ label, value, color, icon: Icon }) => (
   <div className="glass-card" style={{ padding:'1.25rem 1.5rem' }}>
@@ -22,25 +28,27 @@ const Card = ({ label, value, color, icon: Icon }) => (
 );
 
 export default function AbsensiDashboardPage() {
-  const { user } = useAuth();
-  const [tanggal, setTanggal]       = useState(todayWIB());
+  const { user }  = useAuth();
+  const isAdmin   = user?.role === 'Admin';
+
+  const [tanggal, setTanggal]         = useState(todayWIB());
   const [attendances, setAttendances] = useState([]);
-  const [shifts, setShifts]         = useState([]);
-  const [gurus, setGurus]           = useState([]);
-  const [loading, setLoading]       = useState(true);
-  const [fotoModal, setFotoModal]   = useState(null);
+  const [shifts, setShifts]           = useState([]);
+  const [loading, setLoading]         = useState(true);
+  const [fotoModal, setFotoModal]     = useState(null);
   const [markingAlpha, setMarkingAlpha] = useState(false);
+  const [savingId, setSavingId]       = useState(null);
+  // catatan edits tracked locally before blur-save
+  const [catatanDraft, setCatatanDraft] = useState({});
 
   const fetchData = async () => {
     setLoading(true);
-    const [attRes, shiftRes, guruRes] = await Promise.all([
+    const [attRes, shiftRes] = await Promise.all([
       supabase.from('attendances').select('*, gurus(nama, role)').eq('tanggal', tanggal),
       supabase.from('shifts').select('*'),
-      supabase.from('gurus').select('id, nama, role').eq('status', 'Aktif'),
     ]);
     setAttendances(attRes.data || []);
-    setShifts(shiftRes.data || []);
-    setGurus(guruRes.data || []);
+    setShifts(shiftRes.data   || []);
     setLoading(false);
   };
 
@@ -56,14 +64,37 @@ export default function AbsensiDashboardPage() {
     fetchData();
   };
 
-  // Hitung statistik
+  const handleSeragam = async (id, nilai) => {
+    setSavingId(id);
+    const cur = attendances.find(a => a.id === id)?.seragam;
+    const next = cur === nilai ? null : nilai; // toggle off jika klik yg sama
+    const { error } = await supabase.from('attendances').update({ seragam: next }).eq('id', id);
+    setSavingId(null);
+    if (error) return alert('Gagal: ' + error.message);
+    setAttendances(prev => prev.map(a => a.id === id ? { ...a, seragam: next } : a));
+  };
+
+  const handleCatatanSave = async (id) => {
+    const val = catatanDraft[id];
+    if (val === undefined) return; // tidak ada perubahan
+    setSavingId(id + '_catatan');
+    const { error } = await supabase.from('attendances').update({ catatan: val || null }).eq('id', id);
+    setSavingId(null);
+    if (error) { alert('Gagal: ' + error.message); return; }
+    setAttendances(prev => prev.map(a => a.id === id ? { ...a, catatan: val || null } : a));
+    setCatatanDraft(prev => { const d = { ...prev }; delete d[id]; return d; });
+  };
+
   const stats = useMemo(() => {
-    const counts = { Hadir:0, Telat:0, Izin:0, Alpha:0 };
-    attendances.forEach(a => { if (counts[a.status] !== undefined) counts[a.status]++; });
-    return counts;
+    const c = { Hadir:0, Telat:0, Izin:0, Alpha:0, seragamOk:0, seragamTidak:0 };
+    attendances.forEach(a => {
+      if (c[a.status] !== undefined) c[a.status]++;
+      if (a.seragam === 'Sesuai')       c.seragamOk++;
+      if (a.seragam === 'Tidak Sesuai') c.seragamTidak++;
+    });
+    return c;
   }, [attendances]);
 
-  // Group by shift
   const byShift = useMemo(() => {
     const map = {};
     attendances.forEach(a => {
@@ -74,7 +105,6 @@ export default function AbsensiDashboardPage() {
     return map;
   }, [attendances]);
 
-  // Shift name lookup
   const shiftName = (scheduleId) => {
     const att = attendances.find(a => a.shift_schedule_id === scheduleId);
     if (!att) return 'Tanpa Shift';
@@ -96,7 +126,7 @@ export default function AbsensiDashboardPage() {
           style={{ padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit' }} />
         <span style={{ color:'var(--text-secondary)', fontSize:'0.88rem' }}>{fmtTgl(tanggal)}</span>
         <div style={{ marginLeft:'auto', display:'flex', gap:'0.5rem' }}>
-          {user?.role === 'Admin' && (
+          {isAdmin && (
             <button className="btn" style={{ fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.4rem', color:'#b91c1c', borderColor:'#fca5a5' }}
               onClick={handleMarkAlpha} disabled={markingAlpha}>
               <UserX size={14}/> {markingAlpha ? 'Memproses...' : 'Tandai Mangkir'}
@@ -107,12 +137,13 @@ export default function AbsensiDashboardPage() {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(160px,1fr))', gap:'1rem', marginBottom:'1.5rem' }}>
-        <Card label="Hadir"      value={stats.Hadir}  color="#047857" icon={CheckCircle2} />
-        <Card label="Telat"      value={stats.Telat}  color="#92400e" icon={Clock} />
-        <Card label="Izin"       value={stats.Izin}   color="#1e40af" icon={AlertCircle} />
-        <Card label="Mangkir"    value={stats.Alpha}  color="#b91c1c" icon={XCircle} />
-        <Card label="Total Tercatat" value={attendances.length} icon={Users} />
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit,minmax(150px,1fr))', gap:'0.85rem', marginBottom:'1.5rem' }}>
+        <Card label="Hadir"           value={stats.Hadir}       color="#047857" icon={CheckCircle2} />
+        <Card label="Telat"           value={stats.Telat}       color="#92400e" icon={Clock} />
+        <Card label="Izin"            value={stats.Izin}        color="#1e40af" icon={AlertCircle} />
+        <Card label="Mangkir"         value={stats.Alpha}       color="#b91c1c" icon={XCircle} />
+        <Card label="Seragam Sesuai"  value={stats.seragamOk}   color="#047857" icon={ShirtIcon} />
+        <Card label="Tidak Sesuai"    value={stats.seragamTidak} color="#d97706" icon={ShirtIcon} />
       </div>
 
       {loading ? <p style={{ color:'var(--text-secondary)' }}>Memuat...</p> : (
@@ -131,31 +162,95 @@ export default function AbsensiDashboardPage() {
                 <div style={{ overflowX:'auto' }}>
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.84rem' }}>
                     <thead>
-                      <tr style={{ borderBottom:'2px solid var(--glass-border)' }}>
-                        {['No','Nama','Role','Check-in','Check-out','Status','Foto'].map(h => (
+                      <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
+                        {['No','Nama','Role','Check-in','Check-out','Status','Seragam','Catatan','Foto'].map(h => (
                           <th key={h} style={{ padding:'0.6rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                         ))}
                       </tr>
                     </thead>
                     <tbody>
-                      {rows.map((a,i) => (
-                        <tr key={a.id} style={{ borderBottom:'1px solid var(--glass-border)' }}
-                          onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
-                          onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                          <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{i+1}</td>
-                          <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{a.gurus?.nama || '-'}</td>
-                          <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)', fontSize:'0.8rem' }}>{a.gurus?.role || '-'}</td>
-                          <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(a.check_in)}</td>
-                          <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{fmtTime(a.check_out)}</td>
-                          <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={a.status} /></td>
-                          <td style={{ padding:'0.7rem 0.75rem' }}>
-                            <div style={{ display:'flex', gap:'0.35rem' }}>
-                              {a.foto_checkin  && <button onClick={()=>setFotoModal(a.foto_checkin)}  title="Foto Check-in"  style={{ background:'rgba(79,70,229,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'var(--primary)',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>In</button>}
-                              {a.foto_checkout && <button onClick={()=>setFotoModal(a.foto_checkout)} title="Foto Check-out" style={{ background:'rgba(16,185,129,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'#047857',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>Out</button>}
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
+                      {rows.map((a, i) => {
+                        const isSaving      = savingId === a.id;
+                        const isSavingCatat = savingId === a.id + '_catatan';
+                        const draftCatatan  = catatanDraft[a.id] !== undefined ? catatanDraft[a.id] : (a.catatan || '');
+                        return (
+                          <tr key={a.id} style={{ borderBottom:'1px solid var(--glass-border)', verticalAlign:'middle' }}
+                            onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
+                            onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                            <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{i+1}</td>
+                            <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{a.gurus?.nama || '-'}</td>
+                            <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)', fontSize:'0.8rem' }}>{a.gurus?.role || '-'}</td>
+                            <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(a.check_in)}</td>
+                            <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{fmtTime(a.check_out)}</td>
+                            <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={a.status} /></td>
+
+                            {/* Seragam */}
+                            <td style={{ padding:'0.5rem 0.75rem', whiteSpace:'nowrap' }}>
+                              {isAdmin ? (
+                                <div style={{ display:'flex', gap:'0.3rem' }}>
+                                  <button
+                                    disabled={isSaving}
+                                    onClick={()=>handleSeragam(a.id,'Sesuai')}
+                                    style={{
+                                      padding:'0.22rem 0.6rem', borderRadius:'2rem', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', border:'1.5px solid',
+                                      borderColor: a.seragam==='Sesuai' ? '#047857' : 'var(--glass-border)',
+                                      background:  a.seragam==='Sesuai' ? '#d1fae5' : 'transparent',
+                                      color:       a.seragam==='Sesuai' ? '#047857' : 'var(--text-secondary)',
+                                      transition:'all 0.12s',
+                                    }}>
+                                    Sesuai
+                                  </button>
+                                  <button
+                                    disabled={isSaving}
+                                    onClick={()=>handleSeragam(a.id,'Tidak Sesuai')}
+                                    style={{
+                                      padding:'0.22rem 0.6rem', borderRadius:'2rem', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', border:'1.5px solid',
+                                      borderColor: a.seragam==='Tidak Sesuai' ? '#b91c1c' : 'var(--glass-border)',
+                                      background:  a.seragam==='Tidak Sesuai' ? '#fee2e2' : 'transparent',
+                                      color:       a.seragam==='Tidak Sesuai' ? '#b91c1c' : 'var(--text-secondary)',
+                                      transition:'all 0.12s',
+                                    }}>
+                                    Tidak
+                                  </button>
+                                </div>
+                              ) : (
+                                <SeragamBadge v={a.seragam} />
+                              )}
+                            </td>
+
+                            {/* Catatan */}
+                            <td style={{ padding:'0.4rem 0.75rem', minWidth:160 }}>
+                              {isAdmin ? (
+                                <input
+                                  value={draftCatatan}
+                                  onChange={e => setCatatanDraft(p => ({ ...p, [a.id]: e.target.value }))}
+                                  onBlur={()=>handleCatatanSave(a.id)}
+                                  onKeyDown={e=>{ if(e.key==='Enter') e.target.blur(); }}
+                                  placeholder="Tulis catatan..."
+                                  style={{
+                                    width:'100%', boxSizing:'border-box',
+                                    padding:'0.3rem 0.5rem', borderRadius:'0.4rem',
+                                    border:`1px solid ${isSavingCatat ? 'var(--primary)' : 'var(--glass-border)'}`,
+                                    background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.78rem',
+                                  }}
+                                />
+                              ) : (
+                                <span style={{ fontSize:'0.8rem', color: a.catatan ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                                  {a.catatan || '—'}
+                                </span>
+                              )}
+                            </td>
+
+                            {/* Foto */}
+                            <td style={{ padding:'0.7rem 0.75rem' }}>
+                              <div style={{ display:'flex', gap:'0.35rem' }}>
+                                {a.foto_checkin  && <button onClick={()=>setFotoModal(a.foto_checkin)}  title="Foto Check-in"  style={{ background:'rgba(79,70,229,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'var(--primary)',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>In</button>}
+                                {a.foto_checkout && <button onClick={()=>setFotoModal(a.foto_checkout)} title="Foto Check-out" style={{ background:'rgba(16,185,129,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'#047857',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>Out</button>}
+                              </div>
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>
