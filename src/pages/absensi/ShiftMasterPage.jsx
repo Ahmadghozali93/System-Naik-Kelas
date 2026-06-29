@@ -61,28 +61,40 @@ export default function ShiftMasterPage() {
     fetchAll();
   };
 
-  // Unit karyawan
-  const hasUnit = (guruId, unitId) => guruUnits.some(gu => gu.guru_id === guruId && gu.unit_id === unitId);
+  // Unit karyawan — pakai String() agar tidak salah match integer vs string
+  const hasUnit = (guruId, unitId) =>
+    guruUnits.some(gu => String(gu.guru_id) === String(guruId) && String(gu.unit_id) === String(unitId));
 
   const toggleGuruUnit = async (guruId, unitId) => {
     if (hasUnit(guruId, unitId)) {
-      const gu = guruUnits.find(g => g.guru_id === guruId && g.unit_id === unitId);
-      await supabase.from('guru_units').delete().eq('id', gu.id);
+      const gu = guruUnits.find(g => String(g.guru_id) === String(guruId) && String(g.unit_id) === String(unitId));
+      if (!gu) return;
+      // optimistic remove
+      setGuruUnits(prev => prev.filter(g => g.id !== gu.id));
+      const { error } = await supabase.from('guru_units').delete().eq('id', gu.id);
+      if (error) { fetchAll(); return alert('Gagal hapus: ' + error.message); }
     } else {
-      await supabase.from('guru_units').insert({ guru_id: guruId, unit_id: unitId });
+      // optimistic add (pakai temp id)
+      const tmp = { id: '__tmp__', guru_id: guruId, unit_id: unitId };
+      setGuruUnits(prev => [...prev, tmp]);
+      const { data, error } = await supabase.from('guru_units')
+        .insert({ guru_id: guruId, unit_id: unitId })
+        .select().single();
+      if (error) { fetchAll(); return alert('Gagal tambah: ' + error.message); }
+      // ganti tmp dengan data asli
+      setGuruUnits(prev => prev.map(g => g.id === '__tmp__' ? data : g));
     }
-    const { data } = await supabase.from('guru_units').select('*');
-    setGuruUnits(data || []);
   };
 
   const addGuruUnit = async () => {
     if (!selGuru || !selUnit) return alert('Pilih karyawan dan unit.');
     if (hasUnit(selGuru, selUnit)) return alert('Karyawan sudah terdaftar di unit ini.');
-    const { error } = await supabase.from('guru_units').insert({ guru_id: selGuru, unit_id: selUnit });
+    const { data, error } = await supabase.from('guru_units')
+      .insert({ guru_id: selGuru, unit_id: selUnit })
+      .select().single();
     if (error) return alert('Gagal: ' + error.message);
     setSelGuru(''); setSelUnit('');
-    const { data } = await supabase.from('guru_units').select('*');
-    setGuruUnits(data || []);
+    setGuruUnits(prev => [...prev, data]);
   };
 
   const filtered = filterUnit ? shifts.filter(s => s.unit_id === filterUnit) : shifts;

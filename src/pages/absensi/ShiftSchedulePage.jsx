@@ -344,9 +344,14 @@ export default function ShiftSchedulePage() {
                                   color: checked?'#fff':'var(--text-secondary)',
                                   cursor:'pointer', transition:'all 0.12s', whiteSpace:'nowrap',
                                 }}>
+                                {s.units?.nama && (
+                                  <span style={{ opacity:0.65, marginRight:'0.3rem', fontWeight:500, fontSize:'0.72rem' }}>
+                                    [{s.units.nama}]
+                                  </span>
+                                )}
                                 {s.nama}
                                 <span style={{ opacity:0.75, marginLeft:'0.3rem', fontWeight:400 }}>
-                                  {s.jam_mulai.slice(0,5)}
+                                  {s.jam_mulai.slice(0,5)}–{s.jam_selesai.slice(0,5)}
                                 </span>
                               </button>
                             );
