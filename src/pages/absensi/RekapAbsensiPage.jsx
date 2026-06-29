@@ -60,10 +60,12 @@ export default function RekapAbsensiPage() {
     const m = {};
     records.forEach(r => {
       const id = r.guru_id;
-      if (!m[id]) m[id] = { nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0 };
+      if (!m[id]) m[id] = { nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0 };
       const key = r.status || 'Alpha';
       if (m[id][key] !== undefined) m[id][key]++;
       if (r.durasi_menit) m[id].totalMenit += r.durasi_menit;
+      if (r.seragam === 'Sesuai')       m[id].seragamOk++;
+      if (r.seragam === 'Tidak Sesuai') m[id].seragamTidak++;
     });
     return Object.values(m).sort((a,b) => a.nama.localeCompare(b.nama));
   }, [records]);
@@ -147,7 +149,7 @@ export default function RekapAbsensiPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'2px solid var(--glass-border)' }}>
-                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Mangkir','Total Jam'].map(h=>(
+                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗'].map(h=>(
                     <th key={h} style={{ padding:'0.45rem 0.65rem', textAlign:h==='Nama'?'left':'center', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -160,6 +162,8 @@ export default function RekapAbsensiPage() {
                       <td key={k} style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight: s[k]>0?700:400, color: s[k]>0?(STATUS_COLOR[k]||'inherit'):'var(--text-secondary)' }}>{s[k] || '-'}</td>
                     ))}
                     <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:700, color:'var(--primary)' }}>{mntToStr(s.totalMenit)}</td>
+                    <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:s.seragamOk>0?700:400, color:s.seragamOk>0?'#047857':'var(--text-secondary)' }}>{s.seragamOk||'-'}</td>
+                    <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:s.seragamTidak>0?700:400, color:s.seragamTidak>0?'#b91c1c':'var(--text-secondary)' }}>{s.seragamTidak||'-'}</td>
                   </tr>
                 ))}
               </tbody>
