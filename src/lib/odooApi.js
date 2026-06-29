@@ -42,7 +42,7 @@ function toArray(data) {
 // ─── Test Connection ─────────────────────────────────────────────────────────
 
 export async function testConnection(apiKey) {
-  const data = await odooGet('/api/res.users', { fields: ['id', 'name'], limit: 1 }, apiKey);
+  const data = await odooGet('/api/res.users', { fields: 'id,name', limit: 1 }, apiKey);
   const rows = toArray(data);
   if (rows.length === 0) throw new Error('Terhubung ke Odoo tapi tidak ada data user.');
   return rows[0];
@@ -53,7 +53,7 @@ export async function testConnection(apiKey) {
 export async function getOrCreatePartner(apiKey, _email, name) {
   const data = await odooGet('/api/res.partner', {
     domain: [['name', '=', name]],
-    fields: ['id', 'name'],
+    fields: 'id,name',
     limit: 1,
   }, apiKey);
   const rows = toArray(data);
@@ -68,7 +68,7 @@ export async function getOrCreatePartner(apiKey, _email, name) {
 export async function findProduct(apiKey, _email, productName, companyId) {
   const data = await odooGet('/api/product.product', {
     domain: [['name', 'ilike', productName], '|', ['company_id', '=', companyId], ['company_id', '=', false]],
-    fields: ['id', 'name'],
+    fields: 'id,name',
     limit: 1,
     context: { allowed_company_ids: [companyId] },
   }, apiKey);
@@ -114,7 +114,7 @@ export async function createInvoice(apiKey, _email, {
 
 export async function getInvoiceStatus(apiKey, _email, invoiceId, _companyId) {
   const data = await odooGet(`/api/account.move/${invoiceId}`, {
-    fields: ['id', 'name', 'payment_state', 'state'],
+    fields: 'id,name,payment_state,state',
   }, apiKey);
   // Single record GET returns object, not array
   return data;
