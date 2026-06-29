@@ -21,6 +21,7 @@ export default function SiswaPage() {
     const [itemsPerPage, setItemsPerPage] = useState(20); // New state
     const [search, setSearch] = useState(''); // New state
     const [filterUnit, setFilterUnit] = useState(''); // New state
+    const [filterStatus, setFilterStatus] = useState('');
     const [units, setUnits] = useState([]);
     const [programs, setPrograms] = useState([]);
     const [masterJam, setMasterJam] = useState([]);
@@ -233,6 +234,19 @@ export default function SiswaPage() {
                                 {units.map(u => <option key={u.nama} value={u.nama}>{u.nama}</option>)}
                             </select>
                         </div>
+                        <div style={{ minWidth: '140px' }}>
+                            <select
+                                value={filterStatus}
+                                onChange={(e) => setFilterStatus(e.target.value)}
+                                style={{ width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem' }}
+                            >
+                                <option value="">Semua Status</option>
+                                <option value="Aktif">Aktif</option>
+                                <option value="Non aktif">Non aktif</option>
+                                <option value="Lulus">Lulus</option>
+                                <option value="Booking">Booking</option>
+                            </select>
+                        </div>
                         <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }} onClick={() => handleOpenModal()}>
                             + Tambah Siswa
                         </button>
@@ -267,7 +281,8 @@ export default function SiswaPage() {
                                             s.nama_ortu?.toLowerCase().includes(searchLower) ||
                                             s.program?.toLowerCase().includes(searchLower);
                                         const matchUnit = !filterUnit || s.unit === filterUnit;
-                                        return matchSearch && matchUnit;
+                                        const matchStatus = !filterStatus || s.status === filterStatus;
+                                        return matchSearch && matchUnit && matchStatus;
                                     });
 
                                     const totalPages = Math.ceil(filteredSiswas.length / itemsPerPage);
@@ -401,7 +416,8 @@ export default function SiswaPage() {
                         s.nama_ortu?.toLowerCase().includes(searchLower) ||
                         s.program?.toLowerCase().includes(searchLower);
                     const matchUnit = !filterUnit || s.unit === filterUnit;
-                    return matchSearch && matchUnit;
+                    const matchStatus = !filterStatus || s.status === filterStatus;
+                    return matchSearch && matchUnit && matchStatus;
                 });
 
                 const totalPages = Math.ceil(filteredSiswas.length / itemsPerPage);
