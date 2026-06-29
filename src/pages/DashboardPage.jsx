@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Users, GraduationCap, CalendarDays, RefreshCw, ClipboardList, TrendingUp, Building, DollarSign, BookOpen, CalendarCheck } from 'lucide-react';
+import { Users, GraduationCap, CalendarDays, RefreshCw, ClipboardList, TrendingUp, Building, DollarSign, BookOpen, CalendarCheck, XCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 
 export default function DashboardPage() {
@@ -14,7 +14,8 @@ export default function DashboardPage() {
         totalUnit: 0,
         totalBooking: 0
     });
-    const [recentAktivasi, setRecentAktivasi] = useState([]);
+    const [siswaNoProgram, setSiswaNoProgram] = useState([]);
+    const [siswaMultiProgram, setSiswaMultiProgram] = useState([]);
     const [unitSummary, setUnitSummary] = useState([]);
     const [unitOmset, setUnitOmset] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
@@ -34,7 +35,7 @@ export default function DashboardPage() {
                 const today = new Date().toISOString().split('T')[0];
 
                 const [siswaRes, aktivasiRes, rescheduleRes, guruRes, programRes, unitRes, bookingRes] = await Promise.all([
-                    supabase.from('siswa').select('id, unit', { count: 'exact' }).eq('status', 'Aktif'),
+                    supabase.from('siswa').select('id, nama, unit', { count: 'exact' }).eq('status', 'Aktif'),
                     supabase.from('aktivasi_siswa').select('*').order('created_at', { ascending: false }),
                     supabase.from('reschedules').select('id', { count: 'exact', head: true }).eq('status', 'Pending'),
                     supabase.from('gurus').select('id', { count: 'exact', head: true }),
@@ -114,7 +115,30 @@ export default function DashboardPage() {
                 setUnitOmset(Object.entries(omsetMap).map(([nama, omset]) => ({ nama, omset })));
 
                 setUnitSummary(summaryList);
-                setRecentAktivasi(allAktivasi.slice(0, 5));
+
+                // Siswa aktif tanpa program aktif
+                const activeAktivasiIds = new Set(
+                    allAktivasi.filter(a => a.status === 'Aktif').map(a => a.siswa_id)
+                );
+                setSiswaNoProgram(allSiswa.filter(s => !activeAktivasiIds.has(s.id)));
+
+                // Siswa dengan lebih dari 1 program aktif
+                const aktifBySiswa = {};
+                allAktivasi.filter(a => a.status === 'Aktif').forEach(a => {
+                    if (!aktifBySiswa[a.siswa_id]) aktifBySiswa[a.siswa_id] = [];
+                    aktifBySiswa[a.siswa_id].push(a);
+                });
+                setSiswaMultiProgram(
+                    Object.values(aktifBySiswa)
+                        .filter(list => list.length > 1)
+                        .map(list => ({
+                            id: list[0].siswa_id,
+                            nama: list[0].nama_siswa,
+                            unit: list[0].detail_jadwal?.unit || '-',
+                            programs: list.map(a => a.detail_jadwal?.nama_program || '-'),
+                        }))
+                        .sort((a, b) => a.nama.localeCompare(b.nama))
+                );
             } catch (error) {
                 console.error('Error fetching stats:', error.message);
             } finally {
@@ -306,41 +330,84 @@ export default function DashboardPage() {
                 </div>
             </div>
 
-            {/* Recent Aktivasi */}
-            <div className="glass-card">
-                <h2 style={{ fontSize: '1.15rem', fontWeight: '600', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <ClipboardList size={20} className="text-primary" /> Aktivasi Terbaru
-                </h2>
-                <div style={{ overflowX: 'auto' }}>
-                    <table style={{ width: '100%', textAlign: 'left', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
-                        <thead>
-                            <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Siswa</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Program</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Tanggal</th>
-                                <th style={{ padding: '0.75rem 1rem', color: 'var(--text-secondary)' }}>Status</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            {isLoading ? (
-                                <tr><td colSpan="4" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Memuat...</td></tr>
-                            ) : recentAktivasi.length === 0 ? (
-                                <tr><td colSpan="4" style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada data.</td></tr>
-                            ) : recentAktivasi.map(a => (
-                                <tr key={a.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)' }}>
-                                    <td style={{ padding: '0.75rem 1rem', fontWeight: 600 }}>{a.nama_siswa}</td>
-                                    <td style={{ padding: '0.75rem 1rem', color: 'var(--primary)' }}>{a.detail_jadwal?.nama_program || '-'}</td>
-                                    <td style={{ padding: '0.75rem 1rem' }}>{a.tgl_mulai || '-'}</td>
-                                    <td style={{ padding: '0.75rem 1rem' }}>
-                                        <span className="badge" style={{
-                                            background: a.status === 'Aktif' ? '#d1fae5' : '#f3f4f6',
-                                            color: a.status === 'Aktif' ? '#047857' : '#374151'
-                                        }}>{a.status}</span>
-                                    </td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: '1.25rem' }}>
+                {/* Siswa tanpa program aktif */}
+                <div className="glass-card">
+                    <h2 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <XCircle size={18} style={{ color: '#ef4444' }} />
+                        Siswa Tanpa Program Aktif
+                        <span style={{ marginLeft: 'auto', background: '#fee2e2', color: '#b91c1c', borderRadius: '999px', padding: '0.1rem 0.6rem', fontSize: '0.78rem', fontWeight: 700 }}>
+                            {siswaNoProgram.length}
+                        </span>
+                    </h2>
+                    {isLoading ? (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Memuat...</div>
+                    ) : siswaNoProgram.length === 0 ? (
+                        <div style={{ color: '#059669', fontSize: '0.85rem', fontStyle: 'italic' }}>Semua siswa aktif sudah punya program.</div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
+                                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--text-secondary)', textAlign: 'left' }}>Nama</th>
+                                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--text-secondary)', textAlign: 'left' }}>Unit</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {siswaNoProgram.map(s => (
+                                        <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                                            <td style={{ padding: '0.55rem 0.75rem', fontWeight: 600 }}>{s.nama}</td>
+                                            <td style={{ padding: '0.55rem 0.75rem', color: 'var(--text-secondary)' }}>{s.unit || '-'}</td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
+                </div>
+
+                {/* Siswa dengan lebih dari 1 program */}
+                <div className="glass-card">
+                    <h2 style={{ fontSize: '1.05rem', fontWeight: 600, marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                        <BookOpen size={18} style={{ color: '#4f46e5' }} />
+                        Siswa Multi Program
+                        <span style={{ marginLeft: 'auto', background: 'rgba(79,70,229,0.1)', color: '#4f46e5', borderRadius: '999px', padding: '0.1rem 0.6rem', fontSize: '0.78rem', fontWeight: 700 }}>
+                            {siswaMultiProgram.length}
+                        </span>
+                    </h2>
+                    {isLoading ? (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Memuat...</div>
+                    ) : siswaMultiProgram.length === 0 ? (
+                        <div style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', fontStyle: 'italic' }}>Tidak ada siswa dengan lebih dari 1 program aktif.</div>
+                    ) : (
+                        <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+                                <thead>
+                                    <tr style={{ borderBottom: '2px solid rgba(0,0,0,0.05)' }}>
+                                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--text-secondary)', textAlign: 'left' }}>Nama</th>
+                                        <th style={{ padding: '0.5rem 0.75rem', color: 'var(--text-secondary)', textAlign: 'left' }}>Program Aktif</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {siswaMultiProgram.map(s => (
+                                        <tr key={s.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.04)' }}>
+                                            <td style={{ padding: '0.55rem 0.75rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                                {s.nama}
+                                                <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{s.unit}</div>
+                                            </td>
+                                            <td style={{ padding: '0.55rem 0.75rem' }}>
+                                                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.3rem' }}>
+                                                    {s.programs.map((p, i) => (
+                                                        <span key={i} style={{ background: 'rgba(79,70,229,0.08)', color: '#4f46e5', borderRadius: '0.35rem', padding: '0.15rem 0.5rem', fontSize: '0.75rem', fontWeight: 600 }}>{p}</span>
+                                                    ))}
+                                                </div>
+                                            </td>
+                                        </tr>
+                                    ))}
+                                </tbody>
+                            </table>
+                        </div>
+                    )}
                 </div>
             </div>
         </div>
