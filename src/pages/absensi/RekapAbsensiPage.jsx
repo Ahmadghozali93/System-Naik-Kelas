@@ -36,7 +36,7 @@ export default function RekapAbsensiPage() {
   const fetchRekap = async () => {
     setLoading(true);
     let q = supabase.from('attendances')
-      .select('*, gurus!guru_id(nama), shifts(nama,jam_mulai,jam_selesai), units(nama)')
+      .select('*, gurus!guru_id(nama), shift_schedules!shift_schedule_id(*, shifts(nama,jam_mulai,jam_selesai)), units!unit_id(nama)')
       .gte('tanggal', dateFrom).lte('tanggal', dateTo)
       .order('tanggal', { ascending: false });
     if (filterUnit) q = q.eq('unit_id', filterUnit);
@@ -68,7 +68,7 @@ export default function RekapAbsensiPage() {
       r.tanggal,
       r.gurus?.nama||'-',
       r.units?.nama||'-',
-      r.shifts?.nama||'-',
+      r.shift_schedules?.shifts?.nama||'-',
       r.check_in ? new Date(r.check_in).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}) : '-',
       r.check_out ? new Date(r.check_out).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}) : '-',
       r.status||'Alpha',
@@ -188,7 +188,7 @@ export default function RekapAbsensiPage() {
                     <td style={{ padding:'0.7rem 0.75rem', whiteSpace:'nowrap' }}>{fmtTgl(r.tanggal)}</td>
                     <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{r.gurus?.nama||'-'}</td>
                     <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)' }}>{r.units?.nama||'-'}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem' }}>{r.shifts?.nama||'-'}</td>
+                    <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem' }}>{r.shift_schedules?.shifts?.nama||'-'}</td>
                     <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(r.check_in)}</td>
                     <td style={{ padding:'0.7rem 0.75rem' }}>{fmtTime(r.check_out)}</td>
                     <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(r.durasi_menit)}</td>
