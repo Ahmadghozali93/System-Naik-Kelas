@@ -43,6 +43,7 @@ export default function ShiftSchedulePage() {
   const [shifts, setShifts]       = useState([]);
   const [gurus, setGurus]         = useState([]);
   const [units, setUnits]         = useState([]);
+  const [guruUnits, setGuruUnits] = useState([]);
   const [loading, setLoading]     = useState(true);
 
   // modal single (dari klik "+ shift" di cell)
@@ -66,17 +67,19 @@ export default function ShiftSchedulePage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [ssRes, shRes, gRes, uRes] = await Promise.all([
+    const [ssRes, shRes, gRes, uRes, guRes] = await Promise.all([
       supabase.from('shift_schedules').select('*, shifts(*, units(nama))')
         .gte('tanggal', weekStart).lte('tanggal', weekEnd),
       supabase.from('shifts').select('*, units(nama)').eq('aktif', true).order('jam_mulai'),
       supabase.from('gurus').select('id, nama, role').eq('status','Aktif').order('nama'),
       supabase.from('units').select('*').eq('aktif',true).order('nama'),
+      supabase.from('guru_units').select('*'),
     ]);
-    setSchedules(ssRes.data || []);
-    setShifts(shRes.data   || []);
-    setGurus(gRes.data     || []);
-    setUnits(uRes.data     || []);
+    setSchedules(ssRes.data  || []);
+    setShifts(shRes.data     || []);
+    setGurus(gRes.data       || []);
+    setUnits(uRes.data       || []);
+    setGuruUnits(guRes.data  || []);
     setLoading(false);
   };
 
@@ -144,6 +147,14 @@ export default function ShiftSchedulePage() {
 
   const displayGurus = filterGuru ? gurus.filter(g=>g.id===filterGuru) : gurus;
   const selectedGuru = gurus.find(g=>g.id===tmpl.guru_id);
+
+  // Shift yang tersedia untuk karyawan yang dipilih (hanya unit yg terdaftar)
+  const allowedUnitIds = tmpl.guru_id
+    ? guruUnits.filter(gu => String(gu.guru_id) === String(tmpl.guru_id)).map(gu => String(gu.unit_id))
+    : [];
+  const shiftsForGuru = tmpl.guru_id
+    ? shifts.filter(s => allowedUnitIds.includes(String(s.unit_id)))
+    : shifts;
 
   return (
     <div>
@@ -330,9 +341,13 @@ export default function ShiftSchedulePage() {
                         </div>
                         {/* Shift checkboxes */}
                         <div style={{ padding:'0.5rem 0.75rem', display:'flex', flexWrap:'wrap', gap:'0.4rem', alignItems:'center' }}>
-                          {shifts.length === 0 ? (
-                            <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>Belum ada shift.</span>
-                          ) : shifts.map(s => {
+                          {shiftsForGuru.length === 0 ? (
+                            <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>
+                              {tmpl.guru_id && allowedUnitIds.length === 0
+                                ? '⚠️ Karyawan belum didaftarkan ke unit manapun. Atur dulu di Master Shift → Unit Karyawan.'
+                                : 'Belum ada shift aktif untuk unit karyawan ini.'}
+                            </span>
+                          ) : shiftsForGuru.map(s => {
                             const checked = selectedShifts.includes(s.id);
                             return (
                               <button key={s.id} type="button"
