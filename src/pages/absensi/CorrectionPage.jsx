@@ -67,17 +67,72 @@ export default function CorrectionPage() {
     setModal(false); fetchAll();
   };
 
+  const calcStatus = (checkInISO, shift) => {
+    if (!checkInISO || !shift) return 'Hadir';
+    const ci = new Date(checkInISO);
+    const [h, m] = (shift.jam_mulai || '00:00').split(':').map(Number);
+    const base = new Date(ci); base.setHours(h, m, 0, 0);
+    return (ci - base) / 60000 <= (shift.toleransi_menit || 0) ? 'Hadir' : 'Telat';
+  };
+
+  const calcDurasi = (ci, co, lintas) => {
+    if (!ci || !co) return null;
+    let d = (new Date(co) - new Date(ci)) / 60000;
+    if (lintas && d < 0) d += 1440;
+    return Math.max(0, Math.round(d));
+  };
+
   const handleApprove = async (id, action) => {
     const corr = corrections.find(c => c.id === id);
 
-    // Jika Approved → terapkan koreksi ke attendances
     if (action === 'Approved' && corr) {
-      const updates = {};
-      if (corr.check_in_koreksi)  updates.check_in  = corr.check_in_koreksi;
-      if (corr.check_out_koreksi) updates.check_out = corr.check_out_koreksi;
+      const newCI = corr.check_in_koreksi;
+      const newCO = corr.check_out_koreksi;
 
-      if (corr.attendance_id && Object.keys(updates).length > 0) {
-        await supabase.from('attendances').update(updates).eq('id', corr.attendance_id);
+      if (corr.attendance_id) {
+        // Ada record absen — update termasuk hitung ulang status & durasi
+        const { data: att } = await supabase
+          .from('attendances')
+          .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
+          .eq('id', corr.attendance_id)
+          .single();
+
+        const shift   = att?.shift_schedules?.shifts;
+        const status  = newCI ? calcStatus(newCI, shift) : 'Alpha';
+        const durasi  = calcDurasi(newCI, newCO, shift?.lintas_hari);
+
+        const updates = { status };
+        if (newCI) updates.check_in = newCI;
+        if (newCO) updates.check_out = newCO;
+        if (durasi !== null) updates.durasi_menit = durasi;
+
+        const { error: updErr } = await supabase.from('attendances').update(updates).eq('id', corr.attendance_id);
+        if (updErr) return alert('Gagal update absen: ' + updErr.message);
+
+      } else if (newCI) {
+        // Belum ada record absen — buat baru
+        const { data: ss } = await supabase
+          .from('shift_schedules')
+          .select('*, shifts(*)')
+          .eq('guru_id', corr.guru_id)
+          .eq('tanggal', corr.tanggal)
+          .maybeSingle();
+
+        const shift  = ss?.shifts;
+        const status = calcStatus(newCI, shift);
+        const durasi = calcDurasi(newCI, newCO, shift?.lintas_hari);
+
+        const { error: insErr } = await supabase.from('attendances').insert({
+          guru_id:          corr.guru_id,
+          unit_id:          corr.unit_id,
+          shift_schedule_id: ss?.id || null,
+          tanggal:          corr.tanggal,
+          check_in:         newCI,
+          check_out:        newCO || null,
+          durasi_menit:     durasi,
+          status,
+        });
+        if (insErr) return alert('Gagal buat absen: ' + insErr.message);
       }
     }
 
