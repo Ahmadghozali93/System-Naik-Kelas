@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, CheckCircle2, Clock, AlertCircle, XCircle, Eye } from 'lucide-react';
+import { Users, CheckCircle2, Clock, AlertCircle, XCircle, Eye, UserX } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
@@ -8,7 +8,8 @@ const fmtTime  = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID', { timeZon
 const fmtTgl   = (d)  => d  ? new Date(d+'T12:00:00').toLocaleDateString('id-ID', { weekday:'long', day:'numeric', month:'long', year:'numeric' }) : '-';
 
 const BADGE = { Hadir:['#d1fae5','#047857'], Telat:['#fef3c7','#92400e'], Izin:['#dbeafe','#1e40af'], Alpha:['#fee2e2','#b91c1c'] };
-const SBadge = ({s}) => { const [bg,c]=BADGE[s]||['#f3f4f6','#374151']; return <span style={{background:bg,color:c,padding:'0.18rem 0.6rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{s}</span>; };
+const DISPLAY = { Hadir:'Hadir', Telat:'Telat', Izin:'Izin', Alpha:'Mangkir' };
+const SBadge = ({s}) => { const [bg,c]=BADGE[s]||['#f3f4f6','#374151']; return <span style={{background:bg,color:c,padding:'0.18rem 0.6rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{DISPLAY[s]||s}</span>; };
 
 const Card = ({ label, value, color, icon: Icon }) => (
   <div className="glass-card" style={{ padding:'1.25rem 1.5rem' }}>
@@ -27,7 +28,8 @@ export default function AbsensiDashboardPage() {
   const [shifts, setShifts]         = useState([]);
   const [gurus, setGurus]           = useState([]);
   const [loading, setLoading]       = useState(true);
-  const [fotoModal, setFotoModal]   = useState(null); // URL foto
+  const [fotoModal, setFotoModal]   = useState(null);
+  const [markingAlpha, setMarkingAlpha] = useState(false);
 
   const fetchData = async () => {
     setLoading(true);
@@ -43,6 +45,16 @@ export default function AbsensiDashboardPage() {
   };
 
   useEffect(() => { fetchData(); }, [tanggal]);
+
+  const handleMarkAlpha = async () => {
+    if (!window.confirm('Tandai semua karyawan yang tidak absen kemarin sebagai Mangkir?\nProses ini tidak bisa dibatalkan.')) return;
+    setMarkingAlpha(true);
+    const { data, error } = await supabase.rpc('mark_alpha_attendance');
+    setMarkingAlpha(false);
+    if (error) return alert('Gagal: ' + error.message);
+    alert(`Selesai. ${data ?? 0} karyawan ditandai Mangkir.`);
+    fetchData();
+  };
 
   // Hitung statistik
   const stats = useMemo(() => {
@@ -83,7 +95,15 @@ export default function AbsensiDashboardPage() {
         <input type="date" value={tanggal} onChange={e=>setTanggal(e.target.value)}
           style={{ padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit' }} />
         <span style={{ color:'var(--text-secondary)', fontSize:'0.88rem' }}>{fmtTgl(tanggal)}</span>
-        <button className="btn" style={{ marginLeft:'auto', fontSize:'0.82rem' }} onClick={fetchData}>Refresh</button>
+        <div style={{ marginLeft:'auto', display:'flex', gap:'0.5rem' }}>
+          {user?.role === 'Admin' && (
+            <button className="btn" style={{ fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.4rem', color:'#b91c1c', borderColor:'#fca5a5' }}
+              onClick={handleMarkAlpha} disabled={markingAlpha}>
+              <UserX size={14}/> {markingAlpha ? 'Memproses...' : 'Tandai Mangkir'}
+            </button>
+          )}
+          <button className="btn" style={{ fontSize:'0.82rem' }} onClick={fetchData}>Refresh</button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -91,7 +111,7 @@ export default function AbsensiDashboardPage() {
         <Card label="Hadir"      value={stats.Hadir}  color="#047857" icon={CheckCircle2} />
         <Card label="Telat"      value={stats.Telat}  color="#92400e" icon={Clock} />
         <Card label="Izin"       value={stats.Izin}   color="#1e40af" icon={AlertCircle} />
-        <Card label="Alpha"      value={stats.Alpha}  color="#b91c1c" icon={XCircle} />
+        <Card label="Mangkir"    value={stats.Alpha}  color="#b91c1c" icon={XCircle} />
         <Card label="Total Tercatat" value={attendances.length} icon={Users} />
       </div>
 

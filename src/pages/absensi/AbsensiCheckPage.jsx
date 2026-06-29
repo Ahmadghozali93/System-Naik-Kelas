@@ -102,10 +102,11 @@ function CameraModal({ onCapture, onClose, label }) {
 }
 
 // ── Komponen Badge Status ─────────────────────────────────────
+const STATUS_LABEL = { Alpha: 'Mangkir' };
 const StatusBadge = ({ s }) => {
   const map = { Hadir: ['#d1fae5','#047857'], Telat: ['#fef3c7','#92400e'], Izin: ['#dbeafe','#1e40af'], Alpha: ['#fee2e2','#b91c1c'] };
   const [bg, color] = map[s] || ['#f3f4f6','#374151'];
-  return <span style={{ background: bg, color, padding: '0.2rem 0.65rem', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700 }}>{s}</span>;
+  return <span style={{ background: bg, color, padding: '0.2rem 0.65rem', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700 }}>{STATUS_LABEL[s]||s}</span>;
 };
 
 // ─────────────────────────────────────────────────────────────

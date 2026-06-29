@@ -12,7 +12,8 @@ const mntToStr  = (m)  => m != null ? `${Math.floor(m/60)}j${m%60>0?` ${m%60}m`:
 const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.88rem', width:'100%', boxSizing:'border-box' };
 
 const STATUS_COLOR = { Hadir:'#047857', Telat:'#d97706', Izin:'#7c3aed', Sakit:'#b91c1c', Cuti:'#0891b2', Alpha:'#6b7280' };
-const SBadge = ({s}) => <span style={{background:`${STATUS_COLOR[s]||'#6b7280'}1a`,color:STATUS_COLOR[s]||'#6b7280',padding:'0.15rem 0.55rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{s||'Alpha'}</span>;
+const STATUS_LABEL = { Alpha:'Mangkir' };
+const SBadge = ({s}) => <span style={{background:`${STATUS_COLOR[s]||'#6b7280'}1a`,color:STATUS_COLOR[s]||'#6b7280',padding:'0.15rem 0.55rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{STATUS_LABEL[s]||s||'Mangkir'}</span>;
 
 export default function RekapAbsensiPage() {
   const { user } = useAuth();
@@ -121,7 +122,7 @@ export default function RekapAbsensiPage() {
           <label style={{ fontSize:'0.78rem', fontWeight:600, display:'block', marginBottom:'0.25rem' }}>Status</label>
           <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ ...inp, width:'auto' }}>
             <option value="">Semua Status</option>
-            {['Hadir','Telat','Izin','Sakit','Cuti','Alpha'].map(s=><option key={s} value={s}>{s}</option>)}
+            {[['Hadir','Hadir'],['Telat','Telat'],['Izin','Izin'],['Sakit','Sakit'],['Cuti','Cuti'],['Alpha','Mangkir']].map(([v,l])=><option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <button className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.35rem' }} onClick={exportCSV}>
@@ -139,7 +140,7 @@ export default function RekapAbsensiPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'2px solid var(--glass-border)' }}>
-                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Alpha','Total Jam'].map(h=>(
+                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Mangkir','Total Jam'].map(h=>(
                     <th key={h} style={{ padding:'0.45rem 0.65rem', textAlign:h==='Nama'?'left':'center', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
