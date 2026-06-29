@@ -204,12 +204,6 @@ export default function ShiftSchedulePage() {
                   <td style={{ padding:'0.7rem 0.75rem' }}>
                     <div style={{ fontWeight:600 }}>{g.nama}</div>
                     <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>{g.role}</div>
-                    {user?.role === 'Admin' && (
-                      <button onClick={()=>{ setTmpl({guru_id:g.id,dari:todayWIB(),sampai:addDays(todayWIB(),27),dayShifts:emptyDayShifts()}); setTmplModal(true); }}
-                        style={{ marginTop:'0.3rem', background:'none', border:'1px solid var(--primary)', borderRadius:'0.3rem', padding:'0.1rem 0.4rem', cursor:'pointer', fontSize:'0.7rem', color:'var(--primary)', fontWeight:600 }}>
-                        Atur Shift
-                      </button>
-                    )}
                   </td>
                   {dates.map(d => {
                     const key = `${g.id}::${d}`;
