@@ -93,23 +93,27 @@ export default function UserPage() {
         e.preventDefault();
 
         try {
+            const cleanData = {
+                ...formData,
+                tanggal_lahir: formData.tanggal_lahir || null,
+            };
             if (editingId) {
                 // Edit existing in Supabase
                 const { error } = await supabase
                     .from('gurus')
-                    .update(formData)
+                    .update(cleanData)
                     .eq('id', editingId);
 
                 if (error) throw error;
 
                 // Update local state for immediate UI reflection
                 setGurus(gurus.map(g =>
-                    g.id === editingId ? { ...g, ...formData } : g
+                    g.id === editingId ? { ...g, ...cleanData } : g
                 ));
             } else {
                 // Add new to Supabase
                 const newId = 'GURU-' + Math.random().toString(36).substr(2, 6).toUpperCase();
-                const newGuruData = { id: newId, ...formData };
+                const newGuruData = { id: newId, ...cleanData };
 
                 const { error } = await supabase
                     .from('gurus')
