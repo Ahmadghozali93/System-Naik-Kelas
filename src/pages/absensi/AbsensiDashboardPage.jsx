@@ -33,7 +33,6 @@ export default function AbsensiDashboardPage() {
 
   const [tanggal, setTanggal]         = useState(todayWIB());
   const [attendances, setAttendances] = useState([]);
-  const [shifts, setShifts]           = useState([]);
   const [loading, setLoading]         = useState(true);
   const [fotoModal, setFotoModal]     = useState(null);
   const [markingAlpha, setMarkingAlpha] = useState(false);
@@ -43,12 +42,11 @@ export default function AbsensiDashboardPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const [attRes, shiftRes] = await Promise.all([
-      supabase.from('attendances').select('*, gurus(nama, role)').eq('tanggal', tanggal),
-      supabase.from('shifts').select('*'),
-    ]);
-    setAttendances(attRes.data || []);
-    setShifts(shiftRes.data   || []);
+    const { data } = await supabase
+      .from('attendances')
+      .select('*, gurus(nama, role), shift_schedules!shift_schedule_id(*, shifts(nama, jam_mulai, jam_selesai))')
+      .eq('tanggal', tanggal);
+    setAttendances(data || []);
     setLoading(false);
   };
 
@@ -111,9 +109,9 @@ export default function AbsensiDashboardPage() {
 
   const shiftName = (scheduleId) => {
     const att = attendances.find(a => a.shift_schedule_id === scheduleId);
-    if (!att) return 'Tanpa Shift';
-    const s = shifts.find(sh => sh.id === att.shift_schedule_id);
-    return s ? `${s.nama} (${s.jam_mulai}–${s.jam_selesai})` : 'Shift Tidak Dikenal';
+    const s   = att?.shift_schedules?.shifts;
+    if (!s) return 'Tanpa Shift';
+    return `${s.nama} (${s.jam_mulai?.slice(0,5)}–${s.jam_selesai?.slice(0,5)})`;
   };
 
   return (
