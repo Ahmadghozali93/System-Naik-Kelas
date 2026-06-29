@@ -1,11 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search } from 'lucide-react';
+import { Search, X } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatRupiah } from '../utils/formatRupiah';
 
 const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
 const fmt   = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
 const PER_PAGE = 20;
+
+const useIsMobile = () => {
+  const [mobile, setMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return mobile;
+};
 
 const addOneMonth = (dateStr) => {
   if (!dateStr) return null;
@@ -28,23 +38,7 @@ const statusBadge = (s) => {
   return <span style={{background:bg,color,padding:'0.18rem 0.6rem',borderRadius:'999px',fontSize:'0.75rem',fontWeight:600,whiteSpace:'nowrap'}}>{s}</span>;
 };
 
-const TAB_LIST = ['Tunggakan','Tagihan Belum Jatuh Tempo','Rekap Bulanan'];
-
-const TAB_BTN = (active) => ({
-  background:'none', border:'none', cursor:'pointer',
-  padding:'0.65rem 1.1rem', fontWeight:active?700:500,
-  fontSize:'0.88rem', fontFamily:'inherit',
-  color:active?'var(--primary)':'var(--text-secondary)',
-  borderBottom:active?'2px solid var(--primary)':'2px solid transparent',
-  marginBottom:'-2px', transition:'all 0.15s', whiteSpace:'nowrap',
-});
-
-const TH = ({children, right}) => (
-  <th style={{textAlign:right?'right':'left',padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',letterSpacing:'0.06em'}}>{children}</th>
-);
-const TD = ({children, right, bold, color, nowrap}) => (
-  <td style={{padding:'0.7rem 0.75rem',textAlign:right?'right':'left',fontWeight:bold?700:400,color:color||'inherit',whiteSpace:nowrap?'nowrap':'normal'}}>{children}</td>
-);
+const TAB_LIST = ['Tunggakan','Belum Jatuh Tempo','Rekap Bulanan'];
 
 const Pager = ({ cur, total, onChange, total_items, per_page }) => {
   if (total <= 1) return null;
@@ -56,14 +50,18 @@ const Pager = ({ cur, total, onChange, total_items, per_page }) => {
       <div style={{display:'flex',gap:'0.35rem',alignItems:'center'}}>
         <button onClick={()=>onChange(Math.max(1,cur-1))} disabled={cur<=1}
           style={{padding:'0.3rem 0.7rem',borderRadius:'0.4rem',border:'1px solid var(--glass-border)',background:'var(--surface-color)',cursor:cur<=1?'not-allowed':'pointer',opacity:cur<=1?0.4:1}}>‹</button>
-        {Array.from({length:total},(_,i)=>i+1).map(n=>(
-          <button key={n} onClick={()=>onChange(n)}
-            style={{padding:'0.3rem 0.6rem',borderRadius:'0.4rem',border:'1px solid var(--glass-border)',
-              background:n===cur?'var(--primary)':'var(--surface-color)',
-              color:n===cur?'#fff':'inherit',cursor:'pointer',fontWeight:n===cur?700:400,minWidth:32}}>
-            {n}
-          </button>
-        ))}
+        {Array.from({length:Math.min(total,5)},(_,i)=>{
+          let n = cur <= 3 ? i+1 : cur >= total-2 ? total-4+i : cur-2+i;
+          n = Math.max(1, Math.min(n, total));
+          return (
+            <button key={n} onClick={()=>onChange(n)}
+              style={{padding:'0.3rem 0.6rem',borderRadius:'0.4rem',border:'1px solid var(--glass-border)',
+                background:n===cur?'var(--primary)':'var(--surface-color)',
+                color:n===cur?'#fff':'inherit',cursor:'pointer',fontWeight:n===cur?700:400,minWidth:32}}>
+              {n}
+            </button>
+          );
+        })}
         <button onClick={()=>onChange(Math.min(total,cur+1))} disabled={cur>=total}
           style={{padding:'0.3rem 0.7rem',borderRadius:'0.4rem',border:'1px solid var(--glass-border)',background:'var(--surface-color)',cursor:cur>=total?'not-allowed':'pointer',opacity:cur>=total?0.4:1}}>›</button>
       </div>
@@ -71,7 +69,71 @@ const Pager = ({ cur, total, onChange, total_items, per_page }) => {
   );
 };
 
+// Card untuk 1 siswa di tab Tunggakan & Belum JT
+const SiswaCard = ({ a, idx, isTunggakan }) => {
+  const dj = a.detail_jadwal||{};
+  return (
+    <div style={{border:'1px solid var(--glass-border)',borderRadius:'0.75rem',padding:'1rem',marginBottom:'0.65rem',background:'var(--surface-color)'}}>
+      <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.5rem'}}>
+        <div>
+          <div style={{fontWeight:700,fontSize:'0.95rem'}}>{a.nama_siswa}</div>
+          <div style={{fontSize:'0.78rem',color:'var(--primary)',marginTop:'0.1rem'}}>{dj.nama_program||'-'}</div>
+          <div style={{fontSize:'0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</div>
+        </div>
+        {statusBadge(a._status)}
+      </div>
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem 1rem',fontSize:'0.78rem',marginTop:'0.5rem'}}>
+        <div><span style={{color:'var(--text-secondary)'}}>Mulai Les: </span>{fmt(a.tgl_mulai)}</div>
+        <div><span style={{color:'var(--text-secondary)'}}>Jatuh Tempo: </span>
+          <span style={{color:isTunggakan?'#b91c1c':'inherit',fontWeight:isTunggakan?700:400}}>{fmt(a._jt)}</span>
+        </div>
+        {!isTunggakan && a._last && (
+          <div style={{gridColumn:'1/-1'}}>
+            <span style={{color:'var(--text-secondary)'}}>Bayar Terakhir: </span>
+            {fmt(a._last.tanggal_bayar||a._last.created_at?.split('T')[0])}
+          </div>
+        )}
+        <div style={{gridColumn:'1/-1',marginTop:'0.25rem'}}>
+          <span style={{color:'var(--text-secondary)'}}>Nominal SPP: </span>
+          <span style={{fontWeight:700,color:isTunggakan?'#b91c1c':'var(--primary)'}}>
+            {a._nominal>0?formatRupiah(a._nominal):'Belum diset'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Card untuk rekap bulanan
+const RekapCard = ({ r }) => (
+  <div style={{border:'1px solid var(--glass-border)',borderRadius:'0.75rem',padding:'1rem',marginBottom:'0.65rem',background:'var(--surface-color)'}}>
+    <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.75rem'}}>
+      <div style={{fontWeight:700,fontSize:'1rem'}}>{BULAN[r.bulan]} {r.tahun}</div>
+      <span style={{background:'rgba(79,70,229,0.1)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:'999px',fontWeight:700,fontSize:'0.8rem'}}>{r.jml} transaksi</span>
+    </div>
+    <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.5rem',fontSize:'0.82rem'}}>
+      <div style={{background:'rgba(4,120,87,0.06)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
+        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>TUNAI</div>
+        <div style={{fontWeight:700,color:'#047857'}}>{r.tunai>0?formatRupiah(r.tunai):'-'}</div>
+      </div>
+      <div style={{background:'rgba(29,78,216,0.06)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
+        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>TRANSFER</div>
+        <div style={{fontWeight:700,color:'#1d4ed8'}}>{r.transfer>0?formatRupiah(r.transfer):'-'}</div>
+      </div>
+      <div style={{background:'rgba(180,83,9,0.06)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
+        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>DISKON</div>
+        <div style={{fontWeight:700,color:'#b45309'}}>{r.diskon>0?formatRupiah(r.diskon):'-'}</div>
+      </div>
+      <div style={{background:'rgba(4,120,87,0.1)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
+        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>TOTAL</div>
+        <div style={{fontWeight:800,color:'#047857'}}>{formatRupiah(r.total)}</div>
+      </div>
+    </div>
+  </div>
+);
+
 export default function LaporanSppPage() {
+  const isMobile = useIsMobile();
   const [aktivasis, setAktivasis]     = useState([]);
   const [pembayarans, setPembayarans] = useState([]);
   const [loading, setLoading]         = useState(true);
@@ -81,7 +143,6 @@ export default function LaporanSppPage() {
   const [page2, setPage2] = useState(1);
   const [page3, setPage3] = useState(1);
 
-  // Filters
   const [search, setSearch]             = useState('');
   const [filterUnit, setFilterUnit]     = useState('');
   const [filterProg, setFilterProg]     = useState('');
@@ -127,13 +188,11 @@ export default function LaporanSppPage() {
     return { ...a, _last:last, _jt:jt, _status:status, _nominal:Number(a.spp)||0 };
   }), [aktivasis, pembayarans]);
 
-  // Status counts
   const jmlLunas      = enriched.filter(a=>a._status==='Lunas').length;
   const jmlTerlambat  = enriched.filter(a=>a._status==='Terlambat').length;
   const jmlBelumBayar = enriched.filter(a=>a._status==='Belum Bayar').length;
   const totalTunggakan = enriched.filter(a=>a._status==='Terlambat').reduce((s,a)=>s+a._nominal,0);
 
-  // Filtered aktivasi
   const filteredAktivasi = useMemo(() => enriched.filter(a => {
     const dj = a.detail_jadwal||{};
     const q  = search.toLowerCase();
@@ -143,7 +202,6 @@ export default function LaporanSppPage() {
     return true;
   }), [enriched, search, filterUnit, filterProg]);
 
-  // Filtered pembayaran (rekap bulanan)
   const filteredPembayaran = useMemo(() => pembayarans.filter(p => {
     const tgl = p.tanggal_bayar || p.created_at?.split('T')[0];
     const q   = search.toLowerCase();
@@ -156,7 +214,6 @@ export default function LaporanSppPage() {
     return true;
   }), [pembayarans, search, filterUnit, filterProg, filterMetode, dateFrom, dateTo]);
 
-  // Rekap bulanan
   const rekapBulanan = useMemo(() => {
     const map = {};
     filteredPembayaran.forEach(p => {
@@ -174,7 +231,7 @@ export default function LaporanSppPage() {
     return Object.values(map).sort((a,b)=>b.key.localeCompare(a.key));
   }, [filteredPembayaran]);
 
-  const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' };
+  const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem', width:'100%', boxSizing:'border-box' };
   const hasFilter = search||filterUnit||filterProg||filterMetode||dateFrom||dateTo;
   const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setFilterMetode(''); setDateFrom(''); setDateTo(''); setPage1(1); setPage2(1); setPage3(1); };
 
@@ -190,49 +247,56 @@ export default function LaporanSppPage() {
   const s3 = Math.min(page3, tp3); const d3 = rekapBulanan.slice((s3-1)*PER_PAGE, s3*PER_PAGE);
 
   return (
-    <div>
+    <div style={{paddingBottom:'2rem'}}>
       {/* Header */}
-      <div style={{marginBottom:'1.5rem'}}>
-        <p style={{fontSize:'0.78rem',color:'var(--text-secondary)',margin:0,textTransform:'uppercase',letterSpacing:'0.05em'}}>SPP</p>
-        <h1 style={{fontSize:'1.6rem',fontWeight:700,margin:0}}>Laporan SPP</h1>
+      <div style={{marginBottom:'1.25rem'}}>
+        <p style={{fontSize:'0.72rem',color:'var(--text-secondary)',margin:0,textTransform:'uppercase',letterSpacing:'0.05em'}}>SPP</p>
+        <h1 style={{fontSize:isMobile?'1.35rem':'1.6rem',fontWeight:700,margin:0}}>Laporan SPP</h1>
       </div>
 
-      {/* STATUS CARD */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:'1rem',marginBottom:'1.5rem'}}>
+      {/* STATUS CARDS — 2 kolom di mobile, 4 di desktop */}
+      <div style={{display:'grid',gridTemplateColumns:isMobile?'repeat(2,1fr)':'repeat(4,1fr)',gap:'0.75rem',marginBottom:'1.25rem'}}>
         {[
           ['Lunas',          '#d1fae5','#047857', jmlLunas,       null],
           ['Terlambat',      '#fee2e2','#b91c1c', jmlTerlambat,   null],
           ['Belum Bayar',    '#fef3c7','#92400e', jmlBelumBayar,  null],
           ['Total Tunggakan','rgba(185,28,28,0.07)','#b91c1c', null, totalTunggakan],
         ].map(([label,bg,color,n,nominal]) => (
-          <div key={label} className="glass-card" style={{padding:'1.25rem 1.5rem',background:bg,border:`1px solid ${color}22`}}>
-            <div style={{fontSize:'0.72rem',fontWeight:700,color,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'0.5rem'}}>{label}</div>
+          <div key={label} className="glass-card" style={{padding:'1rem',background:bg,border:`1px solid ${color}22`}}>
+            <div style={{fontSize:'0.68rem',fontWeight:700,color,textTransform:'uppercase',letterSpacing:'0.07em',marginBottom:'0.4rem'}}>{label}</div>
             {nominal != null
-              ? <div style={{fontSize:'1.45rem',fontWeight:800,color,lineHeight:1.1}}>{formatRupiah(nominal)}</div>
-              : <div style={{fontSize:'2.2rem',fontWeight:800,color,lineHeight:1}}>{n}</div>
+              ? <div style={{fontSize:isMobile?'1.05rem':'1.35rem',fontWeight:800,color,lineHeight:1.1}}>{formatRupiah(nominal)}</div>
+              : <div style={{fontSize:isMobile?'1.75rem':'2.2rem',fontWeight:800,color,lineHeight:1}}>{n}</div>
             }
-            <div style={{fontSize:'0.75rem',color:'var(--text-secondary)',marginTop:'0.35rem'}}>
+            <div style={{fontSize:'0.7rem',color:'var(--text-secondary)',marginTop:'0.3rem'}}>
               {nominal != null
                 ? `${jmlTerlambat} siswa terlambat`
-                : `${enriched.length>0?((n/enriched.length)*100).toFixed(0):0}% dari ${enriched.length} siswa aktif`
+                : `${enriched.length>0?((n/enriched.length)*100).toFixed(0):0}% dari ${enriched.length}`
               }
             </div>
           </div>
         ))}
       </div>
 
-      {/* Tabs */}
-      <div style={{display:'flex',gap:0,borderBottom:'2px solid var(--glass-border)',marginBottom:'1.25rem',overflowX:'auto'}}>
+      {/* TABS */}
+      <div style={{display:'flex',borderBottom:'2px solid var(--glass-border)',marginBottom:'1rem',overflowX:'auto'}}>
         {TAB_LIST.map(t => (
-          <button key={t} onClick={()=>setTab(t)} style={TAB_BTN(tab===t)}>{t}</button>
+          <button key={t} onClick={()=>setTab(t)} style={{
+            background:'none',border:'none',cursor:'pointer',
+            padding:'0.6rem 1rem',fontWeight:tab===t?700:500,
+            fontSize:'0.85rem',fontFamily:'inherit',whiteSpace:'nowrap',
+            color:tab===t?'var(--primary)':'var(--text-secondary)',
+            borderBottom:tab===t?'2px solid var(--primary)':'2px solid transparent',
+            marginBottom:'-2px',transition:'all 0.15s',
+          }}>{t}</button>
         ))}
       </div>
 
-      {/* Filters */}
-      <div style={{display:'flex',gap:'0.65rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
-        <div style={{position:'relative',flex:1,minWidth:180}}>
-          <Search size={14} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)'}}/>
-          <input style={{...sel,paddingLeft:'2.1rem',width:'100%',boxSizing:'border-box'}}
+      {/* FILTERS */}
+      <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(180px,1fr))',gap:'0.5rem',marginBottom:'1rem'}}>
+        <div style={{position:'relative'}}>
+          <Search size={14} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)',pointerEvents:'none'}}/>
+          <input style={{...sel,paddingLeft:'2.1rem'}}
             placeholder="Cari nama siswa..."
             value={search} onChange={e=>{setSearch(e.target.value);setPage1(1);setPage2(1);}}/>
         </div>
@@ -244,178 +308,214 @@ export default function LaporanSppPage() {
           <option value="">Semua Program</option>
           {allProgs.map(p=><option key={p} value={p}>{p}</option>)}
         </select>
-        {tab === 'Rekap Bulanan' && (
-          <>
-            <select style={sel} value={filterMetode} onChange={e=>{setFilterMetode(e.target.value);setPage3(1);}}>
-              <option value="">Semua Metode</option>
-              <option value="Tunai">Tunai</option>
-              <option value="Transfer Bank">Transfer Bank</option>
-            </select>
-            <input type="date" style={sel} value={dateFrom} onChange={e=>{setDateFrom(e.target.value);setPage3(1);}}/>
-            <span style={{color:'var(--text-secondary)',fontSize:'0.82rem'}}>s/d</span>
-            <input type="date" style={sel} value={dateTo} onChange={e=>{setDateTo(e.target.value);setPage3(1);}}/>
-          </>
-        )}
+        {tab === 'Rekap Bulanan' && (<>
+          <select style={sel} value={filterMetode} onChange={e=>{setFilterMetode(e.target.value);setPage3(1);}}>
+            <option value="">Semua Metode</option>
+            <option value="Tunai">Tunai</option>
+            <option value="Transfer Bank">Transfer Bank</option>
+          </select>
+          <input type="date" style={sel} value={dateFrom} onChange={e=>{setDateFrom(e.target.value);setPage3(1);}}/>
+          <input type="date" style={sel} value={dateTo} onChange={e=>{setDateTo(e.target.value);setPage3(1);}}/>
+        </>)}
         {hasFilter && (
-          <button onClick={resetFilter} style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.45rem 0.85rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>Reset</button>
+          <button onClick={resetFilter} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.4rem',background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>
+            <X size={14}/> Reset
+          </button>
         )}
       </div>
 
-      {loading ? <p style={{color:'var(--text-secondary)'}}>Memuat...</p> : (
-        <>
-          {/* ── TAB 1: TUNGGAKAN ── */}
-          {tab === 'Tunggakan' && (
-            <div className="glass-card" style={{padding:'1.5rem'}}>
-              {tunggakan.length === 0
-                ? <p style={{color:'#047857',fontWeight:600}}>Tidak ada tunggakan.</p>
-                : (
-                <>
-                  <div style={{overflowX:'auto'}}>
-                    <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
-                      <thead>
-                        <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                          <TH>NO</TH><TH>NAMA SISWA</TH><TH>PROGRAM</TH><TH>UNIT</TH>
-                          <TH>TGL MULAI LES</TH><TH>JATUH TEMPO</TH><TH right>NOMINAL SPP</TH><TH>STATUS</TH>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {d1.map((a,idx) => {
-                          const dj = a.detail_jadwal||{};
-                          return (
-                            <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
-                              onMouseOver={e=>e.currentTarget.style.background='rgba(185,28,28,0.03)'}
-                              onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                              <TD color="var(--text-secondary)">{(s1-1)*PER_PAGE+idx+1}</TD>
-                              <TD bold>{a.nama_siswa}</TD>
-                              <TD color="var(--primary)">{dj.nama_program||'-'}</TD>
-                              <TD color="var(--text-secondary)">{dj.unit||'-'}</TD>
-                              <TD nowrap>{fmt(a.tgl_mulai)}</TD>
-                              <TD nowrap bold color="#b91c1c">{fmt(a._jt)}</TD>
-                              <TD right bold>{a._nominal>0?formatRupiah(a._nominal):<span style={{color:'#d97706',fontWeight:400,fontSize:'0.78rem'}}>Belum diset</span>}</TD>
-                              <td style={{padding:'0.7rem 0.75rem'}}>{statusBadge(a._status)}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(185,28,28,0.04)',fontWeight:700}}>
-                          <td colSpan={6} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({tunggakan.length} siswa)</td>
-                          <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#b91c1c'}}>{formatRupiah(tunggakan.reduce((s,a)=>s+a._nominal,0))}</td>
-                          <td/>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                  <Pager cur={s1} total={tp1} onChange={setPage1} total_items={tunggakan.length} per_page={PER_PAGE}/>
-                </>
-              )}
-            </div>
-          )}
+      {loading ? <p style={{color:'var(--text-secondary)'}}>Memuat...</p> : (<>
 
-          {/* ── TAB 2: TAGIHAN BELUM JATUH TEMPO ── */}
-          {tab === 'Tagihan Belum Jatuh Tempo' && (
-            <div className="glass-card" style={{padding:'1.5rem'}}>
-              {belumJT.length === 0
-                ? <p style={{color:'var(--text-secondary)'}}>Tidak ada data.</p>
-                : (
-                <>
-                  <div style={{overflowX:'auto'}}>
-                    <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
-                      <thead>
-                        <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                          <TH>NO</TH><TH>NAMA SISWA</TH><TH>PROGRAM</TH><TH>UNIT</TH>
-                          <TH>TGL MULAI LES</TH><TH>JATUH TEMPO</TH><TH>TGL BAYAR TERAKHIR</TH>
-                          <TH right>NOMINAL SPP</TH><TH>STATUS</TH>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {d2.map((a,idx) => {
-                          const dj = a.detail_jadwal||{};
-                          return (
-                            <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
+        {/* ── TAB 1: TUNGGAKAN ── */}
+        {tab === 'Tunggakan' && (
+          <div className="glass-card" style={{padding:isMobile?'0.75rem':'1.5rem'}}>
+            {tunggakan.length === 0
+              ? <p style={{color:'#047857',fontWeight:600}}>Tidak ada tunggakan.</p>
+              : (<>
+                {isMobile
+                  ? d1.map((a,i) => <SiswaCard key={a.id} a={a} idx={i} isTunggakan />)
+                  : (
+                    <div style={{overflowX:'auto'}}>
+                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
+                        <thead>
+                          <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
+                            {['NO','NAMA SISWA','PROGRAM','UNIT','TGL MULAI','JATUH TEMPO','NOMINAL SPP','STATUS'].map(h=>(
+                              <th key={h} style={{padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',textAlign:h==='NOMINAL SPP'?'right':'left'}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {d1.map((a,idx) => {
+                            const dj = a.detail_jadwal||{};
+                            return (
+                              <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
+                                onMouseOver={e=>e.currentTarget.style.background='rgba(185,28,28,0.03)'}
+                                onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{(s1-1)*PER_PAGE+idx+1}</td>
+                                <td style={{padding:'0.7rem 0.75rem',fontWeight:700}}>{a.nama_siswa}</td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>{dj.nama_program||'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a.tgl_mulai)}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap',fontWeight:700,color:'#b91c1c'}}>{fmt(a._jt)}</td>
+                                <td style={{padding:'0.7rem 0.75rem',textAlign:'right',fontWeight:700}}>{a._nominal>0?formatRupiah(a._nominal):<span style={{color:'#d97706',fontWeight:400,fontSize:'0.78rem'}}>Belum diset</span>}</td>
+                                <td style={{padding:'0.7rem 0.75rem'}}>{statusBadge(a._status)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(185,28,28,0.04)',fontWeight:700}}>
+                            <td colSpan={6} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({tunggakan.length} siswa)</td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#b91c1c'}}>{formatRupiah(tunggakan.reduce((s,a)=>s+a._nominal,0))}</td>
+                            <td/>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )
+                }
+                {isMobile && (
+                  <div style={{background:'rgba(185,28,28,0.04)',borderRadius:'0.5rem',padding:'0.75rem',marginTop:'0.5rem',display:'flex',justifyContent:'space-between',fontWeight:700,fontSize:'0.85rem'}}>
+                    <span>Total ({tunggakan.length} siswa)</span>
+                    <span style={{color:'#b91c1c'}}>{formatRupiah(tunggakan.reduce((s,a)=>s+a._nominal,0))}</span>
+                  </div>
+                )}
+                <Pager cur={s1} total={tp1} onChange={setPage1} total_items={tunggakan.length} per_page={PER_PAGE}/>
+              </>)
+            }
+          </div>
+        )}
+
+        {/* ── TAB 2: BELUM JATUH TEMPO ── */}
+        {tab === 'Belum Jatuh Tempo' && (
+          <div className="glass-card" style={{padding:isMobile?'0.75rem':'1.5rem'}}>
+            {belumJT.length === 0
+              ? <p style={{color:'var(--text-secondary)'}}>Tidak ada data.</p>
+              : (<>
+                {isMobile
+                  ? d2.map((a,i) => <SiswaCard key={a.id} a={a} idx={i} isTunggakan={false} />)
+                  : (
+                    <div style={{overflowX:'auto'}}>
+                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
+                        <thead>
+                          <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
+                            {['NO','NAMA SISWA','PROGRAM','UNIT','TGL MULAI','JATUH TEMPO','BAYAR TERAKHIR','NOMINAL SPP','STATUS'].map(h=>(
+                              <th key={h} style={{padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',textAlign:h==='NOMINAL SPP'?'right':'left'}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {d2.map((a,idx) => {
+                            const dj = a.detail_jadwal||{};
+                            return (
+                              <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
+                                onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
+                                onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{(s2-1)*PER_PAGE+idx+1}</td>
+                                <td style={{padding:'0.7rem 0.75rem',fontWeight:700}}>{a.nama_siswa}</td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>{dj.nama_program||'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a.tgl_mulai)}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a._jt)}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap',color:'var(--text-secondary)'}}>{a._last?fmt(a._last.tanggal_bayar||a._last.created_at?.split('T')[0]):'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',textAlign:'right',fontWeight:700}}>{a._nominal>0?formatRupiah(a._nominal):<span style={{color:'#d97706',fontWeight:400,fontSize:'0.78rem'}}>Belum diset</span>}</td>
+                                <td style={{padding:'0.7rem 0.75rem'}}>{statusBadge(a._status)}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)',fontWeight:700}}>
+                            <td colSpan={7} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>
+                              TOTAL ({belumJT.length}) — Lunas: {belumJT.filter(a=>a._status==='Lunas').length} | Belum Bayar: {belumJT.filter(a=>a._status==='Belum Bayar').length}
+                            </td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'var(--primary)'}}>{formatRupiah(belumJT.reduce((s,a)=>s+a._nominal,0))}</td>
+                            <td/>
+                          </tr>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )
+                }
+                {isMobile && (
+                  <div style={{background:'rgba(79,70,229,0.04)',borderRadius:'0.5rem',padding:'0.75rem',marginTop:'0.5rem',fontSize:'0.82rem',fontWeight:700}}>
+                    <div style={{display:'flex',justifyContent:'space-between'}}>
+                      <span>Lunas: {belumJT.filter(a=>a._status==='Lunas').length} | Belum Bayar: {belumJT.filter(a=>a._status==='Belum Bayar').length}</span>
+                    </div>
+                    <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.25rem'}}>
+                      <span>Total ({belumJT.length} siswa)</span>
+                      <span style={{color:'var(--primary)'}}>{formatRupiah(belumJT.reduce((s,a)=>s+a._nominal,0))}</span>
+                    </div>
+                  </div>
+                )}
+                <Pager cur={s2} total={tp2} onChange={setPage2} total_items={belumJT.length} per_page={PER_PAGE}/>
+              </>)
+            }
+          </div>
+        )}
+
+        {/* ── TAB 3: REKAP BULANAN ── */}
+        {tab === 'Rekap Bulanan' && (
+          <div className="glass-card" style={{padding:isMobile?'0.75rem':'1.5rem'}}>
+            {rekapBulanan.length === 0
+              ? <p style={{color:'var(--text-secondary)'}}>Belum ada data transaksi.</p>
+              : (<>
+                {isMobile
+                  ? d3.map(r => <RekapCard key={r.key} r={r} />)
+                  : (
+                    <div style={{overflowX:'auto'}}>
+                      <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
+                        <thead>
+                          <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
+                            {['BULAN','JML TRANSAKSI','TUNAI','TRANSFER','DISKON','TOTAL DITERIMA'].map((h,i)=>(
+                              <th key={h} style={{padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',textAlign:i>0?'right':'left'}}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {d3.map(r=>(
+                            <tr key={r.key} style={{borderBottom:'1px solid var(--glass-border)'}}
                               onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
                               onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                              <TD color="var(--text-secondary)">{(s2-1)*PER_PAGE+idx+1}</TD>
-                              <TD bold>{a.nama_siswa}</TD>
-                              <TD color="var(--primary)">{dj.nama_program||'-'}</TD>
-                              <TD color="var(--text-secondary)">{dj.unit||'-'}</TD>
-                              <TD nowrap>{fmt(a.tgl_mulai)}</TD>
-                              <TD nowrap>{fmt(a._jt)}</TD>
-                              <TD nowrap color="var(--text-secondary)">{a._last?fmt(a._last.tanggal_bayar||a._last.created_at?.split('T')[0]):'-'}</TD>
-                              <TD right bold>{a._nominal>0?formatRupiah(a._nominal):<span style={{color:'#d97706',fontWeight:400,fontSize:'0.78rem'}}>Belum diset</span>}</TD>
-                              <td style={{padding:'0.7rem 0.75rem'}}>{statusBadge(a._status)}</td>
+                              <td style={{padding:'0.7rem 0.75rem',fontWeight:700,whiteSpace:'nowrap'}}>{BULAN[r.bulan]} {r.tahun}</td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right'}}>
+                                <span style={{background:'rgba(79,70,229,0.1)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:'999px',fontWeight:700,fontSize:'0.8rem'}}>{r.jml}</span>
+                              </td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#047857'}}>{r.tunai>0?formatRupiah(r.tunai):'-'}</td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{r.transfer>0?formatRupiah(r.transfer):'-'}</td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#b45309'}}>{r.diskon>0?formatRupiah(r.diskon):'-'}</td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',fontWeight:700,color:'#047857'}}>{formatRupiah(r.total)}</td>
                             </tr>
-                          );
-                        })}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)',fontWeight:700}}>
-                          <td colSpan={7} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>
-                            TOTAL ({belumJT.length} siswa) — Lunas: {belumJT.filter(a=>a._status==='Lunas').length} | Belum Bayar: {belumJT.filter(a=>a._status==='Belum Bayar').length}
-                          </td>
-                          <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'var(--primary)'}}>{formatRupiah(belumJT.reduce((s,a)=>s+a._nominal,0))}</td>
-                          <td/>
-                        </tr>
-                      </tfoot>
-                    </table>
-                  </div>
-                  <Pager cur={s2} total={tp2} onChange={setPage2} total_items={belumJT.length} per_page={PER_PAGE}/>
-                </>
-              )}
-            </div>
-          )}
-
-          {/* ── TAB 3: REKAP BULANAN ── */}
-          {tab === 'Rekap Bulanan' && (
-            <div className="glass-card" style={{padding:'1.5rem'}}>
-              {rekapBulanan.length === 0
-                ? <p style={{color:'var(--text-secondary)'}}>Belum ada data transaksi.</p>
-                : (
-                <>
-                  <div style={{overflowX:'auto'}}>
-                    <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
-                      <thead>
-                        <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                          <TH>BULAN</TH><TH right>JML TRANSAKSI</TH>
-                          <TH right>TUNAI</TH><TH right>TRANSFER</TH>
-                          <TH right>DISKON</TH><TH right>TOTAL DITERIMA</TH>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {d3.map(r=>(
-                          <tr key={r.key} style={{borderBottom:'1px solid var(--glass-border)'}}
-                            onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
-                            onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                            <TD bold nowrap>{BULAN[r.bulan]} {r.tahun}</TD>
-                            <td style={{padding:'0.7rem 0.75rem',textAlign:'right'}}>
-                              <span style={{background:'rgba(79,70,229,0.1)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:'999px',fontWeight:700,fontSize:'0.8rem'}}>{r.jml}</span>
-                            </td>
-                            <TD right color="#047857">{r.tunai>0?formatRupiah(r.tunai):'-'}</TD>
-                            <TD right color="#1d4ed8">{r.transfer>0?formatRupiah(r.transfer):'-'}</TD>
-                            <TD right color="#b45309">{r.diskon>0?formatRupiah(r.diskon):'-'}</TD>
-                            <TD right bold color="#047857">{formatRupiah(r.total)}</TD>
+                          ))}
+                        </tbody>
+                        <tfoot>
+                          <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)',fontWeight:700}}>
+                            <td style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({rekapBulanan.reduce((s,r)=>s+r.jml,0)} transaksi)</td>
+                            <td/>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.tunai,0))}</td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.transfer,0))}</td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#b45309'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.diskon,0))}</td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.total,0))}</td>
                           </tr>
-                        ))}
-                      </tbody>
-                      <tfoot>
-                        <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)',fontWeight:700}}>
-                          <td style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({rekapBulanan.reduce((s,r)=>s+r.jml,0)} transaksi)</td>
-                          <td/>
-                          <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.tunai,0))}</td>
-                          <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.transfer,0))}</td>
-                          <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#b45309'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.diskon,0))}</td>
-                          <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.total,0))}</td>
-                        </tr>
-                      </tfoot>
-                    </table>
+                        </tfoot>
+                      </table>
+                    </div>
+                  )
+                }
+                {isMobile && (
+                  <div style={{background:'rgba(79,70,229,0.04)',borderRadius:'0.5rem',padding:'0.75rem',marginTop:'0.5rem',fontSize:'0.82rem',fontWeight:700}}>
+                    <div style={{display:'flex',justifyContent:'space-between'}}>
+                      <span>Total {rekapBulanan.reduce((s,r)=>s+r.jml,0)} transaksi</span>
+                      <span style={{color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.total,0))}</span>
+                    </div>
                   </div>
-                  <Pager cur={s3} total={tp3} onChange={setPage3} total_items={rekapBulanan.length} per_page={PER_PAGE}/>
-                </>
-              )}
-            </div>
-          )}
-        </>
-      )}
+                )}
+                <Pager cur={s3} total={tp3} onChange={setPage3} total_items={rekapBulanan.length} per_page={PER_PAGE}/>
+              </>)
+            }
+          </div>
+        )}
+      </>)}
     </div>
   );
 }
