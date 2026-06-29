@@ -4,13 +4,25 @@ import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
 const thisYear  = () => new Date().getFullYear();
-const fmtTgl    = (d)  => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) : '-';
+const fmtTgl    = (d) => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{weekday:'long',day:'2-digit',month:'long',year:'numeric'}) : '-';
+const fmtShort  = (d) => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short'}) : '-';
 
 const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.88rem', width:'100%', boxSizing:'border-box' };
 
+const useIsMobile = () => {
+  const [mobile, setMobile] = useState(window.innerWidth < 768);
+  useEffect(() => {
+    const h = () => setMobile(window.innerWidth < 768);
+    window.addEventListener('resize', h);
+    return () => window.removeEventListener('resize', h);
+  }, []);
+  return mobile;
+};
+
 export default function HariLiburPage() {
-  const { user } = useAuth();
-  const isAdmin  = user?.role === 'Admin';
+  const { user }  = useAuth();
+  const isAdmin   = user?.role === 'Admin';
+  const isMobile  = useIsMobile();
 
   const [libur, setLibur]   = useState([]);
   const [units, setUnits]   = useState([]);
@@ -27,8 +39,8 @@ export default function HariLiburPage() {
       supabase.from('hari_libur').select('*, units(nama)').order('tanggal'),
       supabase.from('units').select('*').eq('aktif',true).order('nama'),
     ]);
-    setLibur(lRes.data || []);
-    setUnits(uRes.data || []);
+    setLibur(lRes.data  || []);
+    setUnits(uRes.data  || []);
     setLoading(false);
   };
 
@@ -56,93 +68,124 @@ export default function HariLiburPage() {
 
   return (
     <div>
-      <div style={{ marginBottom:'1.5rem' }}>
-        <p style={{ fontSize:'0.78rem', color:'var(--text-secondary)', margin:0, textTransform:'uppercase', letterSpacing:'0.05em' }}>Absensi</p>
-        <h1 style={{ fontSize:'1.6rem', fontWeight:700, margin:0 }}>Hari Libur</h1>
+      {/* Header */}
+      <div style={{ marginBottom:'1.25rem' }}>
+        <p style={{ fontSize:'0.72rem', color:'var(--text-secondary)', margin:0, textTransform:'uppercase', letterSpacing:'0.05em' }}>Absensi</p>
+        <h1 style={{ fontSize:isMobile?'1.35rem':'1.6rem', fontWeight:700, margin:0 }}>Hari Libur</h1>
       </div>
 
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'1rem', flexWrap:'wrap', gap:'0.65rem' }}>
+      {/* Toolbar */}
+      <div style={{ display:'flex', flexDirection:isMobile?'column':'row', justifyContent:'space-between', alignItems:isMobile?'stretch':'center', marginBottom:'1rem', gap:'0.65rem' }}>
         <div style={{ display:'flex', gap:'0.5rem' }}>
           {years.map(y => (
             <button key={y} className="btn" onClick={()=>setFilterTahun(y)}
-              style={{ fontWeight: filterTahun===y?800:400, background:filterTahun===y?'var(--primary)':undefined, color:filterTahun===y?'#fff':undefined }}>
+              style={{ flex:isMobile?1:undefined, fontWeight:filterTahun===y?800:400, background:filterTahun===y?'var(--primary)':undefined, color:filterTahun===y?'#fff':undefined }}>
               {y}
             </button>
           ))}
         </div>
         {isAdmin && (
-          <button className="btn btn-primary" onClick={()=>{ setForm({tanggal:'',keterangan:'',unit_id:''}); setModal(true); }}>
+          <button className="btn btn-primary" style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:'0.5rem' }}
+            onClick={()=>{ setForm({tanggal:'',keterangan:'',unit_id:''}); setModal(true); }}>
             <Plus size={16}/> Tambah Hari Libur
           </button>
         )}
       </div>
 
-      {/* Summary */}
-      <div style={{ display:'flex', gap:'0.75rem', marginBottom:'1rem', flexWrap:'wrap' }}>
-        <div className="glass-card" style={{ padding:'0.75rem 1.25rem', display:'flex', flexDirection:'column', gap:'0.15rem', minWidth:140 }}>
-          <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', fontWeight:600 }}>Total {filterTahun}</span>
-          <span style={{ fontSize:'1.5rem', fontWeight:800, color:'var(--primary)' }}>{filtered.length}</span>
-          <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>hari libur</span>
-        </div>
-        <div className="glass-card" style={{ padding:'0.75rem 1.25rem', display:'flex', flexDirection:'column', gap:'0.15rem', minWidth:140 }}>
-          <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', fontWeight:600 }}>Libur Nasional</span>
-          <span style={{ fontSize:'1.5rem', fontWeight:800, color:'#047857' }}>{filtered.filter(l=>!l.unit_id).length}</span>
-          <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>hari (semua unit)</span>
-        </div>
-        <div className="glass-card" style={{ padding:'0.75rem 1.25rem', display:'flex', flexDirection:'column', gap:'0.15rem', minWidth:140 }}>
-          <span style={{ fontSize:'0.78rem', color:'var(--text-secondary)', fontWeight:600 }}>Libur Unit</span>
-          <span style={{ fontSize:'1.5rem', fontWeight:800, color:'#d97706' }}>{filtered.filter(l=>!!l.unit_id).length}</span>
-          <span style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>hari (per unit)</span>
-        </div>
+      {/* Summary cards — 3 kolom di semua ukuran, ukuran font menyesuaikan */}
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:'0.65rem', marginBottom:'1rem' }}>
+        {[
+          ['Total '+filterTahun, filtered.length,                          'hari libur',    'var(--primary)',    'rgba(79,70,229,0.06)'],
+          ['Libur Nasional',      filtered.filter(l=>!l.unit_id).length,   'semua unit',    '#047857',           'rgba(4,120,87,0.06)'],
+          ['Libur Unit',          filtered.filter(l=>!!l.unit_id).length,  'per unit',      '#d97706',           'rgba(245,158,11,0.06)'],
+        ].map(([label, count, sub, color, bg]) => (
+          <div key={label} className="glass-card" style={{ padding:isMobile?'0.65rem 0.75rem':'0.75rem 1.25rem', background:bg }}>
+            <div style={{ fontSize:isMobile?'0.65rem':'0.78rem', color:'var(--text-secondary)', fontWeight:600, marginBottom:'0.25rem', lineHeight:1.2 }}>{label}</div>
+            <div style={{ fontSize:isMobile?'1.5rem':'1.75rem', fontWeight:800, color, lineHeight:1 }}>{count}</div>
+            <div style={{ fontSize:isMobile?'0.65rem':'0.75rem', color:'var(--text-secondary)', marginTop:'0.2rem' }}>{sub}</div>
+          </div>
+        ))}
       </div>
 
-      <div className="glass-card" style={{ padding:'1.5rem' }}>
+      {/* List */}
+      <div className="glass-card" style={{ padding:isMobile?'0.75rem':'1.5rem' }}>
         {loading ? <p style={{ color:'var(--text-secondary)' }}>Memuat...</p> : filtered.length === 0 ? (
           <div style={{ textAlign:'center', padding:'3rem', color:'var(--text-secondary)' }}>
-            <CalendarX size={40} style={{ opacity:0.3, marginBottom:'0.75rem' }} />
+            <CalendarX size={40} style={{ opacity:0.3, marginBottom:'0.75rem' }}/>
             <p>Belum ada hari libur untuk tahun {filterTahun}.</p>
           </div>
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
-            {filtered.map((l) => (
-              <div key={l.id} style={{
-                display:'flex', justifyContent:'space-between', alignItems:'center',
-                padding:'0.75rem 1rem', borderRadius:'0.5rem',
-                background: l.unit_id ? 'rgba(245,158,11,0.07)' : 'rgba(79,70,229,0.06)',
-                border:`1px solid ${l.unit_id ? 'rgba(245,158,11,0.25)' : 'rgba(79,70,229,0.15)'}`,
-                flexWrap:'wrap', gap:'0.5rem'
-              }}>
-                <div style={{ display:'flex', gap:'1rem', alignItems:'center', flexWrap:'wrap' }}>
-                  <div style={{
-                    background: l.unit_id ? '#f59e0b' : 'var(--primary)',
-                    color:'#fff', borderRadius:'0.4rem', padding:'0.35rem 0.65rem',
-                    fontSize:'0.85rem', fontWeight:800, minWidth:46, textAlign:'center'
-                  }}>
-                    {new Date(l.tanggal+'T12:00:00').getDate()}
+          <div style={{ display:'flex', flexDirection:'column', gap:'0.55rem' }}>
+            {filtered.map((l) => {
+              const isNasional = !l.unit_id;
+              const accentColor = isNasional ? 'var(--primary)' : '#d97706';
+              const bg          = isNasional ? 'rgba(79,70,229,0.06)'  : 'rgba(245,158,11,0.07)';
+              const border      = isNasional ? 'rgba(79,70,229,0.18)'  : 'rgba(245,158,11,0.3)';
+              const badgeBg     = isNasional ? 'rgba(79,70,229,0.12)'  : 'rgba(245,158,11,0.15)';
+              const badgeColor  = isNasional ? 'var(--primary)'         : '#92400e';
+              const badgeLabel  = isNasional ? 'Semua Unit'             : (l.units?.nama || 'Unit tertentu');
+
+              return isMobile ? (
+                /* ── MOBILE CARD ── */
+                <div key={l.id} style={{ borderRadius:'0.75rem', border:`1px solid ${border}`, background:bg, overflow:'hidden' }}>
+                  {/* Top strip */}
+                  <div style={{ background:accentColor, padding:'0.4rem 0.85rem', display:'flex', alignItems:'center', justifyContent:'space-between' }}>
+                    <span style={{ color:'#fff', fontWeight:800, fontSize:'0.8rem' }}>
+                      {fmtShort(l.tanggal)}
+                    </span>
+                    <span style={{ color:'rgba(255,255,255,0.85)', fontSize:'0.72rem', fontWeight:600 }}>
+                      {new Date(l.tanggal+'T12:00:00').toLocaleDateString('id-ID',{weekday:'long'})}
+                    </span>
                   </div>
-                  <div>
-                    <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{l.keterangan}</div>
-                    <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>{fmtTgl(l.tanggal)}</div>
+                  {/* Body */}
+                  <div style={{ padding:'0.75rem 0.85rem', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.5rem' }}>
+                    <div style={{ flex:1, minWidth:0 }}>
+                      <div style={{ fontWeight:700, fontSize:'0.9rem', marginBottom:'0.3rem', overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
+                        {l.keterangan}
+                      </div>
+                      <span style={{ background:badgeBg, color:badgeColor, padding:'0.15rem 0.55rem', borderRadius:999, fontSize:'0.72rem', fontWeight:700 }}>
+                        {badgeLabel}
+                      </span>
+                    </div>
+                    {isAdmin && (
+                      <button onClick={()=>handleDelete(l.id)}
+                        style={{ background:'#fee2e2', border:'none', borderRadius:'0.5rem', padding:'0.45rem 0.6rem', cursor:'pointer', color:'#b91c1c', display:'flex', alignItems:'center', flexShrink:0 }}>
+                        <Trash2 size={15}/>
+                      </button>
+                    )}
                   </div>
                 </div>
-                <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
-                  {l.unit_id ? (
-                    <span style={{ background:'rgba(245,158,11,0.15)', color:'#92400e', padding:'0.18rem 0.65rem', borderRadius:999, fontSize:'0.75rem', fontWeight:700 }}>
-                      {l.units?.nama || 'Unit tertentu'}
+              ) : (
+                /* ── DESKTOP ROW ── */
+                <div key={l.id} style={{
+                  display:'flex', justifyContent:'space-between', alignItems:'center',
+                  padding:'0.75rem 1rem', borderRadius:'0.5rem',
+                  background:bg, border:`1px solid ${border}`,
+                  flexWrap:'wrap', gap:'0.5rem',
+                }}>
+                  <div style={{ display:'flex', gap:'1rem', alignItems:'center' }}>
+                    <div style={{ background:accentColor, color:'#fff', borderRadius:'0.4rem', padding:'0.35rem 0.65rem', fontSize:'0.85rem', fontWeight:800, minWidth:46, textAlign:'center' }}>
+                      {new Date(l.tanggal+'T12:00:00').getDate()}
+                    </div>
+                    <div>
+                      <div style={{ fontWeight:700, fontSize:'0.9rem' }}>{l.keterangan}</div>
+                      <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>{fmtTgl(l.tanggal)}</div>
+                    </div>
+                  </div>
+                  <div style={{ display:'flex', alignItems:'center', gap:'0.75rem' }}>
+                    <span style={{ background:badgeBg, color:badgeColor, padding:'0.18rem 0.65rem', borderRadius:999, fontSize:'0.75rem', fontWeight:700 }}>
+                      {badgeLabel}
                     </span>
-                  ) : (
-                    <span style={{ background:'rgba(79,70,229,0.12)', color:'var(--primary)', padding:'0.18rem 0.65rem', borderRadius:999, fontSize:'0.75rem', fontWeight:700 }}>
-                      Semua Unit
-                    </span>
-                  )}
-                  {isAdmin && (
-                    <button onClick={()=>handleDelete(l.id)} style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'#b91c1c', display:'flex', alignItems:'center' }}>
-                      <Trash2 size={14}/>
-                    </button>
-                  )}
+                    {isAdmin && (
+                      <button onClick={()=>handleDelete(l.id)}
+                        style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'#b91c1c', display:'flex', alignItems:'center' }}>
+                        <Trash2 size={14}/>
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>
