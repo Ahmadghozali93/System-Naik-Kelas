@@ -201,7 +201,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     const extraJadwalLinks = [
         { to: '/kanban', icon: Trello, label: 'Jadwal 10 Hari' },
         { to: '/booking', icon: CalendarCheck, label: 'Booking' },
-        { to: '/jadwal-kosong', icon: CalendarX2, label: 'Jadwal' },
+        { to: '/jadwal-kosong', icon: CalendarX2, label: 'Jadwal Kosong' },
         { to: '/reschedule', icon: RefreshCw, label: 'Reschedule' },
     ].filter(link => hasPermission(link.to));
 
