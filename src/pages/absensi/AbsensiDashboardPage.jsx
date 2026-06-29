@@ -67,10 +67,14 @@ export default function AbsensiDashboardPage() {
   const handleSeragam = async (id, nilai) => {
     setSavingId(id);
     const cur = attendances.find(a => a.id === id)?.seragam;
-    const next = cur === nilai ? null : nilai; // toggle off jika klik yg sama
-    const { error } = await supabase.from('attendances').update({ seragam: next }).eq('id', id);
+    const next = cur === nilai ? null : nilai;
+    const { error, count } = await supabase
+      .from('attendances')
+      .update({ seragam: next }, { count: 'exact' })
+      .eq('id', id);
     setSavingId(null);
-    if (error) return alert('Gagal: ' + error.message);
+    if (error) return alert('Gagal simpan seragam: ' + error.message);
+    if (count === 0) return alert('Seragam tidak tersimpan.\nPastikan SQL migration sudah dijalankan:\nsupabase_attendance_seragam.sql');
     setAttendances(prev => prev.map(a => a.id === id ? { ...a, seragam: next } : a));
   };
 
