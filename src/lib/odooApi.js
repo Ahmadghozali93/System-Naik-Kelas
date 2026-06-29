@@ -1,8 +1,5 @@
-// Odoo JSON-RPC API integration
-// Autentikasi: Bearer API Key (Odoo 17+)
-
-const BASE = 'https://naik-kelas.odoo.com';
-const DB   = 'naik-kelas';
+// Odoo JSON-RPC — semua panggilan lewat /api/odoo-proxy (Vercel serverless)
+// Menghindari CORS karena browser tidak panggil Odoo langsung
 
 export const UNIT_COMPANY = {
   'Sarirejo':    2,
@@ -11,34 +8,16 @@ export const UNIT_COMPANY = {
   'Magelung':    5,
 };
 
-// ─── Low-level RPC ──────────────────────────────────────────────────────────
+// ─── Low-level proxy call ────────────────────────────────────────────────────
 
 async function rpc(model, method, args = [], kwargs = {}, apiKey, companyId) {
-  const context = companyId
-    ? { allowed_company_ids: [companyId], default_company_id: companyId }
-    : {};
-
-  const resp = await fetch(`${BASE}/web/dataset/call_kw`, {
+  const resp = await fetch('/api/odoo-proxy', {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`,
-    },
-    mode: 'cors',
-    body: JSON.stringify({
-      jsonrpc: '2.0',
-      method: 'call',
-      id: Date.now(),
-      params: {
-        model,
-        method,
-        args,
-        kwargs: { ...kwargs, context },
-      },
-    }),
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey }),
   });
 
-  if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${resp.statusText}`);
+  if (!resp.ok) throw new Error(`Proxy HTTP ${resp.status}`);
 
   const json = await resp.json();
   if (json.error) {
@@ -106,7 +85,7 @@ export async function createInvoice(apiKey, {
       product_id: productId || false,
       name: namaProgram,
       quantity: 1,
-      price_unit: (nominal || 0) + (diskon || 0), // nominal SPP sebelum diskon
+      price_unit: (nominal || 0) + (diskon || 0),
     }],
   ];
 
@@ -118,23 +97,20 @@ export async function createInvoice(apiKey, {
     }]);
   }
 
-  const invoiceData = {
-    move_type: 'out_invoice',
-    partner_id: partnerId,
-    company_id: companyId,
-    invoice_date: tanggalBayar || new Date().toISOString().split('T')[0],
-    ref: `SPP - ${namaSiswa}`,
-    invoice_line_ids: lines,
-  };
-
   const [invoiceId] = await rpc('account.move', 'create',
-    [invoiceData],
+    [{
+      move_type: 'out_invoice',
+      partner_id: partnerId,
+      company_id: companyId,
+      invoice_date: tanggalBayar || new Date().toISOString().split('T')[0],
+      ref: `SPP - ${namaSiswa}`,
+      invoice_line_ids: lines,
+    }],
     {},
     apiKey,
     companyId
   );
 
-  // Ambil nama dan status invoice
   const [inv] = await rpc('account.move', 'read',
     [[invoiceId]],
     { fields: ['id', 'name', 'payment_state'] },
@@ -142,14 +118,10 @@ export async function createInvoice(apiKey, {
     companyId
   );
 
-  return {
-    id: invoiceId,
-    name: inv.name,
-    status: inv.payment_state, // 'not_paid' | 'in_payment' | 'paid'
-  };
+  return { id: invoiceId, name: inv.name, status: inv.payment_state };
 }
 
-// ─── Cek status invoice yg sudah ada ─────────────────────────────────────────
+// ─── Cek status invoice ───────────────────────────────────────────────────────
 
 export async function getInvoiceStatus(apiKey, invoiceId, companyId) {
   const [inv] = await rpc('account.move', 'read',
