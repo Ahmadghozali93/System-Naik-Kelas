@@ -17,11 +17,9 @@ async function rpc(model, method, args = [], kwargs = {}, apiKey, email, company
     body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey, email }),
   });
 
-  if (!resp.ok) throw new Error(`Proxy error HTTP ${resp.status}`);
-
   const json = await resp.json();
-  if (json.error) {
-    const msg = json.error.data?.message || json.error.message || 'Odoo error';
+  if (!resp.ok || json.error) {
+    const msg = json.error?.data?.message || json.error?.message || `HTTP ${resp.status}`;
     throw new Error(msg);
   }
   return json.result;
