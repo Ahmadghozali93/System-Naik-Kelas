@@ -1,5 +1,5 @@
-// Odoo JSON-RPC — semua panggilan lewat /api/odoo-proxy (Vercel serverless)
-// Menghindari CORS karena browser tidak panggil Odoo langsung
+// Odoo API — semua panggilan lewat /api/odoo-proxy (Vercel serverless)
+// Proxy melakukan: authenticate(email+apiKey) → session → call Odoo
 
 export const UNIT_COMPANY = {
   'Sarirejo':    2,
@@ -10,14 +10,14 @@ export const UNIT_COMPANY = {
 
 // ─── Low-level proxy call ────────────────────────────────────────────────────
 
-async function rpc(model, method, args = [], kwargs = {}, apiKey, companyId) {
+async function rpc(model, method, args = [], kwargs = {}, apiKey, email, companyId) {
   const resp = await fetch('/api/odoo-proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey }),
+    body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey, email }),
   });
 
-  if (!resp.ok) throw new Error(`Proxy HTTP ${resp.status}`);
+  if (!resp.ok) throw new Error(`Proxy error HTTP ${resp.status}`);
 
   const json = await resp.json();
   if (json.error) {
@@ -27,13 +27,13 @@ async function rpc(model, method, args = [], kwargs = {}, apiKey, companyId) {
   return json.result;
 }
 
-// ─── Auth & Connection ───────────────────────────────────────────────────────
+// ─── Test Connection ─────────────────────────────────────────────────────────
 
-export async function testConnection(apiKey) {
+export async function testConnection(apiKey, email) {
   const result = await rpc('res.users', 'search_read',
     [[['active', '=', true]]],
     { fields: ['id', 'name'], limit: 1 },
-    apiKey
+    apiKey, email
   );
   if (!result || result.length === 0) throw new Error('Koneksi berhasil tapi tidak ada data user.');
   return result[0];
@@ -41,25 +41,25 @@ export async function testConnection(apiKey) {
 
 // ─── Partner (Customer) ──────────────────────────────────────────────────────
 
-export async function getOrCreatePartner(apiKey, name) {
+export async function getOrCreatePartner(apiKey, email, name) {
   const found = await rpc('res.partner', 'search_read',
     [[['name', '=', name]]],
     { fields: ['id', 'name'], limit: 1 },
-    apiKey
+    apiKey, email
   );
   if (found.length > 0) return found[0].id;
 
   const [id] = await rpc('res.partner', 'create',
     [{ name, customer_rank: 1 }],
     {},
-    apiKey
+    apiKey, email
   );
   return id;
 }
 
 // ─── Product ─────────────────────────────────────────────────────────────────
 
-export async function findProduct(apiKey, productName, companyId) {
+export async function findProduct(apiKey, email, productName, companyId) {
   const found = await rpc('product.product', 'search_read',
     [[
       ['name', 'ilike', productName],
@@ -68,15 +68,14 @@ export async function findProduct(apiKey, productName, companyId) {
       ['company_id', '=', false],
     ]],
     { fields: ['id', 'name'], limit: 1 },
-    apiKey,
-    companyId
+    apiKey, email, companyId
   );
   return found[0] || null;
 }
 
 // ─── Invoice ─────────────────────────────────────────────────────────────────
 
-export async function createInvoice(apiKey, {
+export async function createInvoice(apiKey, email, {
   companyId, partnerId, productId, namaProgram,
   nominal, diskon, tanggalBayar, namaSiswa,
 }) {
@@ -107,28 +106,25 @@ export async function createInvoice(apiKey, {
       invoice_line_ids: lines,
     }],
     {},
-    apiKey,
-    companyId
+    apiKey, email, companyId
   );
 
   const [inv] = await rpc('account.move', 'read',
     [[invoiceId]],
     { fields: ['id', 'name', 'payment_state'] },
-    apiKey,
-    companyId
+    apiKey, email, companyId
   );
 
   return { id: invoiceId, name: inv.name, status: inv.payment_state };
 }
 
-// ─── Cek status invoice ───────────────────────────────────────────────────────
+// ─── Refresh status invoice ──────────────────────────────────────────────────
 
-export async function getInvoiceStatus(apiKey, invoiceId, companyId) {
+export async function getInvoiceStatus(apiKey, email, invoiceId, companyId) {
   const [inv] = await rpc('account.move', 'read',
     [[invoiceId]],
     { fields: ['id', 'name', 'payment_state', 'state'] },
-    apiKey,
-    companyId
+    apiKey, email, companyId
   );
   return inv;
 }

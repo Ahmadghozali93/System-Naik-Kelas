@@ -134,7 +134,7 @@ export default function FakturOdooPage() {
     setTestLoading(true);
     setTestMsg(null);
     try {
-      const user = await testConnection(apiKey);
+      const user = await testConnection(apiKey, email);
       setTestMsg({ ok: true, msg: `Terhubung sebagai: ${user.name}` });
     } catch (e) {
       setTestMsg({ ok: false, msg: e.message });
@@ -151,9 +151,9 @@ export default function FakturOdooPage() {
 
     setSending(prev => new Set([...prev, p.id]));
     try {
-      const partnerId = await getOrCreatePartner(apiKey, p.nama_siswa);
-      const prod      = await findProduct(apiKey, p.nama_program, companyId);
-      const inv       = await createInvoice(apiKey, {
+      const partnerId = await getOrCreatePartner(apiKey, email, p.nama_siswa);
+      const prod      = await findProduct(apiKey, email, p.nama_program, companyId);
+      const inv       = await createInvoice(apiKey, email, {
         companyId, partnerId,
         productId:    prod?.id || false,
         namaProgram:  p.nama_program,
@@ -208,7 +208,7 @@ export default function FakturOdooPage() {
     if (!p.odoo_invoice_id || !apiKey) return;
     const companyId = UNIT_COMPANY[p.unit];
     try {
-      const inv = await getInvoiceStatus(apiKey, p.odoo_invoice_id, companyId);
+      const inv = await getInvoiceStatus(apiKey, email, p.odoo_invoice_id, companyId);
       await supabase.from('pembayaran_spp').update({ odoo_status: inv.payment_state, odoo_synced_at: new Date().toISOString() }).eq('id', p.id);
       setTransaksis(prev => prev.map(t => t.id === p.id ? { ...t, odoo_status: inv.payment_state } : t));
     } catch (e) {
