@@ -58,9 +58,11 @@ export default function FakturOdooPage() {
   const [dateFrom, setDateFrom]           = useState('');
   const [dateTo, setDateTo]               = useState('');
 
-  // Tanggal jatuh tempo per baris (override dari tanggal_bayar)
-  const [jatuhTempoMap, setJatuhTempoMap] = useState({});
-  const getJatuhTempo = (p) => jatuhTempoMap[p.id] !== undefined ? jatuhTempoMap[p.id] : (p.tanggal_bayar || '');
+  // Metode bayar & jatuh tempo per baris
+  const [metodeBayarMap, setMetodeBayarMap] = useState({});
+  const [jatuhTempoMap,  setJatuhTempoMap]  = useState({});
+  const getMetodeBayar = (p) => metodeBayarMap[p.id] !== undefined ? metodeBayarMap[p.id] : (p.metode || 'Tunai');
+  const getJatuhTempo  = (p) => jatuhTempoMap[p.id]  !== undefined ? jatuhTempoMap[p.id]  : (p.tanggal_bayar || '');
 
   // Settings panel
   const [showSettings, setShowSettings]   = useState(false);
@@ -149,7 +151,7 @@ export default function FakturOdooPage() {
   // ─── Kirim satu ─────────────────────────────────────────────────────────────
 
   const handleSendOne = async (p) => {
-    const metodeBayar      = p.metode || 'Tunai';
+    const metodeBayar       = getMetodeBayar(p);
     const tanggalJatuhTempo = getJatuhTempo(p);
     if (!apiKey) { alert('API Key belum dikonfigurasi. Buka panel Pengaturan Odoo.'); setShowSettings(true); return; }
     const companyId = UNIT_COMPANY[p.unit];
@@ -421,10 +423,19 @@ export default function FakturOdooPage() {
                           <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatRupiah(gross)}</td>
                           <td style={{ padding: '0.75rem', textAlign: 'right', color: '#b45309' }}>{p.diskon > 0 ? formatRupiah(p.diskon) : '-'}</td>
                           <td style={{ padding: '0.75rem', textAlign: 'right', fontWeight: 700, color: '#047857' }}>{formatRupiah(p.nominal || 0)}</td>
-                          <td style={{ padding: '0.75rem' }}>
-                            <span style={{ background: p.metode === 'Tunai' ? 'rgba(5,150,105,0.1)' : 'rgba(59,130,246,0.1)', color: p.metode === 'Tunai' ? '#047857' : '#1d4ed8', padding: '0.15rem 0.55rem', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 600 }}>
-                              {p.metode || '-'}
-                            </span>
+                          <td style={{ padding: '0.5rem 0.75rem' }}>
+                            {sudah
+                              ? <span style={{ background: 'rgba(79,70,229,0.08)', color: 'var(--primary)', padding: '0.15rem 0.55rem', borderRadius: '4px', fontSize: '0.78rem', fontWeight: 600 }}>
+                                  {getMetodeBayar(p)}
+                                </span>
+                              : <select value={getMetodeBayar(p)}
+                                  onChange={e => setMetodeBayarMap(prev => ({ ...prev, [p.id]: e.target.value }))}
+                                  style={{ ...inp, padding: '0.25rem 0.5rem', fontSize: '0.78rem' }}>
+                                  <option value="Tunai">Tunai</option>
+                                  <option value="BNI">BNI</option>
+                                  <option value="Xendit">Xendit</option>
+                                </select>
+                            }
                           </td>
                           <td style={{ padding: '0.5rem 0.75rem' }}>
                             {sudah
