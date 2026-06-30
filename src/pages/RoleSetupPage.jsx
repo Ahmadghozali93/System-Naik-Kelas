@@ -4,6 +4,8 @@ import { Shield, Save, CheckSquare, Square } from 'lucide-react';
 import { useAuth } from '../context/authStore';
 
 const AVAILABLE_MENUS = [
+    // ── Dashboard ────────────────────────────────────
+    { path: '/dashboard',        label: 'Dashboard Utama' },
     // ── Master Data ──────────────────────────────────
     { path: '/siswa',            label: 'Manajemen Siswa' },
     { path: '/program',          label: 'Manajemen Program' },
