@@ -73,8 +73,11 @@ const SearchableStudentDropdown = ({ siswas, value, onChange, placeholder = "-- 
   );
 };
 
+const PRIVILEGED = ['Owner', 'Administrator', 'Supervisor'];
+
 export default function JurnalPage() {
   const { user } = useAuth();
+  const isPrivileged = PRIVILEGED.includes(user?.role);
   
   // Data Master
   const [gurus, setGurus] = useState([]);
@@ -136,8 +139,8 @@ export default function JurnalPage() {
             siswa ( nama )
           `);
 
-        if (user?.role === 'Guru' && user?.nama) {
-          query = query.ilike('gurus.nama', user.nama);
+        if (!isPrivileged && user?.id) {
+          query = query.eq('guru_id', user.id);
         }
 
         if (filterType === 'bulan' && filterBulan) {
@@ -556,12 +559,12 @@ export default function JurnalPage() {
             )}
          </div>
 
-         {user?.role === 'Admin' && (
+         {isPrivileged && (
             <div style={{ display: 'flex', gap: '0.75rem', flexWrap: 'wrap' }}>
                <button onClick={handleExportCSV} className="btn" style={{ background: '#10b981', color: 'white', border: 'none' }} title="Eksport list yang tampil ke file CSV / Excel">
                  <Download className="w-4 h-4" /> Ekspor Data (CSV)
                </button>
-               <button onClick={handleBulkDelete} className="btn" style={{ background: '#ef4444', color: 'white', border: 'none' }} title="Hapus massal berdasarkan filter aktu">
+               <button onClick={handleBulkDelete} className="btn" style={{ background: '#ef4444', color: 'white', border: 'none' }} title="Hapus massal berdasarkan filter waktu">
                  <Trash2 className="w-4 h-4" /> Mass Delete
                </button>
             </div>
@@ -631,18 +634,20 @@ export default function JurnalPage() {
                                         {jurnal.keterangan || '-'}
                                     </td>
                                     <td style={{ padding: '1rem' }}>
-                                        <button
-                                            onClick={async () => {
-                                                if (window.confirm('Yakin ingin menghapus entri jurnal ini?')) {
-                                                    const { error } = await supabase.from('jurnal_entries').delete().eq('id', jurnal.id);
-                                                    if (!error) fetchJurnals();
-                                                }
-                                            }}
-                                            style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                                            title="Hapus Jurnal Secara Normal"
-                                        >
-                                            <Trash2 className="w-4 h-4" />
-                                        </button>
+                                        {isPrivileged && (
+                                            <button
+                                                onClick={async () => {
+                                                    if (window.confirm('Yakin ingin menghapus entri jurnal ini?')) {
+                                                        const { error } = await supabase.from('jurnal_entries').delete().eq('id', jurnal.id);
+                                                        if (!error) fetchJurnals();
+                                                    }
+                                                }}
+                                                style={{ color: '#ef4444', background: 'rgba(239,68,68,0.1)', border: 'none', cursor: 'pointer', padding: '0.5rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                                                title="Hapus Jurnal"
+                                            >
+                                                <Trash2 className="w-4 h-4" />
+                                            </button>
+                                        )}
                                     </td>
                                 </tr>
                             );
@@ -738,7 +743,7 @@ export default function JurnalPage() {
                       className="form-input"
                       value={guruId}
                       onChange={(e) => setGuruId(e.target.value)}
-                      disabled={user?.role === 'Guru'}
+                      disabled={!isPrivileged}
                       style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                       required
                     >

@@ -29,7 +29,7 @@ const Card = ({ label, value, color, icon: Icon }) => (
 
 export default function AbsensiDashboardPage() {
   const { user }  = useAuth();
-  const isAdmin   = user?.role === 'Admin';
+  const isPrivileged = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
   const [tanggal, setTanggal]         = useState(todayWIB());
   const [attendances, setAttendances] = useState([]);
@@ -42,10 +42,14 @@ export default function AbsensiDashboardPage() {
 
   const fetchData = async () => {
     setLoading(true);
-    const { data } = await supabase
+    let query = supabase
       .from('attendances')
       .select('*, gurus(nama, role), shift_schedules!shift_schedule_id(*, shifts(nama, jam_mulai, jam_selesai))')
       .eq('tanggal', tanggal);
+    if (!isPrivileged && user?.id) {
+      query = query.eq('guru_id', user.id);
+    }
+    const { data } = await query;
     setAttendances(data || []);
     setLoading(false);
   };
@@ -128,7 +132,7 @@ export default function AbsensiDashboardPage() {
           style={{ padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit' }} />
         <span style={{ color:'var(--text-secondary)', fontSize:'0.88rem' }}>{fmtTgl(tanggal)}</span>
         <div style={{ marginLeft:'auto', display:'flex', gap:'0.5rem' }}>
-          {isAdmin && (
+          {isPrivileged && (
             <button className="btn" style={{ fontSize:'0.82rem', display:'flex', alignItems:'center', gap:'0.4rem', color:'#b91c1c', borderColor:'#fca5a5' }}
               onClick={handleMarkAlpha} disabled={markingAlpha}>
               <UserX size={14}/> {markingAlpha ? 'Memproses...' : 'Tandai Mangkir'}
@@ -188,7 +192,7 @@ export default function AbsensiDashboardPage() {
 
                             {/* Seragam */}
                             <td style={{ padding:'0.5rem 0.75rem', whiteSpace:'nowrap' }}>
-                              {isAdmin ? (
+                              {isPrivileged ? (
                                 <div style={{ display:'flex', gap:'0.3rem' }}>
                                   <button
                                     disabled={isSaving}
@@ -222,7 +226,7 @@ export default function AbsensiDashboardPage() {
 
                             {/* Catatan */}
                             <td style={{ padding:'0.4rem 0.75rem', minWidth:160 }}>
-                              {isAdmin ? (
+                              {isPrivileged ? (
                                 <input
                                   value={draftCatatan}
                                   onChange={e => setCatatanDraft(p => ({ ...p, [a.id]: e.target.value }))}
