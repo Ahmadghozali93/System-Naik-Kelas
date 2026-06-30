@@ -33,6 +33,7 @@ const emptyDayShifts = () => ({ 0:[], 1:[], 2:[], 3:[], 4:[], 5:[], 6:[] });
 
 export default function ShiftSchedulePage() {
   const { user } = useAuth();
+  const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
   const [weekStart, setWeekStart] = useState(() => {
     const d = new Date(new Date().toLocaleString('en-US',{timeZone:'Asia/Jakarta'}));
     d.setDate(d.getDate() - d.getDay() + 1);
@@ -178,7 +179,7 @@ export default function ShiftSchedulePage() {
             <option value="">Semua Karyawan</option>
             {gurus.map(g=><option key={g.id} value={g.id}>{g.nama}</option>)}
           </select>
-          {user?.role === 'Admin' && (
+          {isAdmin && (
             <button className="btn btn-primary"
               onClick={()=>{ setTmpl({guru_id:'',dari:todayWIB(),sampai:addDays(todayWIB(),27),dayShifts:emptyDayShifts()}); setTmplModal(true); }}
               style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
@@ -228,12 +229,12 @@ export default function ShiftSchedulePage() {
                               {ss.shifts?.nama}<br/>
                               <span style={{ fontWeight:400, color:'var(--text-secondary)' }}>{ss.shifts?.jam_mulai}–{ss.shifts?.jam_selesai}</span>
                             </span>
-                            {user?.role === 'Admin' && (
+                            {isAdmin && (
                               <button onClick={()=>handleDelete(ss.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:'0 2px', flexShrink:0 }}><Trash2 size={11}/></button>
                             )}
                           </div>
                         ))}
-                        {user?.role === 'Admin' && (
+                        {isAdmin && (
                           <button onClick={()=>{ setForm({guru_id:g.id,shift_id:'',tanggal:d,catatan:''}); setModal(true); }}
                             style={{ background:'none', border:'1px dashed var(--glass-border)', borderRadius:'0.35rem', padding:'0.15rem 0.35rem', cursor:'pointer', fontSize:'0.68rem', color:'var(--text-secondary)', width:'100%', marginTop:ssList.length?'0.2rem':0 }}>
                             + shift

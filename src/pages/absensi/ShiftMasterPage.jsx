@@ -9,6 +9,7 @@ const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px soli
 
 export default function ShiftMasterPage() {
   const { user } = useAuth();
+  const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
   const [tab, setTab]               = useState('shift'); // 'shift' | 'unit-karyawan'
   const [shifts, setShifts]         = useState([]);
   const [units, setUnits]           = useState([]);
@@ -127,7 +128,7 @@ export default function ShiftMasterPage() {
                 {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
               </select>
             </div>
-            {user?.role === 'Admin' && (
+            {isAdmin && (
               <button className="btn btn-primary" onClick={openAdd}><Plus size={16}/> Tambah Shift</button>
             )}
           </div>
@@ -164,7 +165,7 @@ export default function ShiftMasterPage() {
                         <span style={{ background:s.aktif?'#d1fae5':'#fee2e2', color:s.aktif?'#047857':'#b91c1c', padding:'0.15rem 0.6rem', borderRadius:999, fontSize:'0.75rem', fontWeight:600 }}>{s.aktif?'Aktif':'Nonaktif'}</span>
                       </td>
                       <td style={{ padding:'0.7rem 0.75rem' }}>
-                        {user?.role === 'Admin' && (
+                        {isAdmin && (
                           <div style={{ display:'flex', gap:'0.35rem' }}>
                             <button onClick={()=>openEdit(s)} style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.35rem', padding:'0.3rem 0.55rem', cursor:'pointer', color:'var(--primary)' }}><Edit size={14}/></button>
                             <button onClick={()=>handleDelete(s.id)} style={{ background:'rgba(239,68,68,0.1)', border:'none', borderRadius:'0.35rem', padding:'0.3rem 0.55rem', cursor:'pointer', color:'#ef4444' }}><Trash2 size={14}/></button>
@@ -188,7 +189,7 @@ export default function ShiftMasterPage() {
           </p>
 
           {/* Form tambah */}
-          {user?.role === 'Admin' && (
+          {isAdmin && (
             <div style={{ display:'flex', gap:'0.65rem', marginBottom:'1.5rem', flexWrap:'wrap', alignItems:'flex-end' }}>
               <div style={{ flex:1, minWidth:180 }}>
                 <label style={{ fontSize:'0.8rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Karyawan</label>
@@ -231,8 +232,8 @@ export default function ShiftMasterPage() {
                     {units.map(u => (
                       <td key={u.id} style={{ padding:'0.7rem 0.75rem', textAlign:'center' }}>
                         <button
-                          onClick={()=>user?.role==='Admin'&&toggleGuruUnit(g.id, u.id)}
-                          style={{ width:28, height:28, borderRadius:'50%', border:'2px solid', cursor:user?.role==='Admin'?'pointer':'default',
+                          onClick={()=>isAdmin&&toggleGuruUnit(g.id, u.id)}
+                          style={{ width:28, height:28, borderRadius:'50%', border:'2px solid', cursor:isAdmin?'pointer':'default',
                             borderColor: hasUnit(g.id,u.id)?'#047857':'var(--glass-border)',
                             background: hasUnit(g.id,u.id)?'#d1fae5':'transparent',
                             color: hasUnit(g.id,u.id)?'#047857':'var(--glass-border)',
