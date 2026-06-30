@@ -37,6 +37,11 @@ const AVAILABLE_MENUS = [
     { path: '/absensi/koreksi',      label: 'Absensi - Koreksi Absen' },
     { path: '/absensi/rekap',        label: 'Absensi - Rekap' },
     { path: '/absensi/hari-libur',   label: 'Absensi - Hari Libur' },
+    // ── Payroll ──────────────────────────────────────
+    { path: '/payroll/komponen', label: 'Payroll - Komponen Gaji' },
+    { path: '/payroll/struktur', label: 'Payroll - Struktur Gaji' },
+    { path: '/payroll/proses',   label: 'Payroll - Proses Payroll' },
+    { path: '/payroll/kasbon',   label: 'Payroll - Kasbon' },
     // ── KPI Karyawan ─────────────────────────────────
     { path: '/kpi/indikator',    label: 'KPI - Master Indikator' },
     { path: '/kpi/penilaian',    label: 'KPI - Penilaian' },

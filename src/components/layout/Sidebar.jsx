@@ -37,6 +37,9 @@ import {
     Target,
     ListChecks,
     TrendingUp,
+    Layers,
+    UserCog,
+    CreditCard,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -468,6 +471,37 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/absensi/hari-libur') && (
                             <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>
+                            </NavLink>
+                        )}
+                    </SidebarGroup>
+                )}
+
+                {/* PAYROLL GROUP */}
+                {['/payroll/komponen', '/payroll/struktur', '/payroll/proses', '/payroll/kasbon'].some(p => hasPermission(p)) && (
+                    <SidebarGroup
+                        title="Payroll"
+                        icon={Wallet}
+                        isOpen={activeGroup === 'payroll'}
+                        onToggle={() => toggleGroup('payroll')}
+                    >
+                        {hasPermission('/payroll/komponen') && (
+                            <NavLink to="/payroll/komponen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Layers className="w-4 h-4" /><span>Komponen Gaji</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/payroll/struktur') && (
+                            <NavLink to="/payroll/struktur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <UserCog className="w-4 h-4" /><span>Struktur Gaji</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/payroll/proses') && (
+                            <NavLink to="/payroll/proses" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <FileText className="w-4 h-4" /><span>Proses Payroll</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/payroll/kasbon') && (
+                            <NavLink to="/payroll/kasbon" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <CreditCard className="w-4 h-4" /><span>Kasbon</span>
                             </NavLink>
                         )}
                     </SidebarGroup>
