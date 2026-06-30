@@ -107,9 +107,9 @@ export default function RoleSetupPage() {
         }
     };
 
-    // Hanya Admin yang boleh melihat halaman ini (meskipun url dibypass)
-    if (user?.role !== 'Admin') {
-        return <div style={{ padding: '2rem', textAlign: 'center' }}><h2>Hanya Admin yang dapat mengakses halaman ini.</h2></div>;
+    // Hanya Owner yang boleh melihat halaman ini (meskipun url dibypass)
+    if (user?.role !== 'Owner') {
+        return <div style={{ padding: '2rem', textAlign: 'center' }}><h2>Hanya Owner yang dapat mengakses halaman ini.</h2></div>;
     }
 
     return (
@@ -157,22 +157,21 @@ export default function RoleSetupPage() {
 
                                     {roles.map((role, idx) => {
                                         const isAllowed = (role.allowed_menus || []).includes(menu.path);
-                                        // Cegah edit hak akses Admin jika kita mau lebih aman (opsional)
-                                        const isAdmin = role.role_name === 'Admin';
+                                        const isOwner = role.role_name === 'Owner';
 
                                         return (
                                             <td key={role.role_name} style={{ padding: '1rem', textAlign: 'center' }}>
                                                 <button
                                                     type="button"
-                                                    onClick={() => !isAdmin && toggleMenuForRole(idx, menu.path)}
+                                                    onClick={() => !isOwner && toggleMenuForRole(idx, menu.path)}
                                                     style={{
                                                         background: 'none',
                                                         border: 'none',
-                                                        cursor: isAdmin ? 'not-allowed' : 'pointer',
+                                                        cursor: isOwner ? 'not-allowed' : 'pointer',
                                                         color: isAllowed ? 'var(--primary-color)' : 'var(--text-light)',
-                                                        opacity: isAdmin ? 0.5 : 1
+                                                        opacity: isOwner ? 0.5 : 1
                                                     }}
-                                                    title={isAdmin ? "Hak akses Admin tidak bisa diubah" : "Klik untuk mengubah"}
+                                                    title={isOwner ? "Hak akses Owner tidak bisa diubah" : "Klik untuk mengubah"}
                                                 >
                                                     {isAllowed ? <CheckSquare className="w-6 h-6" /> : <Square className="w-6 h-6" />}
                                                 </button>
@@ -186,7 +185,7 @@ export default function RoleSetupPage() {
                 )}
             </div>
             <div style={{ marginTop: '1rem', color: 'var(--text-secondary)', fontSize: '0.875rem' }}>
-                * Catatan: Hak akses untuk role <strong>Admin</strong> dikunci secara default agar selalu bisa mengakses semua menu. Setelah menekan tombol Simpan, perubahan akan berlaku bagi user bersangkutan saat mereka memuat ulang aplikasi/login kembali.
+                * Catatan: Hak akses untuk role <strong>Owner</strong> dikunci secara default agar selalu bisa mengakses semua menu. Setelah menekan tombol Simpan, perubahan akan berlaku bagi user bersangkutan saat mereka memuat ulang aplikasi/login kembali.
             </div>
         </div>
     );

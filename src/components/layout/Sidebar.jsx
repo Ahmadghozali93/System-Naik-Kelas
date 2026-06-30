@@ -186,7 +186,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
     };
 
     const hasPermission = (path) => {
-        if (user?.role === 'Admin') return true;
+        if (user?.role === 'Owner') return true;
         return permissions.includes(path);
     };
 
@@ -246,7 +246,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
             {showGantiPassword && <GantiPasswordModal onClose={() => setShowGantiPassword(false)} />}
 
             <nav className="sidebar-nav" style={{ paddingBottom: '2rem' }}>
-                {user?.role !== 'Guru' && (
+                {user?.role !== 'Tutor' && (
                     <NavLink
                         to="/dashboard"
                         className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}

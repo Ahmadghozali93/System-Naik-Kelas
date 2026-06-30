@@ -19,7 +19,7 @@ export default function UserPage() {
         email: '',
         nama: '',
         tanggal_lahir: '',
-        role: 'Guru',
+        role: 'Tutor',
         nowa: '',
         status: 'Aktif',
         alamat: '',
@@ -69,7 +69,7 @@ export default function UserPage() {
                 email: '',
                 nama: '',
                 tanggal_lahir: '',
-                role: 'Guru',
+                role: 'Tutor',
                 nowa: '',
                 status: 'Aktif',
                 alamat: '',
@@ -413,8 +413,11 @@ export default function UserPage() {
                                     required
                                     disabled={isViewing}
                                 >
-                                    <option value="Guru">Guru</option>
-                                    <option value="Admin">Admin</option>
+                                    <option value="Owner">Owner</option>
+                                    <option value="Administrator">Administrator</option>
+                                    <option value="Supervisor">Supervisor</option>
+                                    <option value="Learning Koordinator">Learning Koordinator</option>
+                                    <option value="Tutor">Tutor</option>
                                 </select>
                             </div>
 

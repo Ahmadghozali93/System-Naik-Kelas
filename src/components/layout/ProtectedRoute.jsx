@@ -24,8 +24,8 @@ export default function ProtectedRoute({ children }) {
         return <Navigate to="/login" replace />;
     }
 
-    // Admin bypass
-    if (user.role === 'Admin') {
+    // Owner bypass
+    if (user.role === 'Owner') {
         return children;
     }
 
