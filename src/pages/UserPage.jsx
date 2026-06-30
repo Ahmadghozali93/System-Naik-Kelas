@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Users, Edit, Trash2, X, MapPin, MessageCircle, Eye } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DatePicker from '../components/DatePicker';
+import { toProperCase } from '../utils/formatRupiah';
 
 export default function UserPage() {
     const [gurus, setGurus] = useState([]);
@@ -86,7 +87,8 @@ export default function UserPage() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+        const finalValue = name === 'nama' ? toProperCase(value) : value;
+        setFormData(prev => ({ ...prev, [name]: finalValue }));
     };
 
     const handleSubmit = async (e) => {

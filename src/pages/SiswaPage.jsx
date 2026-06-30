@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { GraduationCap, Edit, Trash2, X, MapPin, MessageCircle, Eye, Instagram, Facebook } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DatePicker from '../components/DatePicker';
+import { toProperCase } from '../utils/formatRupiah';
 
 // Ikona kustom sederhana untuk TikTok karena tidak ada di lucid default
 const TikTokIcon = ({ size }) => (
@@ -129,10 +130,11 @@ export default function SiswaPage() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
+        const finalValue = name === 'nama' ? toProperCase(value) : value;
         if (name === 'status' && value !== 'Booking') {
-            setFormData(prev => ({ ...prev, [name]: value, booking_program: '', booking_jam: '' }));
+            setFormData(prev => ({ ...prev, [name]: finalValue, booking_program: '', booking_jam: '' }));
         } else {
-            setFormData(prev => ({ ...prev, [name]: value }));
+            setFormData(prev => ({ ...prev, [name]: finalValue }));
         }
     };
 
