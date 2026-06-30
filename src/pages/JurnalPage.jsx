@@ -121,7 +121,7 @@ export default function JurnalPage() {
     if (user) {
       fetchJurnals();
     }
-  }, [filterType, filterBulan, filterStartDate, filterEndDate, user]);
+  }, [filterType, filterBulan, filterStartDate, filterEndDate, user, isPrivileged]);
 
   const fetchJurnals = async () => {
     setIsLoadingJurnals(true);

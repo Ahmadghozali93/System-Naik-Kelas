@@ -54,7 +54,7 @@ export default function AbsensiDashboardPage() {
     setLoading(false);
   };
 
-  useEffect(() => { fetchData(); }, [tanggal]);
+  useEffect(() => { fetchData(); }, [tanggal, isPrivileged]);
 
   const handleMarkAlpha = async () => {
     if (!window.confirm('Tandai semua karyawan yang tidak absen kemarin sebagai Mangkir?\nProses ini tidak bisa dibatalkan.')) return;
