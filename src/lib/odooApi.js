@@ -99,7 +99,14 @@ export async function createInvoice(apiKey, email, {
     ref: `SPP - ${namaSiswa}`,
     invoice_line_ids: lines,
   };
-  if (metodeBayar) invoicePayload.narration = `Metode Pembayaran: ${metodeBayar}`;
+  const catatanParts = [];
+  if (metodeBayar) catatanParts.push(`Metode Pembayaran: ${metodeBayar}`);
+  if (tanggalJatuhTempo) {
+    const tglFmt = new Date(tanggalJatuhTempo + 'T00:00:00')
+      .toLocaleDateString('id-ID', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    catatanParts.push(`Jatuh Tempo: ${tglFmt}`);
+  }
+  if (catatanParts.length > 0) invoicePayload.narration = catatanParts.join('  |  ');
 
   const invoiceId = await rpc('account.move', 'create',
     [invoicePayload],
