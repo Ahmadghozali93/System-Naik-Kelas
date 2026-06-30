@@ -1,7 +1,5 @@
 // Vercel serverless proxy — Odoo XML-RPC
-
-const ODOO_BASE = 'https://naik-kelas.odoo.com';
-const ODOO_DB   = 'naik-kelas';
+// ODOO_BASE dan ODOO_DB dibaca dari request body (dikirim oleh frontend)
 
 // ─── XML-RPC serializer ──────────────────────────────────────────────────────
 
@@ -167,8 +165,8 @@ function parseXmlRpc(xml) {
 
 // ─── Odoo XML-RPC calls ──────────────────────────────────────────────────────
 
-async function xmlPost(endpoint, body) {
-  const resp = await fetch(`${ODOO_BASE}${endpoint}`, {
+async function xmlPost(base, endpoint, body) {
+  const resp = await fetch(`${base}${endpoint}`, {
     method: 'POST',
     headers: { 'Content-Type': 'text/xml; charset=utf-8' },
     body,
@@ -178,17 +176,17 @@ async function xmlPost(endpoint, body) {
   return parseXmlRpc(text);
 }
 
-async function authenticate(login, password) {
-  const uid = await xmlPost('/xmlrpc/2/common',
-    xmlCall('authenticate', [ODOO_DB, login, password, {}])
+async function authenticate(login, password, base, db) {
+  const uid = await xmlPost(base, '/xmlrpc/2/common',
+    xmlCall('authenticate', [db, login, password, {}])
   );
   if (!uid || uid === false) throw new Error('Autentikasi gagal. Cek email & API Key di Odoo.');
   return uid;
 }
 
-async function executeKw(uid, password, model, method, args, kwargs = {}) {
-  return xmlPost('/xmlrpc/2/object',
-    xmlCall('execute_kw', [ODOO_DB, uid, password, model, method, args, kwargs])
+async function executeKw(uid, password, model, method, args, kwargs = {}, base, db) {
+  return xmlPost(base, '/xmlrpc/2/object',
+    xmlCall('execute_kw', [db, uid, password, model, method, args, kwargs])
   );
 }
 
@@ -201,18 +199,25 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const { model, method, args = [], kwargs = {}, companyId, apiKey, email } = req.body;
+  const {
+    model, method, args = [], kwargs = {}, companyId, apiKey, email,
+    odooUrl = 'https://naik-kelas.odoo.com',
+    odooDb  = 'naik-kelas',
+  } = req.body;
   if (!apiKey) return res.status(400).json({ error: { message: 'apiKey wajib diisi' } });
   if (!email)  return res.status(400).json({ error: { message: 'email wajib diisi. Isi di Pengaturan Odoo.' } });
 
+  const ODOO_BASE = odooUrl.replace(/\/$/, '');
+  const ODOO_DB   = odooDb;
+
   try {
-    const uid = await authenticate(email, apiKey);
+    const uid = await authenticate(email, apiKey, ODOO_BASE, ODOO_DB);
 
     const ctx = companyId
       ? { allowed_company_ids: [companyId], default_company_id: companyId, ...(kwargs.context || {}) }
       : (kwargs.context || {});
 
-    const result = await executeKw(uid, apiKey, model, method, args, { ...kwargs, context: ctx });
+    const result = await executeKw(uid, apiKey, model, method, args, { ...kwargs, context: ctx }, ODOO_BASE, ODOO_DB);
     return res.status(200).json({ result });
   } catch (err) {
     const msg = err.message || 'Unknown error';

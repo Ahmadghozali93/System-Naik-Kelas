@@ -8,13 +8,22 @@ export const UNIT_COMPANY = {
   'Magelung':    5,
 };
 
+// Konfigurasi Odoo — diset lewat configureOdoo() setelah load dari Supabase
+let _odooUrl = 'https://naik-kelas.odoo.com';
+let _odooDb  = 'naik-kelas';
+
+export function configureOdoo({ odooUrl, odooDb }) {
+  if (odooUrl) _odooUrl = odooUrl;
+  if (odooDb)  _odooDb  = odooDb;
+}
+
 // ─── Low-level XML-RPC proxy call ───────────────────────────────────────────
 
 async function rpc(model, method, args = [], kwargs = {}, apiKey, email, companyId) {
   const resp = await fetch('/api/odoo-proxy', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey, email }),
+    body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey, email, odooUrl: _odooUrl, odooDb: _odooDb }),
   });
   const data = await resp.json();
   if (data.error) {
@@ -141,7 +150,7 @@ export async function loadOdooSettings(supabase) {
     const { data, error } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['odoo_api_key', 'odoo_email']);
+      .in('key', ['odoo_api_key', 'odoo_email', 'odoo_url', 'odoo_db']);
     if (error || !data) return {};
     return Object.fromEntries(data.map(r => [r.key, r.value]));
   } catch {
@@ -149,10 +158,12 @@ export async function loadOdooSettings(supabase) {
   }
 }
 
-export async function saveOdooSettings(supabase, { apiKey, email }) {
+export async function saveOdooSettings(supabase, { apiKey, email, odooUrl, odooDb }) {
   const upserts = [
-    { key: 'odoo_api_key', value: apiKey },
-    { key: 'odoo_email',   value: email  },
+    { key: 'odoo_api_key', value: apiKey  },
+    { key: 'odoo_email',   value: email   },
+    { key: 'odoo_url',     value: odooUrl },
+    { key: 'odoo_db',      value: odooDb  },
   ];
   const { error } = await supabase.from('app_settings').upsert(upserts, { onConflict: 'key' });
   if (error) throw error;

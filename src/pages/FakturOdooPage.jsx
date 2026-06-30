@@ -8,7 +8,7 @@ import { formatRupiah } from '../utils/formatRupiah';
 import {
   loadOdooSettings, saveOdooSettings, testConnection,
   getOrCreatePartner, findProduct, createInvoice, getInvoiceStatus,
-  UNIT_COMPANY,
+  UNIT_COMPANY, configureOdoo,
 } from '../lib/odooApi';
 
 const PER_PAGE = 50;
@@ -68,6 +68,8 @@ export default function FakturOdooPage() {
   const [showSettings, setShowSettings]   = useState(false);
   const [apiKey, setApiKey]               = useState('');
   const [email, setEmail]                 = useState('');
+  const [odooUrl, setOdooUrl]             = useState('https://naik-kelas.odoo.com');
+  const [odooDb, setOdooDb]               = useState('naik-kelas');
   const [showKey, setShowKey]             = useState(false);
   const [testMsg, setTestMsg]             = useState(null);
   const [testLoading, setTestLoading]     = useState(false);
@@ -85,6 +87,9 @@ export default function FakturOdooPage() {
       setRekonsiliasis(rRes.data || []);
       if (settings.odoo_api_key) setApiKey(settings.odoo_api_key);
       if (settings.odoo_email)   setEmail(settings.odoo_email);
+      if (settings.odoo_url)     setOdooUrl(settings.odoo_url);
+      if (settings.odoo_db)      setOdooDb(settings.odoo_db);
+      configureOdoo({ odooUrl: settings.odoo_url, odooDb: settings.odoo_db });
     } catch (e) {
       console.error('FakturOdoo fetchAll error:', e);
     }
@@ -127,7 +132,8 @@ export default function FakturOdooPage() {
     if (!apiKey) return alert('API Key wajib diisi.');
     setSavingSettings(true);
     try {
-      await saveOdooSettings(supabase, { apiKey, email });
+      await saveOdooSettings(supabase, { apiKey, email, odooUrl, odooDb });
+      configureOdoo({ odooUrl, odooDb });
       alert('Pengaturan Odoo berhasil disimpan.');
     } catch (e) {
       alert('Gagal simpan: ' + e.message);
@@ -262,6 +268,16 @@ export default function FakturOdooPage() {
           <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '1rem', color: 'var(--primary)' }}>Konfigurasi Odoo</div>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
             <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>URL Odoo</label>
+              <input type="url" placeholder="https://naik-kelas.odoo.com" value={odooUrl} onChange={e => setOdooUrl(e.target.value)}
+                style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
+            </div>
+            <div>
+              <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Database Odoo</label>
+              <input type="text" placeholder="naik-kelas" value={odooDb} onChange={e => setOdooDb(e.target.value)}
+                style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
+            </div>
+            <div>
               <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Email Login Odoo</label>
               <input type="email" placeholder="admin@naik-kelas.com" value={email} onChange={e => setEmail(e.target.value)}
                 style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
@@ -293,9 +309,8 @@ export default function FakturOdooPage() {
               </span>
             )}
           </div>
-          <div style={{ marginTop: '0.85rem', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.7 }}>
-            <strong>Mapping Unit → Odoo Company:</strong> Sarirejo (ID 2) · Plantaran (ID 3) · Krajankulon (ID 4) · Magelung (ID 5)<br />
-            <strong>URL:</strong> https://naik-kelas.odoo.com &nbsp;·&nbsp; <strong>Database:</strong> naik-kelas
+          <div style={{ marginTop: '0.85rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+            <strong>Mapping Unit → Odoo Company:</strong> Sarirejo (ID 2) · Plantaran (ID 3) · Krajankulon (ID 4) · Magelung (ID 5)
           </div>
         </div>
       )}
