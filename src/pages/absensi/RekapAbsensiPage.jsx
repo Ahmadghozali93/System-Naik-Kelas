@@ -22,7 +22,7 @@ const SeragamBadge = ({v}) => {
 
 export default function RekapAbsensiPage() {
   const { user } = useAuth();
-  const isAdmin  = user?.role === 'Admin';
+  const isAdmin  = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
   const [records, setRecords]   = useState([]);
   const [units, setUnits]       = useState([]);

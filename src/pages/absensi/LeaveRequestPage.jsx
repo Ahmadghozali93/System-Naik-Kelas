@@ -18,7 +18,7 @@ const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px soli
 
 export default function LeaveRequestPage() {
   const { user } = useAuth();
-  const isAdmin  = user?.role === 'Admin';
+  const isAdmin  = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
   const [requests, setRequests]   = useState([]);
   const [units, setUnits]         = useState([]);

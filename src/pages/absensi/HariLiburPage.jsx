@@ -21,7 +21,7 @@ const useIsMobile = () => {
 
 export default function HariLiburPage() {
   const { user }  = useAuth();
-  const isAdmin   = user?.role === 'Admin';
+  const isAdmin   = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
   const isMobile  = useIsMobile();
 
   const [libur, setLibur]   = useState([]);
