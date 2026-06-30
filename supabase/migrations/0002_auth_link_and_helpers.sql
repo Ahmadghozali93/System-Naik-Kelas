@@ -13,7 +13,7 @@ $$;
 
 CREATE OR REPLACE FUNCTION public.is_admin()
 RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public, auth AS $$
-  SELECT public.current_guru_role() = 'Admin';
+  SELECT public.current_guru_role() IN ('Owner', 'Administrator', 'Supervisor');
 $$;
 
 CREATE OR REPLACE FUNCTION public.current_guru_id()

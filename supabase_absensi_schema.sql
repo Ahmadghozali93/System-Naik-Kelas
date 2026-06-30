@@ -47,7 +47,7 @@ LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
   SELECT COALESCE(
-    (SELECT role = 'Admin' FROM gurus WHERE auth_user_id = auth.uid() LIMIT 1),
+    (SELECT role IN ('Owner', 'Administrator', 'Supervisor') FROM gurus WHERE auth_user_id = auth.uid() LIMIT 1),
     false
   );
 $$;

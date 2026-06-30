@@ -99,7 +99,8 @@ export default function ShiftSchedulePage() {
 
   const handleDelete = async (id) => {
     if (!window.confirm('Hapus jadwal shift ini?')) return;
-    await supabase.from('shift_schedules').delete().eq('id', id);
+    const { error } = await supabase.from('shift_schedules').delete().eq('id', id);
+    if (error) { alert('Gagal hapus: ' + error.message); return; }
     fetchData();
   };
 
