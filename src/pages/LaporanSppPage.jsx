@@ -117,14 +117,18 @@ const RekapCard = ({ r }) => (
         <div style={{fontWeight:700,color:'#047857'}}>{r.tunai>0?formatRupiah(r.tunai):'-'}</div>
       </div>
       <div style={{background:'rgba(29,78,216,0.06)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
-        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>TRANSFER</div>
-        <div style={{fontWeight:700,color:'#1d4ed8'}}>{r.transfer>0?formatRupiah(r.transfer):'-'}</div>
+        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>BNI</div>
+        <div style={{fontWeight:700,color:'#1d4ed8'}}>{r.bni>0?formatRupiah(r.bni):'-'}</div>
+      </div>
+      <div style={{background:'rgba(124,58,237,0.06)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
+        <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>XENDIT</div>
+        <div style={{fontWeight:700,color:'#7c3aed'}}>{r.xendit>0?formatRupiah(r.xendit):'-'}</div>
       </div>
       <div style={{background:'rgba(180,83,9,0.06)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
         <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>DISKON</div>
         <div style={{fontWeight:700,color:'#b45309'}}>{r.diskon>0?formatRupiah(r.diskon):'-'}</div>
       </div>
-      <div style={{background:'rgba(4,120,87,0.1)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem'}}>
+      <div style={{background:'rgba(4,120,87,0.1)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem',gridColumn:'1/-1'}}>
         <div style={{color:'var(--text-secondary)',fontSize:'0.72rem',marginBottom:'0.2rem'}}>TOTAL</div>
         <div style={{fontWeight:800,color:'#047857'}}>{formatRupiah(r.total)}</div>
       </div>
@@ -221,12 +225,13 @@ export default function LaporanSppPage() {
       if (!tgl) return;
       const d   = new Date(tgl);
       const key = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`;
-      if (!map[key]) map[key] = { key, tahun:d.getFullYear(), bulan:d.getMonth(), jml:0, tunai:0, transfer:0, diskon:0, total:0 };
+      if (!map[key]) map[key] = { key, tahun:d.getFullYear(), bulan:d.getMonth(), jml:0, tunai:0, bni:0, xendit:0, diskon:0, total:0 };
       map[key].jml++;
-      map[key].total   += p.nominal||0;
-      map[key].diskon  += p.diskon||0;
-      if (p.metode==='Tunai')         map[key].tunai    += p.nominal||0;
-      if (p.metode==='Transfer Bank') map[key].transfer += p.nominal||0;
+      map[key].total  += p.nominal||0;
+      map[key].diskon += p.diskon||0;
+      if (p.metode==='Tunai')  map[key].tunai  += p.nominal||0;
+      if (p.metode==='BNI')    map[key].bni    += p.nominal||0;
+      if (p.metode==='Xendit') map[key].xendit += p.nominal||0;
     });
     return Object.values(map).sort((a,b)=>b.key.localeCompare(a.key));
   }, [filteredPembayaran]);
@@ -468,7 +473,7 @@ export default function LaporanSppPage() {
                       <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
                         <thead>
                           <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                            {['BULAN','JML TRANSAKSI','TUNAI','TRANSFER','DISKON','TOTAL DITERIMA'].map((h,i)=>(
+                            {['BULAN','JML TRANSAKSI','TUNAI','BNI','XENDIT','DISKON','TOTAL DITERIMA'].map((h,i)=>(
                               <th key={h} style={{padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',textAlign:i>0?'right':'left'}}>{h}</th>
                             ))}
                           </tr>
@@ -483,7 +488,8 @@ export default function LaporanSppPage() {
                                 <span style={{background:'rgba(79,70,229,0.1)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:'999px',fontWeight:700,fontSize:'0.8rem'}}>{r.jml}</span>
                               </td>
                               <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#047857'}}>{r.tunai>0?formatRupiah(r.tunai):'-'}</td>
-                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{r.transfer>0?formatRupiah(r.transfer):'-'}</td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{r.bni>0?formatRupiah(r.bni):'-'}</td>
+                              <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#7c3aed'}}>{r.xendit>0?formatRupiah(r.xendit):'-'}</td>
                               <td style={{padding:'0.7rem 0.75rem',textAlign:'right',color:'#b45309'}}>{r.diskon>0?formatRupiah(r.diskon):'-'}</td>
                               <td style={{padding:'0.7rem 0.75rem',textAlign:'right',fontWeight:700,color:'#047857'}}>{formatRupiah(r.total)}</td>
                             </tr>
@@ -494,7 +500,8 @@ export default function LaporanSppPage() {
                             <td style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({rekapBulanan.reduce((s,r)=>s+r.jml,0)} transaksi)</td>
                             <td/>
                             <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.tunai,0))}</td>
-                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.transfer,0))}</td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#1d4ed8'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.bni,0))}</td>
+                            <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#7c3aed'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.xendit,0))}</td>
                             <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#b45309'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.diskon,0))}</td>
                             <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#047857'}}>{formatRupiah(rekapBulanan.reduce((s,r)=>s+r.total,0))}</td>
                           </tr>
