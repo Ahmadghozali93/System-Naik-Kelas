@@ -75,6 +75,7 @@ export async function findProduct(apiKey, email, productName, companyId) {
 export async function createInvoice(apiKey, email, {
   companyId, partnerId, productId, namaProgram,
   nominal, diskon, tanggalBayar, namaSiswa,
+  metodeBayar, tanggalJatuhTempo,
 }) {
   const lines = [
     [0, 0, {
@@ -88,15 +89,20 @@ export async function createInvoice(apiKey, email, {
     lines.push([0, 0, { name: 'Diskon', quantity: 1, price_unit: -(diskon) }]);
   }
 
+  const today = new Date().toISOString().split('T')[0];
+  const invoicePayload = {
+    move_type: 'out_invoice',
+    partner_id: partnerId,
+    company_id: companyId,
+    invoice_date:     tanggalBayar || today,
+    invoice_date_due: tanggalJatuhTempo || tanggalBayar || today,
+    ref: `SPP - ${namaSiswa}`,
+    invoice_line_ids: lines,
+  };
+  if (metodeBayar) invoicePayload.narration = `Metode Pembayaran: ${metodeBayar}`;
+
   const invoiceId = await rpc('account.move', 'create',
-    [{
-      move_type: 'out_invoice',
-      partner_id: partnerId,
-      company_id: companyId,
-      invoice_date: tanggalBayar || new Date().toISOString().split('T')[0],
-      ref: `SPP - ${namaSiswa}`,
-      invoice_line_ids: lines,
-    }],
+    [invoicePayload],
     {},
     apiKey, email, companyId
   );

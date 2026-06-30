@@ -58,6 +58,9 @@ export default function FakturOdooPage() {
   const [dateFrom, setDateFrom]           = useState('');
   const [dateTo, setDateTo]               = useState('');
 
+  // Modal konfirmasi kirim
+  const [sendModal, setSendModal] = useState({ open: false, rows: [], metodeBayar: 'Tunai', jatuhTempo: '' });
+
   // Settings panel
   const [showSettings, setShowSettings]   = useState(false);
   const [apiKey, setApiKey]               = useState('');
@@ -142,9 +145,27 @@ export default function FakturOdooPage() {
     setTestLoading(false);
   };
 
+  // ─── Buka modal sebelum kirim ────────────────────────────────────────────────
+
+  const openSendModal = (rows) => {
+    if (!apiKey) { alert('API Key belum dikonfigurasi. Buka panel Pengaturan Odoo.'); setShowSettings(true); return; }
+    const arr = Array.isArray(rows) ? rows : [rows];
+    const defaultMetode = arr.length === 1 ? (arr[0].metode || 'Tunai') : 'Tunai';
+    const defaultTgl    = arr.length === 1 ? (arr[0].tanggal_bayar || '') : '';
+    setSendModal({ open: true, rows: arr, metodeBayar: defaultMetode, jatuhTempo: defaultTgl });
+  };
+
+  const handleConfirmSend = async () => {
+    const { rows, metodeBayar, jatuhTempo } = sendModal;
+    setSendModal(s => ({ ...s, open: false }));
+    for (const p of rows) {
+      if (!p.odoo_invoice_id) await handleSendOne(p, metodeBayar, jatuhTempo);
+    }
+  };
+
   // ─── Kirim satu ─────────────────────────────────────────────────────────────
 
-  const handleSendOne = async (p) => {
+  const handleSendOne = async (p, metodeBayar = '', tanggalJatuhTempo = '') => {
     if (!apiKey) { alert('API Key belum dikonfigurasi. Buka panel Pengaturan Odoo.'); setShowSettings(true); return; }
     const companyId = UNIT_COMPANY[p.unit];
     if (!companyId) { alert(`Unit "${p.unit}" tidak ada di mapping Odoo.`); return; }
@@ -155,12 +176,14 @@ export default function FakturOdooPage() {
       const prod      = await findProduct(apiKey, email, p.nama_program, companyId);
       const inv       = await createInvoice(apiKey, email, {
         companyId, partnerId,
-        productId:    prod?.id || false,
-        namaProgram:  p.nama_program,
-        nominal:      p.nominal || 0,
-        diskon:       p.diskon  || 0,
-        tanggalBayar: p.tanggal_bayar,
-        namaSiswa:    p.nama_siswa,
+        productId:         prod?.id || false,
+        namaProgram:       p.nama_program,
+        nominal:           p.nominal || 0,
+        diskon:            p.diskon  || 0,
+        tanggalBayar:      p.tanggal_bayar,
+        namaSiswa:         p.nama_siswa,
+        metodeBayar,
+        tanggalJatuhTempo: tanggalJatuhTempo || p.tanggal_bayar,
       });
 
       await supabase.from('pembayaran_spp').update({
@@ -190,16 +213,12 @@ export default function FakturOdooPage() {
 
   // ─── Kirim banyak ───────────────────────────────────────────────────────────
 
-  const handleSendSelected = async () => {
+  const handleSendSelected = () => {
     if (selected.size === 0) { alert('Pilih minimal satu transaksi.'); return; }
     if (!apiKey) { alert('API Key belum dikonfigurasi.'); setShowSettings(true); return; }
-    if (!confirm(`Kirim ${selected.size} faktur ke Odoo?`)) return;
-    const ids = [...selected];
+    const rows = [...selected].map(id => transaksis.find(t => t.id === id)).filter(Boolean);
     setSelected(new Set());
-    for (const id of ids) {
-      const p = transaksis.find(t => t.id === id);
-      if (p && !p.odoo_invoice_id) await handleSendOne(p);
-    }
+    openSendModal(rows);
   };
 
   // ─── Refresh status ──────────────────────────────────────────────────────────
@@ -440,7 +459,7 @@ export default function FakturOdooPage() {
                                 <RefreshCw size={12} /> Refresh
                               </button>
                             ) : (
-                              <button onClick={() => handleSendOne(p)}
+                              <button onClick={() => openSendModal(p)}
                                 style={{ background: '#0f766e', color: '#fff', border: 'none', borderRadius: '0.4rem', padding: '0.3rem 0.7rem', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                                 <Send size={12} /> Kirim
                               </button>
@@ -476,6 +495,68 @@ export default function FakturOdooPage() {
             </>
           )}
       </div>
+      {/* Modal konfirmasi kirim ke Odoo */}
+      {sendModal.open && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}
+          onClick={() => setSendModal(s => ({ ...s, open: false }))}>
+          <div style={{ background: 'var(--surface-color)', borderRadius: '1rem', padding: '1.75rem', maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
+            onClick={e => e.stopPropagation()}>
+            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', fontWeight: 700 }}>
+              <Send size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: '#0f766e' }} />
+              Konfirmasi Kirim ke Odoo
+            </h3>
+            <p style={{ margin: '0 0 1.25rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
+              {sendModal.rows.length === 1
+                ? `${sendModal.rows[0].nama_siswa} — ${sendModal.rows[0].nama_program}`
+                : `${sendModal.rows.length} transaksi akan dikirim`}
+            </p>
+
+            <div style={{ display: 'grid', gap: '0.85rem' }}>
+              {/* Metode Bayar */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                  Metode Pembayaran
+                </label>
+                <select
+                  value={sendModal.metodeBayar}
+                  onChange={e => setSendModal(s => ({ ...s, metodeBayar: e.target.value }))}
+                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }}>
+                  <option value="Tunai">Tunai (Cash)</option>
+                  <option value="Transfer Bank">Transfer Bank</option>
+                  <option value="QRIS">QRIS</option>
+                  <option value="Lainnya">Lainnya</option>
+                </select>
+              </div>
+
+              {/* Tanggal Jatuh Tempo */}
+              <div>
+                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
+                  Tanggal Jatuh Tempo
+                </label>
+                <input
+                  type="date"
+                  value={sendModal.jatuhTempo}
+                  onChange={e => setSendModal(s => ({ ...s, jatuhTempo: e.target.value }))}
+                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
+                  Kosongkan = sama dengan tanggal bayar
+                </p>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', marginTop: '1.5rem' }}>
+              <button onClick={() => setSendModal(s => ({ ...s, open: false }))}
+                style={{ padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                Batal
+              </button>
+              <button onClick={handleConfirmSend}
+                style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: 'none', background: '#0f766e', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                <Send size={14} /> Kirim ke Odoo
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
