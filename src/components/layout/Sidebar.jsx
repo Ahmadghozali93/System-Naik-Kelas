@@ -34,6 +34,9 @@ import {
     BarChart2,
     CalendarOff,
     KeyRound,
+    Target,
+    ListChecks,
+    TrendingUp,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -465,6 +468,32 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/absensi/hari-libur') && (
                             <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>
+                            </NavLink>
+                        )}
+                    </SidebarGroup>
+                )}
+
+                {/* KPI GROUP */}
+                {['/kpi/indikator', '/kpi/penilaian', '/kpi/dashboard'].some(p => hasPermission(p)) && (
+                    <SidebarGroup
+                        title="KPI Karyawan"
+                        icon={Target}
+                        isOpen={activeGroup === 'kpi'}
+                        onToggle={() => toggleGroup('kpi')}
+                    >
+                        {hasPermission('/kpi/indikator') && (
+                            <NavLink to="/kpi/indikator" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ListChecks className="w-4 h-4" /><span>Master Indikator</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/kpi/penilaian') && (
+                            <NavLink to="/kpi/penilaian" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Target className="w-4 h-4" /><span>Penilaian KPI</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/kpi/dashboard') && (
+                            <NavLink to="/kpi/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <TrendingUp className="w-4 h-4" /><span>Dashboard KPI</span>
                             </NavLink>
                         )}
                     </SidebarGroup>

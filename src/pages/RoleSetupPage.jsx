@@ -37,6 +37,10 @@ const AVAILABLE_MENUS = [
     { path: '/absensi/koreksi',      label: 'Absensi - Koreksi Absen' },
     { path: '/absensi/rekap',        label: 'Absensi - Rekap' },
     { path: '/absensi/hari-libur',   label: 'Absensi - Hari Libur' },
+    // ── KPI Karyawan ─────────────────────────────────
+    { path: '/kpi/indikator',    label: 'KPI - Master Indikator' },
+    { path: '/kpi/penilaian',    label: 'KPI - Penilaian' },
+    { path: '/kpi/dashboard',    label: 'KPI - Dashboard' },
     // ── Pengaturan ───────────────────────────────────
     { path: '/role-setup',       label: 'Setup Hak Akses' },
     { path: '/pengaturan',       label: 'Pengaturan Aplikasi' },

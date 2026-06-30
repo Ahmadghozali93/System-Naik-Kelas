@@ -40,6 +40,9 @@ import OvertimePage from './pages/absensi/OvertimePage';
 import CorrectionPage from './pages/absensi/CorrectionPage';
 import RekapAbsensiPage from './pages/absensi/RekapAbsensiPage';
 import HariLiburPage from './pages/absensi/HariLiburPage';
+import KpiIndicatorPage from './pages/kpi/KpiIndicatorPage';
+import KpiAssessmentPage from './pages/kpi/KpiAssessmentPage';
+import KpiDashboardPage from './pages/kpi/KpiDashboardPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -152,6 +155,11 @@ function App() {
             <Route path="/absensi/koreksi"     element={<CorrectionPage />} />
             <Route path="/absensi/rekap"       element={<RekapAbsensiPage />} />
             <Route path="/absensi/hari-libur"  element={<HariLiburPage />} />
+
+            {/* KPI */}
+            <Route path="/kpi/indikator"  element={<KpiIndicatorPage />} />
+            <Route path="/kpi/penilaian"  element={<KpiAssessmentPage />} />
+            <Route path="/kpi/dashboard"  element={<KpiDashboardPage />} />
 
             {/* FALLBACK */}
             <Route
