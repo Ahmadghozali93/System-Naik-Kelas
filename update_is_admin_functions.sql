@@ -4,17 +4,26 @@
 
 -- 1. Fungsi umum is_admin()
 CREATE OR REPLACE FUNCTION public.is_admin()
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT public.current_guru_role() IN ('Owner', 'Administrator', 'Supervisor');
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public AS $$
+  SELECT COALESCE(
+    (SELECT role IN ('Owner', 'Administrator', 'Supervisor')
+     FROM public.gurus
+     WHERE auth_user_id = auth.uid() AND status = 'Aktif'
+     LIMIT 1),
+    false
+  );
 $$;
 
 -- 2. Fungsi khusus absensi
-CREATE OR REPLACE FUNCTION absensi_is_admin()
-RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER AS $$
-  SELECT EXISTS (
-    SELECT 1 FROM gurus
-    WHERE auth_user_id = auth.uid()
-      AND role IN ('Owner', 'Administrator', 'Supervisor')
-    LIMIT 1
+CREATE OR REPLACE FUNCTION public.absensi_is_admin()
+RETURNS boolean LANGUAGE sql STABLE SECURITY DEFINER
+SET search_path = public AS $$
+  SELECT COALESCE(
+    (SELECT role IN ('Owner', 'Administrator', 'Supervisor')
+     FROM public.gurus
+     WHERE auth_user_id = auth.uid()
+     LIMIT 1),
+    false
   );
 $$;
