@@ -167,8 +167,8 @@ export default function JadwalMasterPage() {
             }
             handleCloseModal();
         } catch (error) {
-            console.error('Error saving jadwal:', error.message);
-            alert('Gagal menyimpan jadwal ke database.');
+            console.error('Error saving jadwal:', error);
+            alert('Gagal menyimpan jadwal ke database.\n' + (error.message || JSON.stringify(error)));
         }
     };
 
