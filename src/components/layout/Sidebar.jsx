@@ -161,24 +161,38 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         setIsAktivasiOpen(prev => !prev);
     };
 
-    // App settings from localStorage
+    // App settings — cache localStorage, sumber kebenaran Supabase
     const [appSettings, setAppSettings] = useState(() => {
-        try {
-            return JSON.parse(localStorage.getItem('app_settings') || '{}');
-        } catch { return {}; }
+        try { return JSON.parse(localStorage.getItem('app_settings') || '{}'); }
+        catch { return {}; }
     });
 
     useEffect(() => {
+        // Fetch dari Supabase agar semua user dapat nilai terbaru
+        supabase.from('app_settings')
+            .select('key, value')
+            .in('key', ['app_name', 'logo_url'])
+            .then(({ data }) => {
+                if (!data) return;
+                const row = {};
+                data.forEach(r => { row[r.key] = r.value; });
+                const merged = {
+                    appName:  row.app_name  || '',
+                    logoUrl:  row.logo_url  || '',
+                };
+                setAppSettings(merged);
+                localStorage.setItem('app_settings', JSON.stringify(merged));
+            });
+
         const handleSettingsChange = () => {
-            try {
-                setAppSettings(JSON.parse(localStorage.getItem('app_settings') || '{}'));
-            } catch { setAppSettings({}); }
+            try { setAppSettings(JSON.parse(localStorage.getItem('app_settings') || '{}')); }
+            catch { setAppSettings({}); }
         };
         window.addEventListener('app_settings_changed', handleSettingsChange);
         return () => window.removeEventListener('app_settings_changed', handleSettingsChange);
     }, []);
 
-    const displayName = appSettings.appName || 'BimbelPro';
+    const displayName = appSettings.appName || 'Naik Kelas';
 
     const handleLogout = () => {
         logout();

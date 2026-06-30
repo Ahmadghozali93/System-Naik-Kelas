@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Settings, Upload, Save, Image, Type, RotateCcw } from 'lucide-react';
+import { supabase } from '../lib/supabase';
 
 // Baca setting tersimpan sekali saja (dipakai sebagai nilai awal state)
 function loadSettings() {
@@ -13,7 +14,7 @@ function loadSettings() {
 
 export default function SettingsPage() {
     const [initial] = useState(loadSettings);
-    const [appName, setAppName] = useState(initial.appName || 'BimbelPro');
+    const [appName, setAppName] = useState(initial.appName || 'Naik Kelas');
     const [logoUrl, setLogoUrl] = useState(initial.logoUrl || '');
     const [previewLogo, setPreviewLogo] = useState(initial.logoUrl || '');
     const [saved, setSaved] = useState(false);
@@ -33,22 +34,33 @@ export default function SettingsPage() {
         reader.readAsDataURL(file);
     };
 
-    const handleSave = () => {
+    const handleSave = async () => {
         const settings = { appName, logoUrl };
         localStorage.setItem('app_settings', JSON.stringify(settings));
-        setSaved(true);
-        // Dispatch event so Sidebar can listen
         window.dispatchEvent(new Event('app_settings_changed'));
+
+        // Simpan ke Supabase agar berlaku untuk semua user
+        await supabase.from('app_settings').upsert([
+            { key: 'app_name', value: appName },
+            { key: 'logo_url', value: logoUrl },
+        ], { onConflict: 'key' });
+
+        setSaved(true);
         setTimeout(() => setSaved(false), 2500);
     };
 
-    const handleReset = () => {
+    const handleReset = async () => {
         if (!window.confirm('Reset ke pengaturan default?')) return;
-        setAppName('BimbelPro');
+        setAppName('Naik Kelas');
         setLogoUrl('');
         setPreviewLogo('');
         localStorage.removeItem('app_settings');
         window.dispatchEvent(new Event('app_settings_changed'));
+
+        await supabase.from('app_settings').upsert([
+            { key: 'app_name', value: 'Naik Kelas' },
+            { key: 'logo_url', value: '' },
+        ], { onConflict: 'key' });
     };
 
     const inputStyle = {
@@ -143,7 +155,7 @@ export default function SettingsPage() {
                             </div>
                         )}
                         <span style={{ fontSize: '1.35rem', fontWeight: 700, color: 'var(--primary)' }}>
-                            {appName || 'BimbelPro'}
+                            {appName || 'Naik Kelas'}
                         </span>
                     </div>
                 </div>
