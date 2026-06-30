@@ -160,7 +160,8 @@ export default function RekonsiliasiPage() {
         <select style={sel} value={filterMetode} onChange={e=>setFilterMetode(e.target.value)}>
           <option value="">Semua Metode</option>
           <option value="Tunai">Tunai</option>
-          <option value="Transfer Bank">Transfer Bank</option>
+          <option value="BNI">BNI</option>
+          <option value="Xendit">Xendit</option>
         </select>
         <div style={{display:'flex',alignItems:'center',gap:'0.4rem'}}>
           <span style={{color:'var(--text-secondary)',fontSize:'0.82rem'}}>Dari:</span>

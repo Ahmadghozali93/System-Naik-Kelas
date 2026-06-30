@@ -6,7 +6,7 @@ import { useAuth } from '../context/authStore';
 
 const genId    = () => 'TG-'  + Math.random().toString(36).substr(2,6).toUpperCase();
 const genPayId = () => 'PAY-' + Math.random().toString(36).substr(2,6).toUpperCase();
-const METODE   = ['Tunai','Transfer Bank'];
+const METODE   = ['Tunai','BNI','Xendit'];
 const PER_PAGE = 20;
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
