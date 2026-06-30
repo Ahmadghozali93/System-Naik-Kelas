@@ -495,68 +495,115 @@ export default function FakturOdooPage() {
             </>
           )}
       </div>
-      {/* Modal konfirmasi kirim ke Odoo */}
-      {sendModal.open && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}
-          onClick={() => setSendModal(s => ({ ...s, open: false }))}>
-          <div style={{ background: 'var(--surface-color)', borderRadius: '1rem', padding: '1.75rem', maxWidth: 460, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)' }}
-            onClick={e => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 0.25rem', fontSize: '1.1rem', fontWeight: 700 }}>
-              <Send size={16} style={{ verticalAlign: 'middle', marginRight: 6, color: '#0f766e' }} />
-              Konfirmasi Kirim ke Odoo
-            </h3>
-            <p style={{ margin: '0 0 1.25rem', fontSize: '0.82rem', color: 'var(--text-secondary)' }}>
-              {sendModal.rows.length === 1
-                ? `${sendModal.rows[0].nama_siswa} — ${sendModal.rows[0].nama_program}`
-                : `${sendModal.rows.length} transaksi akan dikirim`}
-            </p>
+      {/* Modal kirim ke Odoo */}
+      {sendModal.open && (() => {
+        const single = sendModal.rows.length === 1 ? sendModal.rows[0] : null;
+        const gross  = single ? (single.nominal || 0) + (single.diskon || 0) : 0;
+        const rowStyle = { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.45rem 0', borderBottom: '1px solid var(--glass-border)', fontSize: '0.83rem' };
+        const lblStyle = { color: 'var(--text-secondary)', fontWeight: 500 };
+        const valStyle = { fontWeight: 600, textAlign: 'right' };
+        return (
+          <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.45)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999, padding: '1rem' }}
+            onClick={() => setSendModal(s => ({ ...s, open: false }))}>
+            <div style={{ background: 'var(--surface-color)', borderRadius: '1rem', padding: '1.75rem', maxWidth: 480, width: '100%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', maxHeight: '90vh', overflowY: 'auto' }}
+              onClick={e => e.stopPropagation()}>
 
-            <div style={{ display: 'grid', gap: '0.85rem' }}>
-              {/* Metode Bayar */}
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
-                  Metode Pembayaran
-                </label>
-                <select
-                  value={sendModal.metodeBayar}
-                  onChange={e => setSendModal(s => ({ ...s, metodeBayar: e.target.value }))}
-                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }}>
-                  <option value="Tunai">Tunai (Cash)</option>
-                  <option value="Transfer Bank">Transfer Bank</option>
-                  <option value="QRIS">QRIS</option>
-                  <option value="Lainnya">Lainnya</option>
-                </select>
+              {/* Header */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', marginBottom: '1.25rem' }}>
+                <Send size={18} style={{ color: '#0f766e' }} />
+                <div>
+                  <div style={{ fontWeight: 700, fontSize: '1rem' }}>Kirim ke Odoo</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                    {single ? 'Detail transaksi yang akan dikirim' : `${sendModal.rows.length} transaksi akan dikirim`}
+                  </div>
+                </div>
               </div>
 
-              {/* Tanggal Jatuh Tempo */}
-              <div>
-                <label style={{ fontSize: '0.8rem', fontWeight: 600, display: 'block', marginBottom: '0.35rem' }}>
-                  Tanggal Jatuh Tempo
-                </label>
-                <input
-                  type="date"
-                  value={sendModal.jatuhTempo}
-                  onChange={e => setSendModal(s => ({ ...s, jatuhTempo: e.target.value }))}
-                  style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.74rem', color: 'var(--text-secondary)' }}>
-                  Kosongkan = sama dengan tanggal bayar
-                </p>
-              </div>
-            </div>
+              {/* Data transaksi (single) */}
+              {single && (
+                <div style={{ background: 'rgba(79,70,229,0.04)', borderRadius: '0.65rem', padding: '0.75rem 1rem', marginBottom: '1.25rem', border: '1px solid rgba(79,70,229,0.12)' }}>
+                  <div style={rowStyle}>
+                    <span style={lblStyle}>Nama Siswa</span>
+                    <span style={valStyle}>{single.nama_siswa || '-'}</span>
+                  </div>
+                  <div style={rowStyle}>
+                    <span style={lblStyle}>Program</span>
+                    <span style={{ ...valStyle, color: 'var(--primary)' }}>{single.nama_program || '-'}</span>
+                  </div>
+                  <div style={rowStyle}>
+                    <span style={lblStyle}>Unit</span>
+                    <span style={valStyle}>{single.unit || '-'}</span>
+                  </div>
+                  <div style={rowStyle}>
+                    <span style={lblStyle}>Tanggal Bayar</span>
+                    <span style={valStyle}>{fmt(single.tanggal_bayar)}</span>
+                  </div>
+                  <div style={rowStyle}>
+                    <span style={lblStyle}>Nominal SPP</span>
+                    <span style={valStyle}>{formatRupiah(gross)}</span>
+                  </div>
+                  {single.diskon > 0 && (
+                    <div style={rowStyle}>
+                      <span style={lblStyle}>Diskon</span>
+                      <span style={{ ...valStyle, color: '#b45309' }}>- {formatRupiah(single.diskon)}</span>
+                    </div>
+                  )}
+                  <div style={{ ...rowStyle, borderBottom: 'none' }}>
+                    <span style={{ ...lblStyle, fontWeight: 700, color: 'var(--text-primary)' }}>Yang Dibayar</span>
+                    <span style={{ ...valStyle, fontSize: '1rem', color: '#047857' }}>{formatRupiah(single.nominal || 0)}</span>
+                  </div>
+                </div>
+              )}
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem', marginTop: '1.5rem' }}>
-              <button onClick={() => setSendModal(s => ({ ...s, open: false }))}
-                style={{ padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', cursor: 'pointer', fontSize: '0.85rem' }}>
-                Batal
-              </button>
-              <button onClick={handleConfirmSend}
-                style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: 'none', background: '#0f766e', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
-                <Send size={14} /> Kirim ke Odoo
-              </button>
+              {/* Data bulk */}
+              {!single && (
+                <div style={{ background: 'rgba(79,70,229,0.04)', borderRadius: '0.65rem', padding: '0.75rem 1rem', marginBottom: '1.25rem', border: '1px solid rgba(79,70,229,0.12)', fontSize: '0.83rem' }}>
+                  {sendModal.rows.map(r => (
+                    <div key={r.id} style={{ display: 'flex', justifyContent: 'space-between', padding: '0.3rem 0', borderBottom: '1px solid var(--glass-border)' }}>
+                      <span style={{ color: 'var(--text-secondary)' }}>{r.nama_siswa} — {r.nama_program}</span>
+                      <span style={{ fontWeight: 600, color: '#047857' }}>{formatRupiah(r.nominal || 0)}</span>
+                    </div>
+                  ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', paddingTop: '0.5rem', fontWeight: 700 }}>
+                    <span>Total</span>
+                    <span style={{ color: '#047857' }}>{formatRupiah(sendModal.rows.reduce((s, r) => s + (r.nominal || 0), 0))}</span>
+                  </div>
+                </div>
+              )}
+
+              {/* Field yang bisa diisi */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem', marginBottom: '1.25rem' }}>
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Metode Pembayaran</label>
+                  <select value={sendModal.metodeBayar} onChange={e => setSendModal(s => ({ ...s, metodeBayar: e.target.value }))}
+                    style={{ ...inp, width: '100%', boxSizing: 'border-box' }}>
+                    <option value="Tunai">Tunai (Cash)</option>
+                    <option value="Transfer Bank">Transfer Bank</option>
+                    <option value="QRIS">QRIS</option>
+                    <option value="Lainnya">Lainnya</option>
+                  </select>
+                </div>
+                <div>
+                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Tanggal Jatuh Tempo</label>
+                  <input type="date" value={sendModal.jatuhTempo} onChange={e => setSendModal(s => ({ ...s, jatuhTempo: e.target.value }))}
+                    style={{ ...inp, width: '100%', boxSizing: 'border-box' }} />
+                </div>
+              </div>
+
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.65rem' }}>
+                <button onClick={() => setSendModal(s => ({ ...s, open: false }))}
+                  style={{ padding: '0.5rem 1.1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', cursor: 'pointer', fontSize: '0.85rem' }}>
+                  Batal
+                </button>
+                <button onClick={handleConfirmSend}
+                  style={{ padding: '0.5rem 1.25rem', borderRadius: '0.5rem', border: 'none', background: '#0f766e', color: '#fff', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.45rem' }}>
+                  <Send size={14} /> Kirim ke Odoo
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        );
+      })()}
     </div>
   );
 }
