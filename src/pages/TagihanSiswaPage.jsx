@@ -89,15 +89,19 @@ export default function TagihanSiswaPage() {
   const allUnits    = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.unit).filter(Boolean))].sort(), [aktivasis]);
   const allPrograms = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.nama_program).filter(Boolean))].sort(), [aktivasis]);
 
-  // Cari pembayaran terakhir untuk kombinasi siswa + program + unit
-  const getLastPayment = (siswaId, namaProgram, unit) =>
+  // Filter by aktivasi_id (primary) — fallback ke siswa_id+program+unit untuk payment lama
+  const getLastPayment = (aktivasiId, siswaId, namaProgram, unit) =>
     transaksis
-      .filter(p => p.siswa_id === siswaId && p.nama_program === namaProgram && p.unit === unit)
+      .filter(p =>
+        p.aktivasi_id
+          ? p.aktivasi_id === aktivasiId
+          : p.siswa_id === siswaId && p.nama_program === namaProgram && p.unit === unit
+      )
       .sort((a,b) => new Date(b.tanggal_bayar||b.created_at) - new Date(a.tanggal_bayar||a.created_at))[0];
 
   const getJatuhTempo = (aktivasi) => {
     const dj_  = aktivasi.detail_jadwal || {};
-    const last = getLastPayment(aktivasi.siswa_id, dj_.nama_program, dj_.unit);
+    const last = getLastPayment(aktivasi.id, aktivasi.siswa_id, dj_.nama_program, dj_.unit);
     if (last?.jatuh_tempo) {
       const nextJT = addOneMonth(last.jatuh_tempo);
       // Jika siswa re-enroll (tgl_mulai baru lebih baru dari next JT lama), pakai tgl_mulai
@@ -121,7 +125,7 @@ export default function TagihanSiswaPage() {
   // Filter & paginate tagihan
   const filteredAll = useMemo(() => aktivasis.filter(a => {
     const dj     = a.detail_jadwal || {};
-    const last   = getLastPayment(a.siswa_id, dj.nama_program, dj.unit);
+    const last   = getLastPayment(a.id, a.siswa_id, dj.nama_program, dj.unit);
     const status = computeStatus(!!last, getJatuhTempo(a));
     const q      = search.toLowerCase();
     if (search && !a.nama_siswa?.toLowerCase().includes(q) && !dj.nama_program?.toLowerCase().includes(q)) return false;
@@ -171,6 +175,7 @@ export default function TagihanSiswaPage() {
 
     const { error } = await supabase.from('pembayaran_spp').insert([{
       id: genPayId(),
+      aktivasi_id: aktivasi.id,
       siswa_id: aktivasi.siswa_id,
       nama_siswa: aktivasi.nama_siswa,
       nama_program: dj.nama_program || '',
@@ -281,7 +286,7 @@ export default function TagihanSiswaPage() {
                     <tbody>
                       {filtered.map((a,idx)=>{
                         const dj      = a.detail_jadwal || {};
-                        const last    = getLastPayment(a.siswa_id, dj.nama_program, dj.unit);
+                        const last    = getLastPayment(a.id, a.siswa_id, dj.nama_program, dj.unit);
                         const jt      = getJatuhTempo(a);
                         const status  = computeStatus(!!last, jt);
                         const nominal = getNominal(a);
@@ -322,9 +327,9 @@ export default function TagihanSiswaPage() {
                 <div style={{marginTop:'0.75rem',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'0.5rem'}}>
                   <div style={{display:'flex',gap:'1rem',fontSize:'0.82rem',flexWrap:'wrap'}}>
                     <span style={{color:'var(--text-secondary)'}}>{filteredAll.length} siswa</span>
-                    <span style={{color:'#047857',fontWeight:600}}>Lunas: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Lunas';}).length}</span>
-                    <span style={{color:'#b91c1c',fontWeight:600}}>Terlambat: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Terlambat';}).length}</span>
-                    <span style={{color:'#92400e',fontWeight:600}}>Belum Bayar: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Belum Bayar';}).length}</span>
+                    <span style={{color:'#047857',fontWeight:600}}>Lunas: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.id,a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Lunas';}).length}</span>
+                    <span style={{color:'#b91c1c',fontWeight:600}}>Terlambat: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.id,a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Terlambat';}).length}</span>
+                    <span style={{color:'#92400e',fontWeight:600}}>Belum Bayar: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.id,a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Belum Bayar';}).length}</span>
                   </div>
                   <Pager cur={safePage} total={totalPages} onChange={setPage}/>
                 </div>
@@ -445,7 +450,7 @@ export default function TagihanSiswaPage() {
         const diskon     = Number(modalForm.diskon) || 0;
         const yg_dibayar = Math.max(nominal - diskon, 0);
         const dj_modal   = aktivasi.detail_jadwal || {};
-        const last       = getLastPayment(aktivasi.siswa_id, dj_modal.nama_program, dj_modal.unit);
+        const last       = getLastPayment(aktivasi.id, aktivasi.siswa_id, dj_modal.nama_program, dj_modal.unit);
         const lastDate   = last?.tanggal_bayar || last?.created_at?.split('T')[0];
         const jt         = getJatuhTempo(aktivasi);
 
