@@ -23,9 +23,13 @@ export default function RekonsiliasiPage() {
 
   // Filter tabel utama
   const [search, setSearch]           = useState('');
+  const [filterUnit, setFilterUnit]   = useState('');
   const [filterMetode, setFilterMetode] = useState('');
   const [dateFrom, setDateFrom]       = useState('');
   const [dateTo, setDateTo]           = useState('');
+
+  // Filter unit di dalam modal
+  const [modalFilterUnit, setModalFilterUnit] = useState('');
 
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' };
   const inp = { width:'100%', padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.875rem', color:'var(--text-primary)', boxSizing:'border-box' };
@@ -54,6 +58,14 @@ export default function RekonsiliasiPage() {
     [transaksis]
   );
 
+  // Pending yang sudah difilter unit (dipakai di dalam modal)
+  const filteredPending = useMemo(
+    () => modalFilterUnit
+      ? pendingTransaksis.filter(p => p.unit === modalFilterUnit)
+      : pendingTransaksis,
+    [pendingTransaksis, modalFilterUnit]
+  );
+
   // Untuk setiap setor, ambil transaksinya
   const getSetorTrx = (setorId) => transaksis.filter(p => p.rekonsiliasi_id === setorId);
 
@@ -74,13 +86,14 @@ export default function RekonsiliasiPage() {
   const filtered = useMemo(() => enrichedSetors.filter(r => {
     const q = search.toLowerCase();
     if (search && !r.units?.toLowerCase().includes(q) && !r.petugas_transaksi?.toLowerCase().includes(q) && !r.created_by?.toLowerCase().includes(q)) return false;
+    if (filterUnit   && !r.units?.split(', ').includes(filterUnit)) return false;
     if (filterMetode && !r.metodes?.includes(filterMetode)) return false;
     if (dateFrom && r.tanggal < dateFrom) return false;
     if (dateTo   && r.tanggal > dateTo)   return false;
     return true;
-  }), [enrichedSetors, search, filterMetode, dateFrom, dateTo]);
+  }), [enrichedSetors, search, filterUnit, filterMetode, dateFrom, dateTo]);
 
-  const hasFilter = search || filterMetode || dateFrom || dateTo;
+  const hasFilter = search || filterUnit || filterMetode || dateFrom || dateTo;
 
   // Total selected nominal
   const totalSelected = useMemo(
@@ -89,14 +102,26 @@ export default function RekonsiliasiPage() {
   );
 
   const toggleSelect = (id) => setSelected(prev => { const n = new Set(prev); n.has(id)?n.delete(id):n.add(id); return n; });
-  const toggleAll = () => setSelected(
-    selected.size === pendingTransaksis.length ? new Set() : new Set(pendingTransaksis.map(p=>p.id))
+  const allFilteredSelected = filteredPending.length > 0 && filteredPending.every(p => selected.has(p.id));
+  const toggleAll = () => {
+    if (allFilteredSelected) {
+      setSelected(prev => { const n = new Set(prev); filteredPending.forEach(p => n.delete(p.id)); return n; });
+    } else {
+      setSelected(prev => { const n = new Set(prev); filteredPending.forEach(p => n.add(p.id)); return n; });
+    }
+  };
+
+  // Daftar unit unik dari pembayaran pending
+  const allUnits = useMemo(
+    () => [...new Set(transaksis.map(p => p.unit).filter(Boolean))].sort(),
+    [transaksis]
   );
 
   const openModal = () => {
     setFormTanggal(new Date().toISOString().split('T')[0]);
     setFormCatatan('');
     setSelected(new Set());
+    setModalFilterUnit('');
     setModalOpen(true);
   };
 
@@ -157,6 +182,10 @@ export default function RekonsiliasiPage() {
             placeholder="Cari unit / petugas..."
             value={search} onChange={e=>setSearch(e.target.value)}/>
         </div>
+        <select style={sel} value={filterUnit} onChange={e=>setFilterUnit(e.target.value)}>
+          <option value="">Semua Unit</option>
+          {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
+        </select>
         <select style={sel} value={filterMetode} onChange={e=>setFilterMetode(e.target.value)}>
           <option value="">Semua Metode</option>
           <option value="Tunai">Tunai</option>
@@ -172,7 +201,7 @@ export default function RekonsiliasiPage() {
           <input type="date" style={sel} value={dateTo} onChange={e=>setDateTo(e.target.value)}/>
         </div>
         {hasFilter && (
-          <button onClick={()=>{setSearch('');setFilterMetode('');setDateFrom('');setDateTo('');}}
+          <button onClick={()=>{setSearch('');setFilterUnit('');setFilterMetode('');setDateFrom('');setDateTo('');}}
             style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.45rem 0.85rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>
             Reset
           </button>
@@ -271,23 +300,43 @@ export default function RekonsiliasiPage() {
               </div>
 
               <div style={{flex:1,overflowY:'auto',padding:'0 1.5rem'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.85rem 0',borderBottom:'1px solid var(--glass-border)',position:'sticky',top:0,background:'var(--card-bg,#fff)'}}>
-                  <div style={{fontWeight:600,fontSize:'0.85rem'}}>
-                    Pilih transaksi
-                    <span style={{marginLeft:'0.5rem',color:'var(--text-secondary)',fontWeight:400}}>({pendingTransaksis.length} belum disetor)</span>
+                <div style={{position:'sticky',top:0,background:'var(--card-bg,#fff)',borderBottom:'1px solid var(--glass-border)',paddingBottom:'0.65rem'}}>
+                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.85rem 0 0.55rem'}}>
+                    <div style={{fontWeight:600,fontSize:'0.85rem'}}>
+                      Pilih transaksi
+                      <span style={{marginLeft:'0.5rem',color:'var(--text-secondary)',fontWeight:400}}>
+                        ({filteredPending.length}{modalFilterUnit ? ` di ${modalFilterUnit}` : ''} belum disetor)
+                      </span>
+                    </div>
+                    {filteredPending.length > 0 && (
+                      <button type="button" onClick={toggleAll}
+                        style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.3rem 0.75rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.35rem'}}>
+                        {allFilteredSelected
+                          ? <><CheckSquare size={14}/> Batal Semua</>
+                          : <><Square size={14}/> Pilih Semua</>}
+                      </button>
+                    )}
                   </div>
-                  {pendingTransaksis.length > 0 && (
-                    <button type="button" onClick={toggleAll}
-                      style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.3rem 0.75rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.35rem'}}>
-                      {selected.size === pendingTransaksis.length
-                        ? <><CheckSquare size={14}/> Batal Semua</>
-                        : <><Square size={14}/> Pilih Semua</>}
-                    </button>
-                  )}
+                  {/* Filter unit di modal */}
+                  <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
+                    <select value={modalFilterUnit} onChange={e=>{setModalFilterUnit(e.target.value);}}
+                      style={{...sel,fontSize:'0.82rem',padding:'0.35rem 0.65rem'}}>
+                      <option value="">Semua Unit</option>
+                      {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
+                    </select>
+                    {modalFilterUnit && (
+                      <button type="button" onClick={()=>setModalFilterUnit('')}
+                        style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.3rem 0.65rem',cursor:'pointer',fontSize:'0.78rem',color:'var(--text-secondary)'}}>
+                        Semua Unit
+                      </button>
+                    )}
+                  </div>
                 </div>
 
-                {pendingTransaksis.length === 0 ? (
-                  <p style={{color:'var(--text-secondary)',textAlign:'center',padding:'1.5rem 0',fontSize:'0.88rem'}}>Semua transaksi sudah disetor.</p>
+                {filteredPending.length === 0 ? (
+                  <p style={{color:'var(--text-secondary)',textAlign:'center',padding:'1.5rem 0',fontSize:'0.88rem'}}>
+                    {pendingTransaksis.length === 0 ? 'Semua transaksi sudah disetor.' : `Tidak ada transaksi pending untuk unit ${modalFilterUnit}.`}
+                  </p>
                 ) : (
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.83rem'}}>
                     <thead>
@@ -299,7 +348,7 @@ export default function RekonsiliasiPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {pendingTransaksis.map(p => {
+                      {filteredPending.map(p => {
                         const checked = selected.has(p.id);
                         return (
                           <tr key={p.id} onClick={()=>toggleSelect(p.id)}
