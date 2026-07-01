@@ -16,7 +16,3 @@ UPDATE pembayaran_spp
 SET nama_siswa = INITCAP(nama_siswa)
 WHERE nama_siswa IS NOT NULL AND nama_siswa != INITCAP(nama_siswa);
 
--- 4. Rekonsiliasi SPP (jika ada kolom nama_siswa)
-UPDATE rekonsiliasi_spp
-SET nama_siswa = INITCAP(nama_siswa)
-WHERE nama_siswa IS NOT NULL AND nama_siswa != INITCAP(nama_siswa);
