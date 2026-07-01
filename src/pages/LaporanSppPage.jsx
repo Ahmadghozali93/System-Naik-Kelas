@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X } from 'lucide-react';
+import { Search, X, FileDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { formatRupiah } from '../utils/formatRupiah';
 
@@ -240,6 +241,29 @@ export default function LaporanSppPage() {
   const hasFilter = search||filterUnit||filterProg||filterMetode||dateFrom||dateTo;
   const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setFilterMetode(''); setDateFrom(''); setDateTo(''); setPage1(1); setPage2(1); setPage3(1); };
 
+  const exportTunggakan = () => {
+    const rows = tunggakan.map((a, i) => {
+      const dj = a.detail_jadwal || {};
+      return {
+        'NO': i + 1,
+        'NAMA SISWA': a.nama_siswa || '-',
+        'PROGRAM': dj.nama_program || '-',
+        'UNIT': dj.unit || '-',
+        'TGL MULAI': a.tgl_mulai ? new Date(a.tgl_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+        'JATUH TEMPO': a._jt ? new Date(a._jt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+        'NOMINAL SPP': a._nominal || 0,
+        'STATUS': a._status,
+      };
+    });
+    const ws = XLSX.utils.json_to_sheet(rows);
+    ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }];
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Tunggakan');
+    const now = new Date();
+    const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+    XLSX.writeFile(wb, `Tunggakan_SPP_${stamp}.xlsx`);
+  };
+
   const tunggakan = filteredAktivasi.filter(a => a._status === 'Terlambat');
   const belumJT   = filteredAktivasi.filter(a => a._status === 'Lunas' || a._status === 'Belum Bayar');
 
@@ -338,6 +362,12 @@ export default function LaporanSppPage() {
             {tunggakan.length === 0
               ? <p style={{color:'#047857',fontWeight:600}}>Tidak ada tunggakan.</p>
               : (<>
+                <div style={{display:'flex',justifyContent:'flex-end',marginBottom:'0.75rem'}}>
+                  <button onClick={exportTunggakan}
+                    style={{display:'flex',alignItems:'center',gap:'0.4rem',background:'#047857',color:'#fff',border:'none',borderRadius:'0.5rem',padding:'0.5rem 1rem',cursor:'pointer',fontWeight:600,fontSize:'0.82rem',fontFamily:'inherit'}}>
+                    <FileDown size={15}/> Export Excel
+                  </button>
+                </div>
                 {isMobile
                   ? d1.map((a,i) => <SiswaCard key={a.id} a={a} idx={i} isTunggakan />)
                   : (
