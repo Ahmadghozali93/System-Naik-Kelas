@@ -47,6 +47,14 @@ export async function testConnection(apiKey, email) {
 
 // ─── Partner (Customer) ──────────────────────────────────────────────────────
 
+export async function searchPartners(apiKey, email, query) {
+  return rpc('res.partner', 'search_read',
+    [[['name', 'ilike', query], ['customer_rank', '>', 0]]],
+    { fields: ['id', 'name'], limit: 10, order: 'name asc' },
+    apiKey, email
+  );
+}
+
 export async function getOrCreatePartner(apiKey, email, name) {
   const found = await rpc('res.partner', 'search_read',
     [[['name', '=', name]]],

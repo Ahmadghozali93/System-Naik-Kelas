@@ -7,7 +7,7 @@ import { supabase } from '../lib/supabase';
 import { formatRupiah } from '../utils/formatRupiah';
 import {
   loadOdooSettings, saveOdooSettings, testConnection,
-  getOrCreatePartner, findProduct, createInvoice, getInvoiceStatus,
+  getOrCreatePartner, searchPartners, findProduct, createInvoice, getInvoiceStatus,
   UNIT_COMPANY, configureOdoo,
 } from '../lib/odooApi';
 
@@ -63,6 +63,32 @@ export default function FakturOdooPage() {
   const [jatuhTempoMap,  setJatuhTempoMap]  = useState({});
   const getMetodeBayar = (p) => metodeBayarMap[p.id] !== undefined ? metodeBayarMap[p.id] : (p.metode || 'Tunai');
   const getJatuhTempo  = (p) => jatuhTempoMap[p.id]  !== undefined ? jatuhTempoMap[p.id]  : (p.tanggal_bayar || '');
+
+  // Pilihan partner Odoo per baris { [paymentId]: { id, name } }
+  const [partnerOverrideMap, setPartnerOverrideMap] = useState({});
+  // State pencarian partner { [paymentId]: { query, results, loading, open } }
+  const [partnerSearchMap, setPartnerSearchMap]     = useState({});
+
+  const handlePartnerSearch = async (paymentId, rawQuery) => {
+    const query = (rawQuery || '').trim();
+    setPartnerSearchMap(prev => ({ ...prev, [paymentId]: { ...prev[paymentId], query: rawQuery, loading: !!query, open: !!query } }));
+    if (!query) return;
+    try {
+      const results = await searchPartners(apiKey, email, query);
+      setPartnerSearchMap(prev => ({ ...prev, [paymentId]: { query: rawQuery, results, loading: false, open: true } }));
+    } catch {
+      setPartnerSearchMap(prev => ({ ...prev, [paymentId]: { query: rawQuery, results: [], loading: false, open: false } }));
+    }
+  };
+
+  const selectPartner = (paymentId, partner) => {
+    setPartnerOverrideMap(prev => ({ ...prev, [paymentId]: partner }));
+    setPartnerSearchMap(prev => ({ ...prev, [paymentId]: { query: '', results: [], loading: false, open: false } }));
+  };
+
+  const clearPartner = (paymentId) => {
+    setPartnerOverrideMap(prev => { const m = { ...prev }; delete m[paymentId]; return m; });
+  };
 
   // Settings panel
   const [showSettings, setShowSettings]   = useState(false);
@@ -165,7 +191,10 @@ export default function FakturOdooPage() {
 
     setSending(prev => new Set([...prev, p.id]));
     try {
-      const partnerId = await getOrCreatePartner(apiKey, email, p.nama_siswa);
+      const override = partnerOverrideMap[p.id];
+      const partnerId = override
+        ? override.id
+        : await getOrCreatePartner(apiKey, email, p.nama_siswa);
       const prod      = await findProduct(apiKey, email, p.nama_program, companyId);
       const inv       = await createInvoice(apiKey, email, {
         companyId, partnerId,
@@ -409,6 +438,7 @@ export default function FakturOdooPage() {
                         { l: 'YANG DIBAYAR',    a: 'right' },
                         { l: 'METODE',          a: 'left' },
                         { l: 'TGL JATUH TEMPO', a: 'left' },
+                        { l: 'PELANGGAN ODOO',  a: 'left' },
                         { l: 'ODOO FAKTUR',     a: 'left' },
                         { l: 'STATUS ODOO',     a: 'center' },
                         { l: 'AKSI',            a: 'center' },
@@ -460,6 +490,65 @@ export default function FakturOdooPage() {
                                   style={{ ...inp, padding: '0.25rem 0.5rem', fontSize: '0.78rem', width: 130 }} />
                             }
                           </td>
+                          {/* ── Pelanggan Odoo ─────────────────────────────── */}
+                          <td style={{ padding: '0.5rem 0.75rem', minWidth: 210, position: 'relative' }}>
+                            {sudah ? (
+                              <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>—</span>
+                            ) : (() => {
+                              const pOverride = partnerOverrideMap[p.id] || null;
+                              const pSearch   = partnerSearchMap[p.id]   || { query: '', results: [], loading: false, open: false };
+                              if (pOverride) {
+                                return (
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'rgba(4,120,87,0.08)', borderRadius: '0.4rem', padding: '0.2rem 0.5rem' }}>
+                                    <span style={{ fontSize: '0.75rem', fontWeight: 600, color: '#047857', flex: 1 }}>{pOverride.name}</span>
+                                    <button onClick={() => clearPartner(p.id)}
+                                      title="Hapus pilihan, gunakan auto"
+                                      style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', fontSize: '0.78rem', padding: 0, lineHeight: 1, fontWeight: 700 }}>✕</button>
+                                  </div>
+                                );
+                              }
+                              return (
+                                <div style={{ position: 'relative' }}>
+                                  <div style={{ display: 'flex', gap: '0.25rem' }}>
+                                    <input
+                                      type="text"
+                                      value={pSearch.query}
+                                      onChange={e => setPartnerSearchMap(prev => ({ ...prev, [p.id]: { ...prev[p.id], query: e.target.value, open: false } }))}
+                                      onKeyDown={e => e.key === 'Enter' && handlePartnerSearch(p.id, pSearch.query || p.nama_siswa)}
+                                      placeholder={p.nama_siswa}
+                                      style={{ ...inp, padding: '0.22rem 0.45rem', fontSize: '0.74rem', flex: 1, minWidth: 0 }}
+                                    />
+                                    <button
+                                      onClick={() => handlePartnerSearch(p.id, pSearch.query || p.nama_siswa)}
+                                      disabled={pSearch.loading || !apiKey}
+                                      title={!apiKey ? 'Konfigurasi API Key dulu' : 'Cari pelanggan di Odoo'}
+                                      style={{ padding: '0.22rem 0.5rem', borderRadius: '0.4rem', border: 'none', background: 'var(--primary)', color: '#fff', cursor: pSearch.loading || !apiKey ? 'not-allowed' : 'pointer', fontSize: '0.72rem', fontWeight: 600, opacity: !apiKey ? 0.5 : 1, whiteSpace: 'nowrap' }}>
+                                      {pSearch.loading ? '...' : 'Cari'}
+                                    </button>
+                                  </div>
+                                  {pSearch.open && (
+                                    <div style={{ position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 200, background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.4rem', boxShadow: '0 4px 14px rgba(0,0,0,0.15)', maxHeight: 180, overflowY: 'auto', marginTop: '0.15rem' }}>
+                                      {pSearch.results.length > 0 ? pSearch.results.map(partner => (
+                                        <div key={partner.id}
+                                          onClick={() => selectPartner(p.id, partner)}
+                                          style={{ padding: '0.4rem 0.6rem', fontSize: '0.78rem', cursor: 'pointer', borderBottom: '1px solid var(--glass-border)' }}
+                                          onMouseEnter={e => e.currentTarget.style.background = 'rgba(79,70,229,0.08)'}
+                                          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+                                          {partner.name}
+                                          <span style={{ marginLeft: '0.4rem', fontSize: '0.68rem', color: 'var(--text-secondary)' }}>#{partner.id}</span>
+                                        </div>
+                                      )) : (
+                                        <div style={{ padding: '0.5rem 0.6rem', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Tidak ditemukan di Odoo</div>
+                                      )}
+                                    </div>
+                                  )}
+                                  {!pSearch.open && !pSearch.query && (
+                                    <div style={{ fontSize: '0.68rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>auto dari nama siswa</div>
+                                  )}
+                                </div>
+                              );
+                            })()}
+                          </td>
                           <td style={{ padding: '0.75rem', fontSize: '0.8rem' }}>
                             {p.odoo_invoice_name
                               ? <span style={{ fontWeight: 600, color: '#1d4ed8' }}>{p.odoo_invoice_name}</span>
@@ -500,7 +589,7 @@ export default function FakturOdooPage() {
                       <td style={{ padding: '0.75rem', textAlign: 'right' }}>{formatRupiah(filtered.reduce((s, p) => s + (p.nominal || 0) + (p.diskon || 0), 0))}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'right', color: '#b45309' }}>{formatRupiah(filtered.reduce((s, p) => s + (p.diskon || 0), 0))}</td>
                       <td style={{ padding: '0.75rem', textAlign: 'right', color: '#047857' }}>{formatRupiah(totalNominal)}</td>
-                      <td colSpan={5} />
+                      <td colSpan={6} />
                     </tr>
                   </tfoot>
                 </table>
