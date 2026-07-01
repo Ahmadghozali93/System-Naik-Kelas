@@ -65,6 +65,7 @@ export default function TagihanSiswaPage() {
   const [trSearch, setTrSearch]     = useState('');
   const [trUnit, setTrUnit]         = useState('');
   const [trProg, setTrProg]         = useState('');
+  const [trStatus, setTrStatus]     = useState('');
   const [trDateFrom, setTrDateFrom] = useState('');
   const [trDateTo, setTrDateTo]     = useState('');
   const [trPage, setTrPage]         = useState(1);
@@ -143,13 +144,15 @@ export default function TagihanSiswaPage() {
   const filteredTr = useMemo(() => transaksis.filter(p => {
     const q   = trSearch.toLowerCase();
     const tgl = p.tanggal_bayar || p.created_at?.split('T')[0];
+    const st  = p.status || 'Pending';
     if (trSearch && !p.nama_siswa?.toLowerCase().includes(q) && !p.nama_program?.toLowerCase().includes(q)) return false;
     if (trUnit     && p.unit         !== trUnit)     return false;
     if (trProg     && p.nama_program !== trProg)     return false;
+    if (trStatus   && st             !== trStatus)   return false;
     if (trDateFrom && tgl < trDateFrom) return false;
     if (trDateTo   && tgl > trDateTo)   return false;
     return true;
-  }), [transaksis, trSearch, trUnit, trProg, trDateFrom, trDateTo]);
+  }), [transaksis, trSearch, trUnit, trProg, trStatus, trDateFrom, trDateTo]);
 
   const trTotalPages = Math.max(1, Math.ceil(filteredTr.length / PER_PAGE));
   const trSafePage   = Math.min(trPage, trTotalPages);
@@ -356,6 +359,11 @@ export default function TagihanSiswaPage() {
               <option value="">Semua Program</option>
               {trAllPrograms.map(p=><option key={p} value={p}>{p}</option>)}
             </select>
+            <select style={sel} value={trStatus} onChange={e=>{setTrStatus(e.target.value);setTrPage(1);}}>
+              <option value="">Semua Status</option>
+              <option value="Pending">Pending</option>
+              <option value="Terverifikasi">Terverifikasi</option>
+            </select>
           </div>
           <div style={{display:'flex',gap:'0.65rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
             <div style={{display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.85rem'}}>
@@ -366,8 +374,8 @@ export default function TagihanSiswaPage() {
               <span style={{color:'var(--text-secondary)'}}>Sampai:</span>
               <input type="date" style={{...sel,padding:'0.45rem 0.65rem'}} value={trDateTo} onChange={e=>{setTrDateTo(e.target.value);setTrPage(1);}}/>
             </div>
-            {(trSearch||trUnit||trProg||trDateFrom||trDateTo)&&(
-              <button onClick={()=>{setTrSearch('');setTrUnit('');setTrProg('');setTrDateFrom('');setTrDateTo('');setTrPage(1);}}
+            {(trSearch||trUnit||trProg||trStatus||trDateFrom||trDateTo)&&(
+              <button onClick={()=>{setTrSearch('');setTrUnit('');setTrProg('');setTrStatus('');setTrDateFrom('');setTrDateTo('');setTrPage(1);}}
                 style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.4rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>
                 Reset
               </button>
