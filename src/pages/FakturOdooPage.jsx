@@ -62,7 +62,7 @@ export default function FakturOdooPage() {
   const [metodeBayarMap, setMetodeBayarMap] = useState({});
   const [jatuhTempoMap,  setJatuhTempoMap]  = useState({});
   const getMetodeBayar = (p) => metodeBayarMap[p.id] !== undefined ? metodeBayarMap[p.id] : (p.metode || 'Tunai');
-  const getJatuhTempo  = (p) => jatuhTempoMap[p.id]  !== undefined ? jatuhTempoMap[p.id]  : (p.tanggal_bayar || '');
+  const getJatuhTempo  = (p) => jatuhTempoMap[p.id]  !== undefined ? jatuhTempoMap[p.id]  : (p.jatuh_tempo || '');
 
   // Pilihan partner Odoo per baris { [paymentId]: { id, name } }
   const [partnerOverrideMap, setPartnerOverrideMap] = useState({});
