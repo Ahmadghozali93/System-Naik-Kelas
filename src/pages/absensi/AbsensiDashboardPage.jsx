@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Users, CheckCircle2, Clock, AlertCircle, XCircle, Eye, UserX, ShirtIcon } from 'lucide-react';
+import { Users, CheckCircle2, Clock, AlertCircle, XCircle, Eye, UserX, ShirtIcon, Search, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
@@ -37,8 +37,11 @@ export default function AbsensiDashboardPage() {
   const [fotoModal, setFotoModal]     = useState(null);
   const [markingAlpha, setMarkingAlpha] = useState(false);
   const [savingId, setSavingId]       = useState(null);
-  // catatan edits tracked locally before blur-save
   const [catatanDraft, setCatatanDraft] = useState({});
+  const [search, setSearch]           = useState('');
+  const [filterRole, setFilterRole]   = useState('');
+  const [filterShift, setFilterShift] = useState('');
+  const [filterStatus, setFilterStatus] = useState('');
 
   const fetchData = async () => {
     setLoading(true);
@@ -91,15 +94,31 @@ export default function AbsensiDashboardPage() {
     setCatatanDraft(prev => { const d = { ...prev }; delete d[id]; return d; });
   };
 
+  const allRoles  = useMemo(() => [...new Set(attendances.map(a => a.gurus?.role).filter(Boolean))].sort(), [attendances]);
+  const allShifts = useMemo(() => [...new Set(attendances.map(a => a.shift_schedules?.shifts?.nama).filter(Boolean))].sort(), [attendances]);
+
+  const filtered = useMemo(() => attendances.filter(a => {
+    const q = search.toLowerCase();
+    if (search       && !a.gurus?.nama?.toLowerCase().includes(q)) return false;
+    if (filterRole   && a.gurus?.role !== filterRole) return false;
+    if (filterShift === '__none__' && a.shift_schedules?.shifts) return false;
+    if (filterShift && filterShift !== '__none__' && a.shift_schedules?.shifts?.nama !== filterShift) return false;
+    if (filterStatus && a.status !== filterStatus) return false;
+    return true;
+  }), [attendances, search, filterRole, filterShift, filterStatus]);
+
+  const hasFilter = search || filterRole || filterShift || filterStatus;
+  const resetFilter = () => { setSearch(''); setFilterRole(''); setFilterShift(''); setFilterStatus(''); };
+
   const stats = useMemo(() => {
     const c = { Hadir:0, Telat:0, Izin:0, Alpha:0, seragamOk:0, seragamTidak:0 };
-    attendances.forEach(a => {
+    filtered.forEach(a => {
       if (c[a.status] !== undefined) c[a.status]++;
       if (a.seragam === 'Sesuai')       c.seragamOk++;
       if (a.seragam === 'Tidak Sesuai') c.seragamTidak++;
     });
     return c;
-  }, [attendances]);
+  }, [filtered]);
 
   const getShiftLabel = (a) => {
     const s = a.shift_schedules?.shifts;
@@ -141,6 +160,50 @@ export default function AbsensiDashboardPage() {
         <Card label="Tidak Sesuai"    value={stats.seragamTidak} color="#d97706" icon={ShirtIcon} />
       </div>
 
+      {/* Filter bar */}
+      {!loading && attendances.length > 0 && (
+        <div style={{ display:'flex', flexWrap:'wrap', gap:'0.5rem', marginBottom:'1rem', alignItems:'center' }}>
+          <div style={{ position:'relative', flex:'1', minWidth:160 }}>
+            <Search size={14} style={{ position:'absolute', left:'0.7rem', top:'50%', transform:'translateY(-50%)', color:'var(--text-secondary)', pointerEvents:'none' }}/>
+            <input
+              value={search} onChange={e=>setSearch(e.target.value)}
+              placeholder="Cari nama..."
+              style={{ width:'100%', boxSizing:'border-box', paddingLeft:'2.1rem', padding:'0.5rem 0.75rem 0.5rem 2.1rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' }}
+            />
+          </div>
+          <select value={filterRole} onChange={e=>setFilterRole(e.target.value)}
+            style={{ padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' }}>
+            <option value="">Semua Role</option>
+            {allRoles.map(r => <option key={r} value={r}>{r}</option>)}
+          </select>
+          <select value={filterShift} onChange={e=>setFilterShift(e.target.value)}
+            style={{ padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' }}>
+            <option value="">Semua Shift</option>
+            {allShifts.map(s => <option key={s} value={s}>{s}</option>)}
+            <option value="__none__">Tanpa Shift</option>
+          </select>
+          <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)}
+            style={{ padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' }}>
+            <option value="">Semua Status</option>
+            <option value="Hadir">Hadir</option>
+            <option value="Telat">Telat</option>
+            <option value="Izin">Izin</option>
+            <option value="Alpha">Mangkir</option>
+          </select>
+          {hasFilter && (
+            <button onClick={resetFilter}
+              style={{ display:'flex', alignItems:'center', gap:'0.35rem', background:'none', border:'1px solid var(--glass-border)', borderRadius:'0.5rem', padding:'0.5rem 0.75rem', cursor:'pointer', fontSize:'0.82rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>
+              <X size={13}/> Reset
+            </button>
+          )}
+          {hasFilter && (
+            <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>
+              {filtered.length} dari {attendances.length}
+            </span>
+          )}
+        </div>
+      )}
+
       {loading ? <p style={{ color:'var(--text-secondary)' }}>Memuat...</p> : (
         attendances.length === 0 ? (
           <div className="glass-card" style={{ padding:'3rem', textAlign:'center', color:'var(--text-secondary)' }}>
@@ -149,6 +212,11 @@ export default function AbsensiDashboardPage() {
           </div>
         ) : (
           <div className="glass-card" style={{ padding:'1.5rem' }}>
+            {filtered.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'2rem', color:'var(--text-secondary)' }}>
+                <p style={{ fontWeight:600 }}>Tidak ada data sesuai filter.</p>
+              </div>
+            ) : (
             <div style={{ overflowX:'auto' }}>
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.84rem' }}>
                 <thead>
@@ -159,7 +227,7 @@ export default function AbsensiDashboardPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {attendances.map((a, i) => {
+                  {filtered.map((a, i) => {
                     const isSaving      = savingId === a.id;
                     const isSavingCatat = savingId === a.id + '_catatan';
                     const draftCatatan  = catatanDraft[a.id] !== undefined ? catatanDraft[a.id] : (a.catatan || '');
@@ -245,6 +313,7 @@ export default function AbsensiDashboardPage() {
                 </tbody>
               </table>
             </div>
+            )}
           </div>
         )
       )}
