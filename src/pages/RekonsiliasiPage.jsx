@@ -280,70 +280,81 @@ export default function RekonsiliasiPage() {
 
       {/* ── MODAL INPUT SETOR SPP ── */}
       {modalOpen && (
-        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.6)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'1rem'}}>
-          <div className="glass-card" style={{width:'100%',maxWidth:720,maxHeight:'90vh',display:'flex',flexDirection:'column',overflow:'hidden'}}>
-            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1.25rem 1.5rem',borderBottom:'1px solid var(--glass-border)'}}>
-              <h3 style={{margin:0,fontWeight:700}}>Input Setor SPP</h3>
-              <button onClick={()=>setModalOpen(false)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-secondary)'}}><X size={18}/></button>
+        <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'1rem'}}>
+          <div className="glass-card" style={{width:'100%',maxWidth:780,maxHeight:'92vh',display:'flex',flexDirection:'column',overflow:'hidden',borderRadius:'1rem'}}>
+
+            {/* ── Header ── */}
+            <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'1.1rem 1.5rem',borderBottom:'1px solid var(--glass-border)',flexShrink:0}}>
+              <div>
+                <h3 style={{margin:0,fontWeight:700,fontSize:'1.1rem'}}>Input Setor SPP</h3>
+                <p style={{margin:'0.15rem 0 0',fontSize:'0.75rem',color:'var(--text-secondary)'}}>Pilih transaksi yang akan disetor ke kas</p>
+              </div>
+              <button onClick={()=>setModalOpen(false)}
+                style={{background:'rgba(0,0,0,0.05)',border:'none',borderRadius:'0.5rem',width:32,height:32,display:'flex',alignItems:'center',justifyContent:'center',cursor:'pointer',color:'var(--text-secondary)'}}>
+                <X size={16}/>
+              </button>
             </div>
 
             <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',flex:1,overflow:'hidden'}}>
-              <div style={{padding:'1.25rem 1.5rem',display:'flex',gap:'1rem',flexWrap:'wrap',borderBottom:'1px solid var(--glass-border)'}}>
-                <div style={{flex:'1',minWidth:160}}>
+
+              {/* ── Tanggal + Catatan ── */}
+              <div style={{padding:'1rem 1.5rem',display:'grid',gridTemplateColumns:'1fr 2fr',gap:'0.85rem',borderBottom:'1px solid var(--glass-border)',flexShrink:0}}>
+                <div>
                   {lb('Tanggal Setor', true)}
                   <input type="date" style={inp} value={formTanggal} onChange={e=>setFormTanggal(e.target.value)} required/>
                 </div>
-                <div style={{flex:'2',minWidth:220}}>
+                <div>
                   {lb('Catatan')}
-                  <input style={inp} value={formCatatan} onChange={e=>setFormCatatan(e.target.value)} placeholder="Opsional"/>
+                  <input style={inp} value={formCatatan} onChange={e=>setFormCatatan(e.target.value)} placeholder="Opsional — keterangan setor"/>
                 </div>
               </div>
 
-              <div style={{flex:1,overflowY:'auto',padding:'0 1.5rem'}}>
-                <div style={{position:'sticky',top:0,background:'var(--card-bg,#fff)',borderBottom:'1px solid var(--glass-border)',paddingBottom:'0.65rem'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',padding:'0.85rem 0 0.55rem'}}>
-                    <div style={{fontWeight:600,fontSize:'0.85rem'}}>
-                      Pilih transaksi
-                      <span style={{marginLeft:'0.5rem',color:'var(--text-secondary)',fontWeight:400}}>
-                        ({filteredPending.length}{modalFilterUnit ? ` di ${modalFilterUnit}` : ''} belum disetor)
-                      </span>
-                    </div>
-                    {filteredPending.length > 0 && (
-                      <button type="button" onClick={toggleAll}
-                        style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.3rem 0.75rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,display:'flex',alignItems:'center',gap:'0.35rem'}}>
-                        {allFilteredSelected
-                          ? <><CheckSquare size={14}/> Batal Semua</>
-                          : <><Square size={14}/> Pilih Semua</>}
-                      </button>
-                    )}
-                  </div>
-                  {/* Filter unit di modal */}
-                  <div style={{display:'flex',gap:'0.5rem',alignItems:'center'}}>
-                    <select value={modalFilterUnit} onChange={e=>{setModalFilterUnit(e.target.value);}}
-                      style={{...sel,fontSize:'0.82rem',padding:'0.35rem 0.65rem'}}>
-                      <option value="">Semua Unit</option>
-                      {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
-                    </select>
-                    {modalFilterUnit && (
-                      <button type="button" onClick={()=>setModalFilterUnit('')}
-                        style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.3rem 0.65rem',cursor:'pointer',fontSize:'0.78rem',color:'var(--text-secondary)'}}>
-                        Semua Unit
-                      </button>
-                    )}
-                  </div>
+              {/* ── Toolbar: filter unit + pilih semua ── */}
+              <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'0.75rem',padding:'0.65rem 1.5rem',borderBottom:'1px solid var(--glass-border)',background:'rgba(79,70,229,0.03)',flexShrink:0,flexWrap:'wrap'}}>
+                <div style={{display:'flex',alignItems:'center',gap:'0.65rem'}}>
+                  <span style={{fontSize:'0.8rem',fontWeight:600,color:'var(--text-secondary)',whiteSpace:'nowrap'}}>Filter Unit:</span>
+                  <select value={modalFilterUnit} onChange={e=>setModalFilterUnit(e.target.value)}
+                    style={{...sel,fontSize:'0.82rem',padding:'0.3rem 0.6rem',minWidth:130}}>
+                    <option value="">Semua Unit</option>
+                    {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
+                  </select>
+                  <span style={{fontSize:'0.8rem',color:'var(--text-secondary)'}}>
+                    <strong style={{color:'var(--primary)'}}>{filteredPending.length}</strong> transaksi belum disetor
+                  </span>
                 </div>
+                {filteredPending.length > 0 && (
+                  <button type="button" onClick={toggleAll}
+                    style={{display:'flex',alignItems:'center',gap:'0.35rem',background:allFilteredSelected?'rgba(79,70,229,0.1)':'var(--surface-color)',border:'1px solid var(--glass-border)',borderRadius:'0.4rem',padding:'0.3rem 0.85rem',cursor:'pointer',fontSize:'0.8rem',fontWeight:600,color:allFilteredSelected?'var(--primary)':'var(--text-primary)',whiteSpace:'nowrap'}}>
+                    {allFilteredSelected ? <><CheckSquare size={14}/> Batal Pilih Semua</> : <><Square size={14}/> Pilih Semua</>}
+                  </button>
+                )}
+              </div>
 
+              {/* ── Daftar transaksi ── */}
+              <div style={{flex:1,overflowY:'auto'}}>
                 {filteredPending.length === 0 ? (
-                  <p style={{color:'var(--text-secondary)',textAlign:'center',padding:'1.5rem 0',fontSize:'0.88rem'}}>
-                    {pendingTransaksis.length === 0 ? 'Semua transaksi sudah disetor.' : `Tidak ada transaksi pending untuk unit ${modalFilterUnit}.`}
-                  </p>
+                  <div style={{textAlign:'center',padding:'2.5rem 1rem',color:'var(--text-secondary)'}}>
+                    <Inbox size={36} style={{opacity:0.25,marginBottom:'0.6rem'}}/>
+                    <p style={{margin:0,fontSize:'0.88rem'}}>
+                      {pendingTransaksis.length === 0
+                        ? 'Semua transaksi sudah disetor.'
+                        : `Tidak ada transaksi pending untuk unit ${modalFilterUnit}.`}
+                    </p>
+                  </div>
                 ) : (
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.83rem'}}>
                     <thead>
-                      <tr style={{borderBottom:'1px solid var(--glass-border)'}}>
-                        <th style={{width:36,padding:'0.5rem 0'}}/>
-                        {['TGL BAYAR','NAMA SISWA','PROGRAM','UNIT','METODE','NOMINAL'].map((h,i)=>(
-                          <th key={h} style={{textAlign:i===5?'right':'left',padding:'0.5rem 0.5rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)'}}>{h}</th>
+                      <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)',position:'sticky',top:0}}>
+                        <th style={{width:40,padding:'0.55rem 0.75rem'}}/>
+                        {[
+                          {l:'TGL BAYAR',  a:'left'},
+                          {l:'NAMA SISWA', a:'left'},
+                          {l:'PROGRAM',    a:'left'},
+                          {l:'UNIT',       a:'left'},
+                          {l:'METODE',     a:'left'},
+                          {l:'NOMINAL',    a:'right'},
+                        ].map(h=>(
+                          <th key={h.l} style={{textAlign:h.a,padding:'0.55rem 0.65rem',fontWeight:700,fontSize:'0.7rem',color:'var(--text-secondary)',letterSpacing:'0.06em',whiteSpace:'nowrap'}}>{h.l}</th>
                         ))}
                       </tr>
                     </thead>
@@ -352,16 +363,22 @@ export default function RekonsiliasiPage() {
                         const checked = selected.has(p.id);
                         return (
                           <tr key={p.id} onClick={()=>toggleSelect(p.id)}
-                            style={{borderBottom:'1px solid var(--glass-border)',cursor:'pointer',background:checked?'rgba(79,70,229,0.05)':'transparent',transition:'background 0.1s'}}>
-                            <td style={{padding:'0.55rem 0',textAlign:'center'}}>
-                              {checked ? <CheckSquare size={16} style={{color:'var(--primary)'}}/> : <Square size={16} style={{color:'var(--text-secondary)'}}/>}
+                            style={{borderBottom:'1px solid var(--glass-border)',cursor:'pointer',background:checked?'rgba(79,70,229,0.06)':'transparent',transition:'background 0.12s'}}
+                            onMouseOver={e=>{if(!checked)e.currentTarget.style.background='rgba(79,70,229,0.025)';}}
+                            onMouseOut={e=>{if(!checked)e.currentTarget.style.background='transparent';}}>
+                            <td style={{padding:'0.6rem 0.75rem',textAlign:'center'}}>
+                              {checked
+                                ? <CheckSquare size={16} style={{color:'var(--primary)',display:'block',margin:'0 auto'}}/>
+                                : <Square size={16} style={{color:'#cbd5e1',display:'block',margin:'0 auto'}}/>}
                             </td>
-                            <td style={{padding:'0.55rem 0.5rem',whiteSpace:'nowrap'}}>{fmt(p.tanggal_bayar||p.created_at?.split('T')[0])}</td>
-                            <td style={{padding:'0.55rem 0.5rem',fontWeight:500}}>{p.nama_siswa||'-'}</td>
-                            <td style={{padding:'0.55rem 0.5rem',color:'var(--primary)',fontSize:'0.8rem'}}>{p.nama_program||'-'}</td>
-                            <td style={{padding:'0.55rem 0.5rem',color:'var(--text-secondary)',fontSize:'0.8rem'}}>{p.unit||'-'}</td>
-                            <td style={{padding:'0.55rem 0.5rem'}}>{badgeMetode(p.metode)}</td>
-                            <td style={{padding:'0.55rem 0.5rem',textAlign:'right',fontWeight:700}}>{formatRupiah(p.nominal||0)}</td>
+                            <td style={{padding:'0.6rem 0.65rem',whiteSpace:'nowrap',fontSize:'0.82rem',color:'var(--text-secondary)'}}>{fmt(p.tanggal_bayar||p.created_at?.split('T')[0])}</td>
+                            <td style={{padding:'0.6rem 0.65rem',fontWeight:600}}>{p.nama_siswa||'-'}</td>
+                            <td style={{padding:'0.6rem 0.65rem',color:'var(--primary)',fontSize:'0.8rem',maxWidth:140,overflow:'hidden',textOverflow:'ellipsis',whiteSpace:'nowrap'}}>{p.nama_program||'-'}</td>
+                            <td style={{padding:'0.6rem 0.65rem'}}>
+                              <span style={{background:'rgba(100,116,139,0.1)',color:'#475569',padding:'0.1rem 0.5rem',borderRadius:'4px',fontSize:'0.75rem',fontWeight:600}}>{p.unit||'-'}</span>
+                            </td>
+                            <td style={{padding:'0.6rem 0.65rem'}}>{badgeMetode(p.metode)}</td>
+                            <td style={{padding:'0.6rem 0.65rem',textAlign:'right',fontWeight:700,color:'#047857'}}>{formatRupiah(p.nominal||0)}</td>
                           </tr>
                         );
                       })}
@@ -370,26 +387,32 @@ export default function RekonsiliasiPage() {
                 )}
               </div>
 
-              <div style={{padding:'1rem 1.5rem',borderTop:'1px solid var(--glass-border)',background:'rgba(79,70,229,0.03)'}}>
-                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.85rem',flexWrap:'wrap',gap:'0.5rem'}}>
-                  <span style={{fontSize:'0.85rem',color:'var(--text-secondary)'}}>
-                    Dipilih: <strong style={{color:'var(--primary)'}}>{selected.size}</strong> transaksi
-                  </span>
-                  <span style={{fontSize:'1rem',fontWeight:700}}>
-                    Total: <span style={{color:'#047857'}}>{formatRupiah(totalSelected)}</span>
-                  </span>
+              {/* ── Footer: summary + tombol ── */}
+              <div style={{padding:'0.9rem 1.5rem',borderTop:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.03)',flexShrink:0}}>
+                <div style={{display:'flex',alignItems:'center',gap:'1.5rem',marginBottom:'0.75rem',flexWrap:'wrap'}}>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.85rem'}}>
+                    <span style={{color:'var(--text-secondary)'}}>Dipilih:</span>
+                    <span style={{fontWeight:700,color:'var(--primary)',fontSize:'0.95rem'}}>{selected.size}</span>
+                    <span style={{color:'var(--text-secondary)'}}>transaksi</span>
+                  </div>
+                  <div style={{width:1,height:16,background:'var(--glass-border)'}}/>
+                  <div style={{display:'flex',alignItems:'center',gap:'0.5rem',fontSize:'0.85rem'}}>
+                    <span style={{color:'var(--text-secondary)'}}>Total Nominal:</span>
+                    <span style={{fontWeight:700,color:'#047857',fontSize:'1rem'}}>{formatRupiah(totalSelected)}</span>
+                  </div>
                 </div>
-                <div style={{display:'flex',gap:'0.75rem'}}>
+                <div style={{display:'flex',gap:'0.65rem'}}>
                   <button type="submit" disabled={saving||selected.size===0}
-                    style={{flex:1,background:'var(--primary)',color:'#fff',border:'none',borderRadius:'0.5rem',padding:'0.65rem',cursor:selected.size===0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.9rem',opacity:selected.size===0?0.5:1}}>
-                    {saving ? 'Menyimpan...' : `Setor ${selected.size} Transaksi`}
+                    style={{flex:1,background:selected.size===0?'#94a3b8':'var(--primary)',color:'#fff',border:'none',borderRadius:'0.5rem',padding:'0.7rem',cursor:selected.size===0?'not-allowed':'pointer',fontWeight:700,fontSize:'0.92rem',transition:'background 0.15s'}}>
+                    {saving ? 'Menyimpan...' : `Setor ${selected.size > 0 ? selected.size+' ' : ''}Transaksi`}
                   </button>
                   <button type="button" onClick={()=>setModalOpen(false)}
-                    style={{background:'var(--surface-color)',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.65rem 1.1rem',cursor:'pointer',fontWeight:600,fontSize:'0.9rem'}}>
+                    style={{background:'var(--surface-color)',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.7rem 1.25rem',cursor:'pointer',fontWeight:600,fontSize:'0.9rem',color:'var(--text-primary)'}}>
                     Batal
                   </button>
                 </div>
               </div>
+
             </form>
           </div>
         </div>
