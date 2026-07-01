@@ -101,19 +101,8 @@ export default function AbsensiDashboardPage() {
     return c;
   }, [attendances]);
 
-  const byShift = useMemo(() => {
-    const map = {};
-    attendances.forEach(a => {
-      const key = a.shift_schedule_id || 'tanpa-shift';
-      if (!map[key]) map[key] = [];
-      map[key].push(a);
-    });
-    return map;
-  }, [attendances]);
-
-  const shiftName = (scheduleId) => {
-    const att = attendances.find(a => a.shift_schedule_id === scheduleId);
-    const s   = att?.shift_schedules?.shifts;
+  const getShiftLabel = (a) => {
+    const s = a.shift_schedules?.shifts;
     if (!s) return 'Tanpa Shift';
     return `${s.nama} (${s.jam_mulai?.slice(0,5)}–${s.jam_selesai?.slice(0,5)})`;
   };
@@ -159,109 +148,103 @@ export default function AbsensiDashboardPage() {
             <p style={{ fontWeight:600 }}>Belum ada data absensi untuk tanggal ini</p>
           </div>
         ) : (
-          <div style={{ display:'flex', flexDirection:'column', gap:'1.25rem' }}>
-            {Object.entries(byShift).map(([key, rows]) => (
-              <div key={key} className="glass-card" style={{ padding:'1.5rem' }}>
-                <h3 style={{ fontWeight:700, fontSize:'0.95rem', marginBottom:'1rem', color:'var(--primary)', textTransform:'uppercase', letterSpacing:'0.05em' }}>
-                  {key === 'tanpa-shift' ? 'Tanpa Jadwal Shift' : shiftName(key)}
-                </h3>
-                <div style={{ overflowX:'auto' }}>
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.84rem' }}>
-                    <thead>
-                      <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
-                        {['No','Nama','Role','Check-in','Check-out','Status','Seragam','Catatan','Foto'].map(h => (
-                          <th key={h} style={{ padding:'0.6rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
-                        ))}
+          <div className="glass-card" style={{ padding:'1.5rem' }}>
+            <div style={{ overflowX:'auto' }}>
+              <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.84rem' }}>
+                <thead>
+                  <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
+                    {['No','Nama','Role','Shift','Check-in','Check-out','Status','Seragam','Catatan','Foto'].map(h => (
+                      <th key={h} style={{ padding:'0.6rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {attendances.map((a, i) => {
+                    const isSaving      = savingId === a.id;
+                    const isSavingCatat = savingId === a.id + '_catatan';
+                    const draftCatatan  = catatanDraft[a.id] !== undefined ? catatanDraft[a.id] : (a.catatan || '');
+                    return (
+                      <tr key={a.id} style={{ borderBottom:'1px solid var(--glass-border)', verticalAlign:'middle' }}
+                        onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
+                        onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                        <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{i+1}</td>
+                        <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{a.gurus?.nama || '-'}</td>
+                        <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)', fontSize:'0.8rem' }}>{a.gurus?.role || '-'}</td>
+                        <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)', fontSize:'0.8rem', whiteSpace:'nowrap' }}>{getShiftLabel(a)}</td>
+                        <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(a.check_in)}</td>
+                        <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{fmtTime(a.check_out)}</td>
+                        <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={a.status} /></td>
+
+                        {/* Seragam */}
+                        <td style={{ padding:'0.5rem 0.75rem', whiteSpace:'nowrap' }}>
+                          {isPrivileged ? (
+                            <div style={{ display:'flex', gap:'0.3rem' }}>
+                              <button
+                                disabled={isSaving}
+                                onClick={()=>handleSeragam(a.id,'Sesuai')}
+                                style={{
+                                  padding:'0.22rem 0.6rem', borderRadius:'2rem', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', border:'1.5px solid',
+                                  borderColor: a.seragam==='Sesuai' ? '#047857' : 'var(--glass-border)',
+                                  background:  a.seragam==='Sesuai' ? '#d1fae5' : 'transparent',
+                                  color:       a.seragam==='Sesuai' ? '#047857' : 'var(--text-secondary)',
+                                  transition:'all 0.12s',
+                                }}>
+                                Sesuai
+                              </button>
+                              <button
+                                disabled={isSaving}
+                                onClick={()=>handleSeragam(a.id,'Tidak Sesuai')}
+                                style={{
+                                  padding:'0.22rem 0.6rem', borderRadius:'2rem', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', border:'1.5px solid',
+                                  borderColor: a.seragam==='Tidak Sesuai' ? '#b91c1c' : 'var(--glass-border)',
+                                  background:  a.seragam==='Tidak Sesuai' ? '#fee2e2' : 'transparent',
+                                  color:       a.seragam==='Tidak Sesuai' ? '#b91c1c' : 'var(--text-secondary)',
+                                  transition:'all 0.12s',
+                                }}>
+                                Tidak
+                              </button>
+                            </div>
+                          ) : (
+                            <SeragamBadge v={a.seragam} />
+                          )}
+                        </td>
+
+                        {/* Catatan */}
+                        <td style={{ padding:'0.4rem 0.75rem', minWidth:160 }}>
+                          {isPrivileged ? (
+                            <input
+                              value={draftCatatan}
+                              onChange={e => setCatatanDraft(p => ({ ...p, [a.id]: e.target.value }))}
+                              onBlur={()=>handleCatatanSave(a.id)}
+                              onKeyDown={e=>{ if(e.key==='Enter') e.target.blur(); }}
+                              placeholder="Tulis catatan..."
+                              style={{
+                                width:'100%', boxSizing:'border-box',
+                                padding:'0.3rem 0.5rem', borderRadius:'0.4rem',
+                                border:`1px solid ${isSavingCatat ? 'var(--primary)' : 'var(--glass-border)'}`,
+                                background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.78rem',
+                              }}
+                            />
+                          ) : (
+                            <span style={{ fontSize:'0.8rem', color: a.catatan ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
+                              {a.catatan || '—'}
+                            </span>
+                          )}
+                        </td>
+
+                        {/* Foto */}
+                        <td style={{ padding:'0.7rem 0.75rem' }}>
+                          <div style={{ display:'flex', gap:'0.35rem' }}>
+                            {a.foto_checkin  && <button onClick={()=>setFotoModal(a.foto_checkin)}  title="Foto Check-in"  style={{ background:'rgba(79,70,229,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'var(--primary)',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>In</button>}
+                            {a.foto_checkout && <button onClick={()=>setFotoModal(a.foto_checkout)} title="Foto Check-out" style={{ background:'rgba(16,185,129,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'#047857',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>Out</button>}
+                          </div>
+                        </td>
                       </tr>
-                    </thead>
-                    <tbody>
-                      {rows.map((a, i) => {
-                        const isSaving      = savingId === a.id;
-                        const isSavingCatat = savingId === a.id + '_catatan';
-                        const draftCatatan  = catatanDraft[a.id] !== undefined ? catatanDraft[a.id] : (a.catatan || '');
-                        return (
-                          <tr key={a.id} style={{ borderBottom:'1px solid var(--glass-border)', verticalAlign:'middle' }}
-                            onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
-                            onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                            <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{i+1}</td>
-                            <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{a.gurus?.nama || '-'}</td>
-                            <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)', fontSize:'0.8rem' }}>{a.gurus?.role || '-'}</td>
-                            <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(a.check_in)}</td>
-                            <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{fmtTime(a.check_out)}</td>
-                            <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={a.status} /></td>
-
-                            {/* Seragam */}
-                            <td style={{ padding:'0.5rem 0.75rem', whiteSpace:'nowrap' }}>
-                              {isPrivileged ? (
-                                <div style={{ display:'flex', gap:'0.3rem' }}>
-                                  <button
-                                    disabled={isSaving}
-                                    onClick={()=>handleSeragam(a.id,'Sesuai')}
-                                    style={{
-                                      padding:'0.22rem 0.6rem', borderRadius:'2rem', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', border:'1.5px solid',
-                                      borderColor: a.seragam==='Sesuai' ? '#047857' : 'var(--glass-border)',
-                                      background:  a.seragam==='Sesuai' ? '#d1fae5' : 'transparent',
-                                      color:       a.seragam==='Sesuai' ? '#047857' : 'var(--text-secondary)',
-                                      transition:'all 0.12s',
-                                    }}>
-                                    Sesuai
-                                  </button>
-                                  <button
-                                    disabled={isSaving}
-                                    onClick={()=>handleSeragam(a.id,'Tidak Sesuai')}
-                                    style={{
-                                      padding:'0.22rem 0.6rem', borderRadius:'2rem', fontSize:'0.72rem', fontWeight:700, cursor:'pointer', border:'1.5px solid',
-                                      borderColor: a.seragam==='Tidak Sesuai' ? '#b91c1c' : 'var(--glass-border)',
-                                      background:  a.seragam==='Tidak Sesuai' ? '#fee2e2' : 'transparent',
-                                      color:       a.seragam==='Tidak Sesuai' ? '#b91c1c' : 'var(--text-secondary)',
-                                      transition:'all 0.12s',
-                                    }}>
-                                    Tidak
-                                  </button>
-                                </div>
-                              ) : (
-                                <SeragamBadge v={a.seragam} />
-                              )}
-                            </td>
-
-                            {/* Catatan */}
-                            <td style={{ padding:'0.4rem 0.75rem', minWidth:160 }}>
-                              {isPrivileged ? (
-                                <input
-                                  value={draftCatatan}
-                                  onChange={e => setCatatanDraft(p => ({ ...p, [a.id]: e.target.value }))}
-                                  onBlur={()=>handleCatatanSave(a.id)}
-                                  onKeyDown={e=>{ if(e.key==='Enter') e.target.blur(); }}
-                                  placeholder="Tulis catatan..."
-                                  style={{
-                                    width:'100%', boxSizing:'border-box',
-                                    padding:'0.3rem 0.5rem', borderRadius:'0.4rem',
-                                    border:`1px solid ${isSavingCatat ? 'var(--primary)' : 'var(--glass-border)'}`,
-                                    background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.78rem',
-                                  }}
-                                />
-                              ) : (
-                                <span style={{ fontSize:'0.8rem', color: a.catatan ? 'var(--text-primary)' : 'var(--text-secondary)' }}>
-                                  {a.catatan || '—'}
-                                </span>
-                              )}
-                            </td>
-
-                            {/* Foto */}
-                            <td style={{ padding:'0.7rem 0.75rem' }}>
-                              <div style={{ display:'flex', gap:'0.35rem' }}>
-                                {a.foto_checkin  && <button onClick={()=>setFotoModal(a.foto_checkin)}  title="Foto Check-in"  style={{ background:'rgba(79,70,229,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'var(--primary)',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>In</button>}
-                                {a.foto_checkout && <button onClick={()=>setFotoModal(a.foto_checkout)} title="Foto Check-out" style={{ background:'rgba(16,185,129,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.25rem 0.5rem',cursor:'pointer',fontSize:'0.72rem',color:'#047857',display:'flex',alignItems:'center',gap:3 }}><Eye size={12}/>Out</button>}
-                              </div>
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
-              </div>
-            ))}
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           </div>
         )
       )}
