@@ -7,7 +7,12 @@ const todayWIB  = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia
 const firstOfMonth = () => todayWIB().slice(0,8)+'01';
 const fmtTgl    = (d)  => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
 const fmtTime   = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit'}) : '-';
-const mntToStr  = (m)  => m != null ? `${Math.floor(m/60)}j${m%60>0?` ${m%60}m`:''}` : '-';
+const mntToStr  = (m)  => m != null && m > 0 ? `${Math.floor(m/60)}j${m%60>0?` ${m%60}m`:''}` : '-';
+const getDurasi = (r)  => {
+  if (r.durasi_menit != null) return r.durasi_menit;
+  if (r.check_in && r.check_out) return Math.round((new Date(r.check_out) - new Date(r.check_in)) / 60000);
+  return null;
+};
 
 const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.88rem', width:'100%', boxSizing:'border-box' };
 
@@ -63,7 +68,7 @@ export default function RekapAbsensiPage() {
       if (!m[id]) m[id] = { nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0 };
       const key = r.status || 'Alpha';
       if (m[id][key] !== undefined) m[id][key]++;
-      if (r.durasi_menit) m[id].totalMenit += r.durasi_menit;
+      const dm = getDurasi(r); if (dm) m[id].totalMenit += dm;
       if (r.seragam === 'Sesuai')       m[id].seragamOk++;
       if (r.seragam === 'Tidak Sesuai') m[id].seragamTidak++;
     });
@@ -80,7 +85,7 @@ export default function RekapAbsensiPage() {
       r.check_in ? new Date(r.check_in).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}) : '-',
       r.check_out ? new Date(r.check_out).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta'}) : '-',
       STATUS_LABEL[r.status]||r.status||'Mangkir',
-      r.durasi_menit != null ? mntToStr(r.durasi_menit) : '-',
+      mntToStr(getDurasi(r)),
       r.seragam||'-',
       `"${(r.catatan||'').replace(/"/g,'""')}"`,
     ]);
@@ -203,7 +208,7 @@ export default function RekapAbsensiPage() {
                     <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem' }}>{r.shift_schedules?.shifts?.nama||'-'}</td>
                     <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(r.check_in)}</td>
                     <td style={{ padding:'0.7rem 0.75rem' }}>{fmtTime(r.check_out)}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(r.durasi_menit)}</td>
+                    <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(getDurasi(r))}</td>
                     <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={r.status}/></td>
                     <td style={{ padding:'0.7rem 0.75rem' }}><SeragamBadge v={r.seragam}/></td>
                     <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.catatan||''}>{r.catatan||'—'}</td>
