@@ -41,7 +41,7 @@ export default function DashboardPage() {
                     supabase.from('gurus').select('id', { count: 'exact', head: true }),
                     supabase.from('programs').select('id, nama', { count: 'exact' }),
                     supabase.from('units').select('id, nama'),
-                    supabase.from('bookings').select('id', { count: 'exact', head: true })
+                    supabase.from('siswa').select('*', { count: 'exact', head: true }).eq('status', 'Booking')
                 ]);
 
                 const allAktivasi = aktivasiRes.data || [];
