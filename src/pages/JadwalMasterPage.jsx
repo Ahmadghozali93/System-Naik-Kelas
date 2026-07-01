@@ -41,7 +41,7 @@ export default function JadwalMasterPage() {
             const [jadwalRes, jamRes, guruRes, programRes, unitRes, aktivasiRes] = await Promise.all([
                 supabase.from('jadwal_master').select('*').order('created_at', { ascending: false }),
                 supabase.from('master_jam').select('*').order('waktu', { ascending: true }),
-                supabase.from('gurus').select('id, nama').eq('status', 'Aktif').eq('role', 'Guru'),
+                supabase.from('gurus').select('id, nama, role').eq('status', 'Aktif'),
                 supabase.from('programs').select('id, nama, jenis').eq('status', 'Aktif'),
                 supabase.from('units').select('nama').eq('aktif', true),
                 supabase.from('aktivasi_siswa').select('jadwal_id, status')
@@ -264,7 +264,7 @@ export default function JadwalMasterPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <CalendarDays className="text-primary" size={24} /> Timetable Master
                     </h2>
-                    {user?.role !== 'Guru' && (
+                    {['Owner','Administrator','Supervisor'].includes(user?.role) && (
                         <div style={{ display: 'flex', gap: '0.75rem' }}>
                             <button className="btn" style={{ background: '#f3f4f6', color: 'var(--text-primary)' }} onClick={() => setIsJamModalOpen(true)}>
                                 <Clock size={18} /> Kelola Jam
@@ -394,7 +394,7 @@ export default function JadwalMasterPage() {
                                                     type="checkbox"
                                                     checked={!!j.reschedule}
                                                     onChange={() => {
-                                                        if (user?.role !== 'Guru') handleToggleReschedule(j);
+                                                        if (['Owner','Administrator','Supervisor'].includes(user?.role)) handleToggleReschedule(j);
                                                     }}
                                                     disabled={user?.role === 'Guru'}
                                                     style={{ opacity: 0, width: 0, height: 0 }}
@@ -415,7 +415,7 @@ export default function JadwalMasterPage() {
                                             </label>
                                         </td>
                                         <td style={{ padding: '0.6rem 0.5rem' }}>
-                                            {user?.role !== 'Guru' ? (
+                                            {['Owner','Administrator','Supervisor'].includes(user?.role) ? (
                                                 <div style={{ display: 'flex', gap: '0.35rem' }}>
                                                     <button
                                                         onClick={() => handleOpenModal(j)}
