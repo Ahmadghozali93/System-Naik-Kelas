@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
+import { toProperCase } from '../utils/formatRupiah';
 
 export default function AktivasiHarianPage() {
     const { user } = useAuth();
@@ -140,7 +141,7 @@ export default function AktivasiHarianPage() {
 
                 const payload = {
                     siswa_id: selectedSiswa.id,
-                    nama_siswa: selectedSiswa.nama,
+                    nama_siswa: toProperCase(selectedSiswa.nama || ''),
                     jadwal_id: selectedJadwal.id,
                     detail_jadwal: detailJadwal,
                     tgl_mulai: p.tanggal,
@@ -175,7 +176,7 @@ export default function AktivasiHarianPage() {
                         assign_id: 'ACT-' + Math.random().toString(36).substr(2, 6).toUpperCase(),
                         assign_id_induk: indukId,
                         siswa_id: selectedSiswa.id,
-                        nama_siswa: selectedSiswa.nama,
+                        nama_siswa: toProperCase(selectedSiswa.nama || ''),
                         jadwal_id: selectedJadwal.id,
                         detail_jadwal: detailJadwal,
                         tgl_mulai: p.tanggal,

@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatRupiah } from '../utils/formatRupiah';
+import { formatRupiah, toProperCase } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
 
 const genId    = () => 'TG-'  + Math.random().toString(36).substr(2,6).toUpperCase();
@@ -177,7 +177,7 @@ export default function TagihanSiswaPage() {
       id: genPayId(),
       aktivasi_id: aktivasi.id,
       siswa_id: aktivasi.siswa_id,
-      nama_siswa: aktivasi.nama_siswa,
+      nama_siswa: toProperCase(aktivasi.nama_siswa || ''),
       nama_program: dj.nama_program || '',
       unit: dj.unit || '',
       nominal: bayar,

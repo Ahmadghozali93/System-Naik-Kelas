@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Search, Filter, Download } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
+import { toProperCase } from '../utils/formatRupiah';
 import * as XLSX from 'xlsx';
 
 export default function AktivasiRutinPage() {
@@ -145,7 +146,7 @@ export default function AktivasiRutinPage() {
 
             const payload = {
                 siswa_id: selectedSiswa.id,
-                nama_siswa: selectedSiswa.nama,
+                nama_siswa: toProperCase(selectedSiswa.nama || ''),
                 jadwal_id: selectedJadwal.id,
                 detail_jadwal: detailJadwal,
                 tgl_mulai: formData.tgl_mulai,
