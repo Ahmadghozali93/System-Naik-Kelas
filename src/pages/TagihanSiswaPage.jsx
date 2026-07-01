@@ -33,11 +33,11 @@ const statusBadge = (s) => {
     Lunas:           ['#d1fae5','#047857'],
     Terlambat:       ['#fee2e2','#b91c1c'],
     'Belum Bayar':   ['#fef3c7','#92400e'],
-    Terverifikasi:   ['#dbeafe','#1d4ed8'],
-    Pending:         ['#f3f4f6','#6b7280'],
+    Terverifikasi:       ['#dbeafe','#1d4ed8'],
+    'Belum Disetorkan':  ['#f3f4f6','#6b7280'],
   };
   const [bg, color] = map[s] || ['#f3f4f6','#374151'];
-  return <span style={{background:bg,color,padding:'0.18rem 0.6rem',borderRadius:'999px',fontSize:'0.75rem',fontWeight:600,whiteSpace:'nowrap'}}>{s||'Pending'}</span>;
+  return <span style={{background:bg,color,padding:'0.18rem 0.6rem',borderRadius:'999px',fontSize:'0.75rem',fontWeight:600,whiteSpace:'nowrap'}}>{s||'Belum Disetorkan'}</span>;
 };
 
 const TAB = (active) => ({
@@ -144,7 +144,7 @@ export default function TagihanSiswaPage() {
   const filteredTr = useMemo(() => transaksis.filter(p => {
     const q   = trSearch.toLowerCase();
     const tgl = p.tanggal_bayar || p.created_at?.split('T')[0];
-    const st  = p.status || 'Pending';
+    const st  = p.status || 'Belum Disetorkan';
     if (trSearch && !p.nama_siswa?.toLowerCase().includes(q) && !p.nama_program?.toLowerCase().includes(q)) return false;
     if (trUnit     && p.unit         !== trUnit)     return false;
     if (trProg     && p.nama_program !== trProg)     return false;
@@ -361,7 +361,7 @@ export default function TagihanSiswaPage() {
             </select>
             <select style={sel} value={trStatus} onChange={e=>{setTrStatus(e.target.value);setTrPage(1);}}>
               <option value="">Semua Status</option>
-              <option value="Pending">Pending</option>
+              <option value="Belum Disetorkan">Belum Disetorkan</option>
               <option value="Terverifikasi">Terverifikasi</option>
             </select>
           </div>
@@ -420,7 +420,7 @@ export default function TagihanSiswaPage() {
                             <td style={{padding:'0.75rem'}}>
                               <span style={{background:'rgba(79,70,229,0.1)',color:'var(--primary)',padding:'0.15rem 0.5rem',borderRadius:'4px',fontSize:'0.78rem',fontWeight:600}}>{p.metode||'-'}</span>
                             </td>
-                            <td style={{padding:'0.75rem',textAlign:'center'}}>{statusBadge(p.status||'Pending')}</td>
+                            <td style={{padding:'0.75rem',textAlign:'center'}}>{statusBadge(p.status||'Belum Disetorkan')}</td>
                             <td style={{padding:'0.75rem',fontSize:'0.82rem',fontWeight:500}}>{p.dicatat_oleh||'-'}</td>
                             <td style={{padding:'0.75rem',color:'var(--text-secondary)',fontSize:'0.82rem'}}>{p.keterangan||'-'}</td>
                             <td style={{padding:'0.75rem',textAlign:'center'}}>
