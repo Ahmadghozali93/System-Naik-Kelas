@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { CalendarCheck, MessageCircle, Search, Filter } from 'lucide-react';
+import { CalendarCheck, MessageCircle, Search, Filter, FileDown } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 
 export default function BookingPage() {
@@ -43,6 +44,27 @@ export default function BookingPage() {
         return matchSearch && matchUnit && matchProgram;
     });
 
+    const exportExcel = () => {
+        const rows = filtered.map((s, i) => ({
+            'NO': i + 1,
+            'ID SISWA': s.siswa_id || '-',
+            'NAMA': s.nama || '-',
+            'UNIT': s.unit || '-',
+            'PROGRAM': s.booking_program || '-',
+            'JAM': s.booking_jam || '-',
+            'NO WA': s.nowa || '-',
+            'CATATAN': s.catatan || '-',
+            'STATUS': s.status || '-',
+        }));
+        const ws = XLSX.utils.json_to_sheet(rows);
+        ws['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 28 }, { wch: 12 }];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Siswa Booking');
+        const now = new Date();
+        const stamp = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}`;
+        XLSX.writeFile(wb, `Siswa_Booking_${stamp}.xlsx`);
+    };
+
     const selectStyle = { padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '140px' };
 
     return (
@@ -57,9 +79,15 @@ export default function BookingPage() {
                     <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
                         <CalendarCheck className="text-primary" size={24} /> Data Siswa Booking
                     </h2>
-                    <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                        Menampilkan {filtered.length} dari {siswas.length} siswa
-                    </span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                        <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
+                            Menampilkan {filtered.length} dari {siswas.length} siswa
+                        </span>
+                        <button onClick={exportExcel} disabled={filtered.length === 0}
+                            style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#047857', color: '#fff', border: 'none', borderRadius: '0.5rem', padding: '0.45rem 0.85rem', cursor: filtered.length === 0 ? 'not-allowed' : 'pointer', opacity: filtered.length === 0 ? 0.5 : 1, fontWeight: 600, fontSize: '0.82rem', fontFamily: 'inherit' }}>
+                            <FileDown size={15} /> Export Excel
+                        </button>
+                    </div>
                 </div>
 
                 {/* Search & Filters */}
