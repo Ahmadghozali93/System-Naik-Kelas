@@ -21,6 +21,7 @@ export default function UserPage() {
         tanggal_lahir: '',
         tanggal_masuk: '',
         role: 'Tutor',
+        role_guru: '',
         nowa: '',
         status: 'Aktif',
         alamat: '',
@@ -60,6 +61,7 @@ export default function UserPage() {
                 tanggal_lahir: guru.tanggal_lahir || '',
                 tanggal_masuk: guru.tanggal_masuk || '',
                 role: guru.role || 'Guru',
+                role_guru: guru.role_guru || '',
                 nowa: guru.nowa || '',
                 status: guru.status || 'Aktif',
                 alamat: guru.alamat || '',
@@ -73,6 +75,7 @@ export default function UserPage() {
                 tanggal_lahir: '',
                 tanggal_masuk: '',
                 role: 'Tutor',
+                role_guru: '',
                 nowa: '',
                 status: 'Aktif',
                 alamat: '',
@@ -102,6 +105,7 @@ export default function UserPage() {
                 ...formData,
                 tanggal_lahir: formData.tanggal_lahir || null,
                 tanggal_masuk: formData.tanggal_masuk || null,
+                role_guru:     formData.role_guru || null,
             };
             if (editingId) {
                 // Edit existing in Supabase
@@ -400,6 +404,20 @@ export default function UserPage() {
                                         onChange={handleInputChange}
                                         disabled={isViewing}
                                     />
+                                </div>
+                                <div>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Kelas Bonus KPI</label>
+                                    <select
+                                        name="role_guru"
+                                        value={formData.role_guru}
+                                        onChange={handleInputChange}
+                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                        disabled={isViewing}
+                                    >
+                                        <option value="">-- Belum diset --</option>
+                                        <option value="learning_coordinator">Kelas A — Learning Koordinator</option>
+                                        <option value="tutor">Kelas B — Tutor</option>
+                                    </select>
                                 </div>
                             </div>
 

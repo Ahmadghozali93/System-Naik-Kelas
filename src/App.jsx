@@ -44,6 +44,7 @@ import KpiIndicatorPage from './pages/kpi/KpiIndicatorPage';
 import KpiAssessmentPage from './pages/kpi/KpiAssessmentPage';
 import KpiDashboardPage from './pages/kpi/KpiDashboardPage';
 import KpiComplaintsPage from './pages/kpi/KpiComplaintsPage';
+import BonusTiersPage from './pages/kpi/BonusTiersPage';
 import SalaryComponentPage from './pages/payroll/SalaryComponentPage';
 import EmployeeSalaryPage from './pages/payroll/EmployeeSalaryPage';
 import PayrollPage from './pages/payroll/PayrollPage';
@@ -166,6 +167,7 @@ function App() {
             <Route path="/kpi/penilaian"  element={<KpiAssessmentPage />} />
             <Route path="/kpi/dashboard"  element={<KpiDashboardPage />} />
             <Route path="/kpi/komplain"   element={<KpiComplaintsPage />} />
+            <Route path="/kpi/bonus-tier" element={<BonusTiersPage />} />
 
             {/* PAYROLL */}
             <Route path="/payroll/komponen"  element={<SalaryComponentPage />} />

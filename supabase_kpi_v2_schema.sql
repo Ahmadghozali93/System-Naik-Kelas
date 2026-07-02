@@ -12,7 +12,9 @@
 -- 1. TAMBAH KOLOM DI gurus
 -- ============================================================
 ALTER TABLE gurus
-  ADD COLUMN IF NOT EXISTS tanggal_masuk DATE;
+  ADD COLUMN IF NOT EXISTS tanggal_masuk DATE,
+  ADD COLUMN IF NOT EXISTS role_guru     TEXT
+    CHECK (role_guru IN ('learning_coordinator', 'tutor'));
 
 -- ============================================================
 -- 2. TAMBAH KOLOM DI kpi_assessments
@@ -101,7 +103,41 @@ CREATE INDEX IF NOT EXISTS idx_kpi_complaints_guru    ON kpi_complaints(guru_id)
 CREATE INDEX IF NOT EXISTS idx_kpi_complaints_periode ON kpi_complaints(periode_tahun, periode_bulan);
 
 -- ============================================================
--- 6. BERSIHKAN DATA LAMA (urutan penting karena FK)
+-- 6. TABEL BARU: bonus_tiers
+--    Pemetaan role_guru + TM minimum → nominal bonus
+--    Admin bisa edit threshold & nominal kapan saja
+-- ============================================================
+CREATE TABLE IF NOT EXISTS bonus_tiers (
+  id            UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
+  role_guru     TEXT    NOT NULL CHECK (role_guru IN ('learning_coordinator', 'tutor')),
+  tm_dari       INT     NOT NULL,       -- TM minimum untuk tier ini
+  bonus_nominal BIGINT  NOT NULL DEFAULT 0,
+  created_at    TIMESTAMPTZ DEFAULT now(),
+  UNIQUE (role_guru, tm_dari)
+);
+
+ALTER TABLE bonus_tiers ENABLE ROW LEVEL SECURITY;
+DROP POLICY IF EXISTS "bt_select"       ON bonus_tiers;
+DROP POLICY IF EXISTS "bt_admin_insert" ON bonus_tiers;
+DROP POLICY IF EXISTS "bt_admin_update" ON bonus_tiers;
+DROP POLICY IF EXISTS "bt_admin_delete" ON bonus_tiers;
+CREATE POLICY "bt_select"       ON bonus_tiers FOR SELECT USING (true);
+CREATE POLICY "bt_admin_insert" ON bonus_tiers FOR INSERT WITH CHECK (absensi_is_admin());
+CREATE POLICY "bt_admin_update" ON bonus_tiers FOR UPDATE USING (absensi_is_admin());
+CREATE POLICY "bt_admin_delete" ON bonus_tiers FOR DELETE USING (absensi_is_admin());
+
+-- Seed tier default (bisa diedit admin kapan saja di halaman Tier Bonus)
+INSERT INTO bonus_tiers (role_guru, tm_dari, bonus_nominal) VALUES
+  ('learning_coordinator', 200, 200000),
+  ('learning_coordinator', 300, 300000),
+  ('learning_coordinator', 400, 400000),
+  ('tutor', 100, 100000),
+  ('tutor', 200, 200000),
+  ('tutor', 300, 300000)
+ON CONFLICT (role_guru, tm_dari) DO NOTHING;
+
+-- ============================================================
+-- 7. BERSIHKAN DATA LAMA (urutan penting karena FK)
 -- ============================================================
 DELETE FROM kpi_scores;
 DELETE FROM kpi_assessments;
@@ -110,7 +146,7 @@ DELETE FROM kpi_scoring_rules;
 DELETE FROM kpi_indicators;
 
 -- ============================================================
--- 7. SEED 7 INDIKATOR BARU (UUID tetap supaya bisa di-referensi)
+-- 8. SEED 7 INDIKATOR BARU (UUID tetap supaya bisa di-referensi)
 -- ============================================================
 INSERT INTO kpi_indicators (id, nama, deskripsi, tipe, source_field, role_target, aktif) VALUES
   ('a0000000-0000-0000-0000-000000000001',
@@ -149,7 +185,7 @@ INSERT INTO kpi_indicators (id, nama, deskripsi, tipe, source_field, role_target
    'Manual', null, '{}', true);
 
 -- ============================================================
--- 8. SEED ATURAN SCORING PER INDIKATOR
+-- 9. SEED ATURAN SCORING PER INDIKATOR
 -- ============================================================
 INSERT INTO kpi_scoring_rules
   (kpi_indicator_id, skor_maksimal, tier1_maks, skor_tier1, tier2_maks, skor_tier2, skor_tier3, deskripsi_aturan)

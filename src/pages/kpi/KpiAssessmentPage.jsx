@@ -150,12 +150,12 @@ export default function KpiAssessmentPage() {
   const [loadingTm,      setLoadingTm]     = useState(false);
   const [saving,         setSaving]        = useState(false);
   const [formCatatan,    setFormCatatan]   = useState('');
-  const [formBonusNominal, setFormBonusNominal] = useState(0);
+  const [previewBonus,   setPreviewBonus]  = useState(null);
 
   // ── MASTER DATA ──────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
-      supabase.from('gurus').select('id,nama,role,tanggal_masuk').eq('status','Aktif').order('nama'),
+      supabase.from('gurus').select('id,nama,role,tanggal_masuk,role_guru').eq('status','Aktif').order('nama'),
       supabase.from('units').select('*').eq('aktif', true).order('nama'),
       supabase.from('kpi_indicators').select('*').eq('aktif', true).order('id'),
       supabase.from('kpi_scoring_rules').select('*'),
@@ -173,7 +173,7 @@ export default function KpiAssessmentPage() {
   const fetchAssessments = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('kpi_assessments')
-      .select('*, gurus!guru_id(nama, role, tanggal_masuk), units!unit_id(nama)')
+      .select('*, gurus!guru_id(nama, role, tanggal_masuk, role_guru), units!unit_id(nama)')
       .eq('periode_tahun', filterTahun)
       .eq('periode_bulan', filterBulan)
       .order('created_at', { ascending: false });
@@ -186,6 +186,21 @@ export default function KpiAssessmentPage() {
   }, [filterTahun, filterBulan, filterUnit, filterStatus, isAdmin, user]);
 
   useEffect(() => { if (user) fetchAssessments(); }, [fetchAssessments, user]);
+
+  // ── PREVIEW BONUS OTOMATIS (untuk panel Submitted) ───────────
+  useEffect(() => {
+    if (!editAssessment || editAssessment.status !== 'Submitted' || liveTm == null) return;
+    const roleGuru = editGuru?.role_guru;
+    if (!roleGuru) { setPreviewBonus(0); return; }
+    supabase.from('bonus_tiers')
+      .select('bonus_nominal')
+      .eq('role_guru', roleGuru)
+      .lte('tm_dari', liveTm)
+      .order('tm_dari', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+      .then(({ data }) => setPreviewBonus(data?.bonus_nominal || 0));
+  }, [liveTm, editAssessment, editGuru]);
 
   // ── HITUNG LIVE TM ────────────────────────────────────────────
   const fetchLiveTm = async (guruId, tahun, bulan) => {
@@ -272,7 +287,7 @@ export default function KpiAssessmentPage() {
     setEditAssessment(assessment);
     setEditGuru(assessment.gurus || null);
     setFormCatatan(assessment.catatan || '');
-    setFormBonusNominal(assessment.bonus_nominal || 0);
+    setPreviewBonus(null);
     setLoadingScores(true);
     setLiveTm(null);
 
@@ -376,12 +391,12 @@ export default function KpiAssessmentPage() {
     fetchAssessments();
   };
 
-  // ── APPROVE: Submitted → Approved (snapshot + kelayakan) ──────
+  // ── APPROVE: Submitted → Approved (snapshot + kelayakan + bonus otomatis) ──
   const approveAssessment = async () => {
     if (!window.confirm('Finalisasi & setujui penilaian ini?')) return;
     setSaving(true);
 
-    // Re-fetch TM terbaru untuk snapshot
+    // Snapshot TM terbaru
     const mulai = `${editAssessment.periode_tahun}-${String(editAssessment.periode_bulan).padStart(2,'0')}-01`;
     const lastDay = new Date(editAssessment.periode_tahun, editAssessment.periode_bulan, 0).getDate();
     const akhir   = `${editAssessment.periode_tahun}-${String(editAssessment.periode_bulan).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
@@ -397,6 +412,19 @@ export default function KpiAssessmentPage() {
       tmSnap, editTmMinimum, totalSkor,
     );
 
+    // Lookup bonus otomatis dari bonus_tiers
+    let bonusNominal = 0;
+    if (kel.layak && editGuru?.role_guru) {
+      const { data: tierRow } = await supabase.from('bonus_tiers')
+        .select('bonus_nominal')
+        .eq('role_guru', editGuru.role_guru)
+        .lte('tm_dari', tmSnap)
+        .order('tm_dari', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      bonusNominal = tierRow?.bonus_nominal || 0;
+    }
+
     await supabase.from('kpi_assessments').update({
       status:           'Approved',
       skor_akhir:       totalSkor,
@@ -404,7 +432,7 @@ export default function KpiAssessmentPage() {
       tm_minimum:       editTmMinimum,
       status_kelayakan: kel.layak ? 'LAYAK' : 'TIDAK LAYAK',
       bonus_eligible:   kel.layak,
-      bonus_nominal:    Number(formBonusNominal) || 0,
+      bonus_nominal:    bonusNominal,
       catatan:          formCatatan || null,
       disetujui_oleh:   user.id,
     }).eq('id', editAssessment.id);
@@ -745,25 +773,35 @@ export default function KpiAssessmentPage() {
               </div>
             )}
 
-            {/* Seksi approve: catatan + bonus nominal */}
+            {/* Seksi approve */}
             {isAdmin && editAssessment.status === 'Submitted' && (
               <div style={{ background: 'rgba(5,150,105,0.05)', border: '1px solid rgba(5,150,105,0.2)', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1rem' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.75rem', color: '#059669' }}>Persetujuan</div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
-                  <div>
-                    <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
-                      Nominal Bonus (Rp) — opsional
-                    </label>
-                    <input type="number" min={0} value={formBonusNominal}
-                      onChange={e => setFormBonusNominal(e.target.value)} style={inp} placeholder="0" />
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '0.65rem' }}>
+                  <div style={{ background: 'white', borderRadius: '0.5rem', padding: '0.75rem', border: '1px solid rgba(5,150,105,0.15)' }}>
+                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 600, marginBottom: '0.25rem' }}>Bonus Otomatis</div>
+                    {!editGuru?.role_guru ? (
+                      <div style={{ color: '#d97706', fontSize: '0.82rem' }}>⚠️ Kelas Bonus belum diset di profil guru</div>
+                    ) : previewBonus == null ? (
+                      <div style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Menghitung...</div>
+                    ) : kelayakan?.layak ? (
+                      <div style={{ fontWeight: 800, fontSize: '1.1rem', color: '#059669' }}>
+                        {new Intl.NumberFormat('id-ID',{style:'currency',currency:'IDR',maximumFractionDigits:0}).format(previewBonus)}
+                      </div>
+                    ) : (
+                      <div style={{ color: '#b91c1c', fontSize: '0.82rem', fontWeight: 600 }}>Rp 0 (tidak layak)</div>
+                    )}
+                    <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', marginTop: '0.2rem' }}>
+                      Dihitung dari tier {editGuru?.role_guru === 'learning_coordinator' ? 'Kelas A' : 'Kelas B'} × TM {liveTm}
+                    </div>
                   </div>
                   <div>
                     <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Catatan Approver</label>
                     <input value={formCatatan} onChange={e => setFormCatatan(e.target.value)} style={inp} placeholder="Opsional..." />
                   </div>
                 </div>
-                <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                  Kelayakan bonus ditentukan otomatis berdasarkan masa kerja, TM, dan skor.
+                <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
+                  Kelayakan dan nominal bonus dihitung otomatis. Konfigurasi tier di halaman <strong>Tier Bonus KPI</strong>.
                 </p>
               </div>
             )}
