@@ -163,9 +163,11 @@ export default function LaporanSppPage() {
   const [search, setSearch]             = useState('');
   const [filterUnit, setFilterUnit]     = useState('');
   const [filterProg, setFilterProg]     = useState('');
-  const [filterMetode, setFilterMetode] = useState('');
-  const [dateFrom, setDateFrom]         = useState('');
-  const [dateTo, setDateTo]             = useState('');
+  // Filter rekap bulanan — terpisah dari filter Tunggakan/Belum JT
+  const [rekapUnit, setRekapUnit]       = useState('');
+  const [rekapMetode, setRekapMetode]   = useState('');
+  const [rekapDateFrom, setRekapDateFrom] = useState('');
+  const [rekapDateTo, setRekapDateTo]   = useState('');
 
   const fetchAll = async () => {
     setLoading(true);
@@ -179,6 +181,7 @@ export default function LaporanSppPage() {
   };
 
   useEffect(() => { fetchAll(); }, []);
+  useEffect(() => { if (tab === 'Rekap Bulanan') fetchAll(); }, [tab]);
 
   const getLastPayment = (siswaId) =>
     pembayarans
@@ -221,15 +224,12 @@ export default function LaporanSppPage() {
 
   const filteredPembayaran = useMemo(() => pembayarans.filter(p => {
     const tgl = p.tanggal_bayar || p.created_at?.split('T')[0];
-    const q   = search.toLowerCase();
-    if (search       && !p.nama_siswa?.toLowerCase().includes(q)) return false;
-    if (filterUnit   && p.unit         !== filterUnit)   return false;
-    if (filterProg   && p.nama_program !== filterProg)   return false;
-    if (filterMetode && p.metode       !== filterMetode) return false;
-    if (dateFrom     && tgl < dateFrom) return false;
-    if (dateTo       && tgl > dateTo)   return false;
+    if (rekapUnit     && p.unit   !== rekapUnit)    return false;
+    if (rekapMetode   && p.metode !== rekapMetode)  return false;
+    if (rekapDateFrom && tgl < rekapDateFrom) return false;
+    if (rekapDateTo   && tgl > rekapDateTo)   return false;
     return true;
-  }), [pembayarans, search, filterUnit, filterProg, filterMetode, dateFrom, dateTo]);
+  }), [pembayarans, rekapUnit, rekapMetode, rekapDateFrom, rekapDateTo]);
 
   const rekapBulanan = useMemo(() => {
     const map = {};
@@ -250,8 +250,10 @@ export default function LaporanSppPage() {
   }, [filteredPembayaran]);
 
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem', width:'100%', boxSizing:'border-box' };
-  const hasFilter = search||filterUnit||filterProg||filterMetode||dateFrom||dateTo;
-  const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setFilterMetode(''); setDateFrom(''); setDateTo(''); setPage1(1); setPage2(1); setPage3(1); };
+  const hasFilter = search||filterUnit||filterProg;
+  const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setPage1(1); setPage2(1); };
+  const hasRekapFilter = rekapUnit||rekapMetode||rekapDateFrom||rekapDateTo;
+  const resetRekapFilter = () => { setRekapUnit(''); setRekapMetode(''); setRekapDateFrom(''); setRekapDateTo(''); setPage3(1); };
 
   const exportTunggakan = () => {
     const rows = tunggakan.map((a, i) => {
@@ -334,8 +336,8 @@ export default function LaporanSppPage() {
         ))}
       </div>
 
-      {/* FILTERS */}
-      <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(180px,1fr))',gap:'0.5rem',marginBottom:'1rem'}}>
+      {/* FILTERS — hanya untuk Tunggakan & Belum Jatuh Tempo */}
+      {tab !== 'Rekap Bulanan' && <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(180px,1fr))',gap:'0.5rem',marginBottom:'1rem'}}>
         <div style={{position:'relative'}}>
           <Search size={14} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)',pointerEvents:'none'}}/>
           <input style={{...sel,paddingLeft:'2.1rem'}}
@@ -350,22 +352,12 @@ export default function LaporanSppPage() {
           <option value="">Semua Program</option>
           {allProgs.map(p=><option key={p} value={p}>{p}</option>)}
         </select>
-        {tab === 'Rekap Bulanan' && (<>
-          <select style={sel} value={filterMetode} onChange={e=>{setFilterMetode(e.target.value);setPage3(1);}}>
-            <option value="">Semua Metode</option>
-            <option value="Tunai">Tunai</option>
-            <option value="BNI">BNI</option>
-            <option value="Xendit">Xendit</option>
-          </select>
-          <input type="date" style={sel} value={dateFrom} onChange={e=>{setDateFrom(e.target.value);setPage3(1);}}/>
-          <input type="date" style={sel} value={dateTo} onChange={e=>{setDateTo(e.target.value);setPage3(1);}}/>
-        </>)}
         {hasFilter && (
           <button onClick={resetFilter} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.4rem',background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>
             <X size={14}/> Reset
           </button>
         )}
-      </div>
+      </div>}
 
       {loading ? <p style={{color:'var(--text-secondary)'}}>Memuat...</p> : (<>
 
@@ -514,9 +506,30 @@ export default function LaporanSppPage() {
         )}
 
         {/* ── TAB 3: REKAP BULANAN ── */}
-        {tab === 'Rekap Bulanan' && (
+        {tab === 'Rekap Bulanan' && (<>
+          {/* Filter khusus Rekap Bulanan */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem',marginBottom:'1rem',alignItems:'center'}}>
+            <select style={{...sel,width:'auto'}} value={rekapUnit} onChange={e=>{setRekapUnit(e.target.value);setPage3(1);}}>
+              <option value="">Semua Unit</option>
+              {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+            <select style={{...sel,width:'auto'}} value={rekapMetode} onChange={e=>{setRekapMetode(e.target.value);setPage3(1);}}>
+              <option value="">Semua Metode</option>
+              <option value="Tunai">Tunai</option>
+              <option value="BNI">BNI</option>
+              <option value="Xendit">Xendit</option>
+            </select>
+            <input type="date" style={{...sel,width:'auto'}} value={rekapDateFrom} onChange={e=>{setRekapDateFrom(e.target.value);setPage3(1);}}/>
+            <input type="date" style={{...sel,width:'auto'}} value={rekapDateTo} onChange={e=>{setRekapDateTo(e.target.value);setPage3(1);}}/>
+            {hasRekapFilter && (
+              <button onClick={resetRekapFilter} style={{display:'flex',alignItems:'center',gap:'0.35rem',background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>
+                <X size={14}/> Reset
+              </button>
+            )}
+          </div>
           <div className="glass-card" style={{padding:isMobile?'0.75rem':'1.5rem'}}>
-            {rekapBulanan.length === 0
+            {loading ? <p style={{color:'var(--text-secondary)'}}>Memuat...</p>
+            : rekapBulanan.length === 0
               ? <p style={{color:'var(--text-secondary)'}}>Belum ada data transaksi.</p>
               : (<>
                 {isMobile
@@ -575,7 +588,7 @@ export default function LaporanSppPage() {
               </>)
             }
           </div>
-        )}
+        </>)}
       </>)}
     </div>
   );
