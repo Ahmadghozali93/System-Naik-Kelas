@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2 } from 'lucide-react';
+import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatRupiah, toProperCase } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
@@ -10,6 +10,12 @@ const METODE   = ['Tunai','BNI','Xendit'];
 const PER_PAGE = 20;
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+
+const waLink = (nowa) => {
+  if (!nowa) return null;
+  const num = nowa.replace(/\D/g,'').replace(/^0/,'62');
+  return `https://wa.me/${num}`;
+};
 
 const addOneMonth = (dateStr) => {
   if (!dateStr) return null;
@@ -77,8 +83,8 @@ export default function TagihanSiswaPage() {
   const fetchAll = async () => {
     setLoading(true);
     const [aRes, pRes] = await Promise.all([
-      supabase.from('aktivasi_siswa').select('*').eq('status','Aktif').order('nama_siswa'),
-      supabase.from('pembayaran_spp').select('*').order('created_at',{ascending:false}),
+      supabase.from('aktivasi_siswa').select('*, siswa!siswa_id(nowa)').eq('status','Aktif').order('nama_siswa'),
+      supabase.from('pembayaran_spp').select('*, siswa!siswa_id(nowa)').order('created_at',{ascending:false}),
     ]);
     setAktivasis(aRes.data || []);
     setTransaksis(pRes.data || []);
@@ -279,9 +285,9 @@ export default function TagihanSiswaPage() {
                   <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.85rem'}}>
                     <thead>
                       <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                        {[{l:'NO',a:'center',w:44},{l:'NAMA SISWA',a:'left'},{l:'PROGRAM',a:'left'},
-                          {l:'UNIT',a:'left'},{l:'TGL MULAI LES',a:'left'},{l:'JATUH TEMPO',a:'left'},
-                          {l:'NOMINAL SPP',a:'right'},{l:'STATUS',a:'center'},{l:'',a:'right'}].map(h=>(
+                        {[{l:'NO',a:'center',w:44},{l:'NAMA SISWA',a:'left'},{l:'NO WA',a:'center'},
+                          {l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},{l:'TGL MULAI LES',a:'left'},
+                          {l:'JATUH TEMPO',a:'left'},{l:'NOMINAL SPP',a:'right'},{l:'STATUS',a:'center'},{l:'',a:'right'}].map(h=>(
                           <th key={h.l} style={{textAlign:h.a,width:h.w,padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',letterSpacing:'0.06em'}}>{h.l}</th>
                         ))}
                       </tr>
@@ -301,6 +307,14 @@ export default function TagihanSiswaPage() {
                             onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                             <td style={{padding:'0.75rem',textAlign:'center',color:'var(--text-secondary)',fontSize:'0.8rem'}}>{(safePage-1)*PER_PAGE+idx+1}</td>
                             <td style={{padding:'0.75rem',fontWeight:600,whiteSpace:'nowrap'}}>{a.nama_siswa}</td>
+                            <td style={{padding:'0.75rem',textAlign:'center'}}>
+                              {waLink(a.siswa?.nowa) ? (
+                                <a href={waLink(a.siswa?.nowa)} target="_blank" rel="noreferrer"
+                                  style={{color:'#25D366',display:'inline-flex',alignItems:'center',gap:'4px',textDecoration:'none',fontWeight:500,whiteSpace:'nowrap',fontSize:'0.8rem'}}>
+                                  <MessageCircle size={14}/> Chat
+                                </a>
+                              ) : '-'}
+                            </td>
                             <td style={{padding:'0.75rem',color:'var(--primary)',fontWeight:500}}>{dj.nama_program||'-'}</td>
                             <td style={{padding:'0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem'}}>{fmt(a.tgl_mulai)}</td>
@@ -392,7 +406,7 @@ export default function TagihanSiswaPage() {
                     <thead>
                       <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
                         {[{l:'NO',a:'center',w:44},{l:'TGL BAYAR',a:'left'},{l:'JATUH TEMPO',a:'left'},
-                          {l:'NAMA SISWA',a:'left'},{l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},
+                          {l:'NAMA SISWA',a:'left'},{l:'NO WA',a:'center'},{l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},
                           {l:'NOMINAL SPP',a:'right'},{l:'DISKON',a:'right'},{l:'YG DIBAYAR',a:'right'},
                           {l:'METODE',a:'left'},{l:'STATUS',a:'center'},{l:'DICATAT OLEH',a:'left'},
                           {l:'CATATAN',a:'left'},{l:'',a:'center'}].map(h=>(
@@ -412,6 +426,14 @@ export default function TagihanSiswaPage() {
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontWeight:600}}>{fmt(p.tanggal_bayar||p.created_at?.split('T')[0])}</td>
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem',color:'#b45309',fontWeight:600}}>{fmt(p.jatuh_tempo)}</td>
                             <td style={{padding:'0.75rem',fontWeight:500,whiteSpace:'nowrap'}}>{p.nama_siswa||'-'}</td>
+                            <td style={{padding:'0.75rem',textAlign:'center'}}>
+                              {waLink(p.siswa?.nowa) ? (
+                                <a href={waLink(p.siswa?.nowa)} target="_blank" rel="noreferrer"
+                                  style={{color:'#25D366',display:'inline-flex',alignItems:'center',gap:'4px',textDecoration:'none',fontWeight:500,whiteSpace:'nowrap',fontSize:'0.8rem'}}>
+                                  <MessageCircle size={14}/> Chat
+                                </a>
+                              ) : '-'}
+                            </td>
                             <td style={{padding:'0.75rem',color:'var(--primary)',fontWeight:500}}>{p.nama_program||'-'}</td>
                             <td style={{padding:'0.75rem',color:'var(--text-secondary)'}}>{p.unit||'-'}</td>
                             <td style={{padding:'0.75rem',textAlign:'right'}}>{formatRupiah(gross)}</td>
