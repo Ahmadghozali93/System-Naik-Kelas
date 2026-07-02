@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle } from 'lucide-react';
+import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle, Send } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatRupiah, toProperCase } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
@@ -15,6 +15,20 @@ const waLink = (nowa) => {
   if (!nowa) return null;
   const num = nowa.replace(/\D/g,'').replace(/^0/,'62');
   return `https://wa.me/${num}`;
+};
+
+const buildBroadcastUrl = (nowa, p) => {
+  if (!nowa) return null;
+  const num    = nowa.replace(/\D/g,'').replace(/^0/,'62');
+  const bulan  = p.jatuh_tempo
+    ? new Date(p.jatuh_tempo).toLocaleDateString('id-ID',{month:'long',year:'numeric'})
+    : '-';
+  const tglBayar = p.tanggal_bayar
+    ? new Date(p.tanggal_bayar).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})
+    : '-';
+  const nominal = (p.nominal||0).toLocaleString('id-ID');
+  const msg = `Halo Ayah/Bunda 🙏\nTerima kasih, pembayaran SPP ananda ${p.nama_siswa||''} sudah kami terima ✅\n📚 Program: ${p.nama_program||'-'}\n🗓️ SPP Bulan: ${bulan}\n💰 Nominal: Rp ${nominal}\n📅 Tanggal Bayar: ${tglBayar}\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas 💙`;
+  return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 };
 
 const addOneMonth = (dateStr) => {
@@ -413,7 +427,7 @@ export default function TagihanSiswaPage() {
                     <thead>
                       <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
                         {[{l:'NO',a:'center',w:44},{l:'TGL BAYAR',a:'left'},{l:'JATUH TEMPO',a:'left'},
-                          {l:'NAMA SISWA',a:'left'},{l:'NO WA',a:'center'},{l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},
+                          {l:'NAMA SISWA',a:'left'},{l:'BROADCAST',a:'center'},{l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},
                           {l:'NOMINAL SPP',a:'right'},{l:'DISKON',a:'right'},{l:'YG DIBAYAR',a:'right'},
                           {l:'METODE',a:'left'},{l:'STATUS',a:'center'},{l:'DICATAT OLEH',a:'left'},
                           {l:'CATATAN',a:'left'},{l:'',a:'center'}].map(h=>(
@@ -434,10 +448,12 @@ export default function TagihanSiswaPage() {
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem',color:'#b45309',fontWeight:600}}>{fmt(p.jatuh_tempo)}</td>
                             <td style={{padding:'0.75rem',fontWeight:500,whiteSpace:'nowrap'}}>{p.nama_siswa||'-'}</td>
                             <td style={{padding:'0.75rem',textAlign:'center'}}>
-                              {waLink(nowaMap[p.siswa_id]) ? (
-                                <a href={waLink(nowaMap[p.siswa_id])} target="_blank" rel="noreferrer"
-                                  style={{color:'#25D366',display:'inline-flex',alignItems:'center',gap:'4px',textDecoration:'none',fontWeight:500,whiteSpace:'nowrap',fontSize:'0.8rem'}}>
-                                  <MessageCircle size={14}/> Chat
+                              {buildBroadcastUrl(nowaMap[p.siswa_id], p) ? (
+                                <a href={buildBroadcastUrl(nowaMap[p.siswa_id], p)} target="_blank" rel="noreferrer"
+                                  style={{display:'inline-flex',alignItems:'center',gap:'5px',background:'#25D366',color:'#fff',
+                                    padding:'0.3rem 0.7rem',borderRadius:'0.4rem',textDecoration:'none',
+                                    fontWeight:600,whiteSpace:'nowrap',fontSize:'0.78rem'}}>
+                                  <Send size={13}/> Kirim WA
                                 </a>
                               ) : '-'}
                             </td>
