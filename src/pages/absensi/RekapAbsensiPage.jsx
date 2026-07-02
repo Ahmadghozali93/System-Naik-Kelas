@@ -30,6 +30,8 @@ export default function RekapAbsensiPage() {
   const isAdmin  = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
   const [records, setRecords]   = useState([]);
+  const [detailPage, setDetailPage] = useState(1);
+  const DETAIL_PER_PAGE = 20;
   const [units, setUnits]       = useState([]);
   const [gurus, setGurus]       = useState([]);
   const [loading, setLoading]   = useState(false);
@@ -55,6 +57,7 @@ export default function RekapAbsensiPage() {
     if (filterStatus) q = q.eq('status', filterStatus);
     const { data } = await q;
     setRecords(data || []);
+    setDetailPage(1);
     setLoading(false);
   };
 
@@ -65,12 +68,13 @@ export default function RekapAbsensiPage() {
     const m = {};
     records.forEach(r => {
       const id = r.guru_id;
-      if (!m[id]) m[id] = { nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0 };
+      if (!m[id]) m[id] = { nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0, seragamBelum:0 };
       const key = r.status || 'Alpha';
       if (m[id][key] !== undefined) m[id][key]++;
       const dm = getDurasi(r); if (dm) m[id].totalMenit += dm;
-      if (r.seragam === 'Sesuai')       m[id].seragamOk++;
-      if (r.seragam === 'Tidak Sesuai') m[id].seragamTidak++;
+      if (r.seragam === 'Sesuai')            m[id].seragamOk++;
+      else if (r.seragam === 'Tidak Sesuai') m[id].seragamTidak++;
+      else                                   m[id].seragamBelum++;
     });
     return Object.values(m).sort((a,b) => a.nama.localeCompare(b.nama));
   }, [records]);
@@ -154,7 +158,7 @@ export default function RekapAbsensiPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'2px solid var(--glass-border)' }}>
-                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗'].map(h=>(
+                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗','Belum Validasi'].map(h=>(
                     <th key={h} style={{ padding:'0.45rem 0.65rem', textAlign:h==='Nama'?'left':'center', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -169,6 +173,7 @@ export default function RekapAbsensiPage() {
                     <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:700, color:'var(--primary)' }}>{mntToStr(s.totalMenit)}</td>
                     <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:s.seragamOk>0?700:400, color:s.seragamOk>0?'#047857':'var(--text-secondary)' }}>{s.seragamOk||'-'}</td>
                     <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:s.seragamTidak>0?700:400, color:s.seragamTidak>0?'#b91c1c':'var(--text-secondary)' }}>{s.seragamTidak||'-'}</td>
+                    <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:s.seragamBelum>0?700:400, color:s.seragamBelum>0?'#6b7280':'var(--text-secondary)' }}>{s.seragamBelum||'-'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -178,47 +183,81 @@ export default function RekapAbsensiPage() {
       )}
 
       {/* Detail table */}
-      <div className="glass-card" style={{ padding:'1.5rem' }}>
-        <div style={{ fontWeight:700, fontSize:'0.85rem', marginBottom:'0.75rem' }}>
-          Detail Absensi {loading ? '— Memuat...' : `(${records.length} record)`}
-        </div>
-        {!loading && records.length === 0 ? (
-          <div style={{ textAlign:'center', padding:'3rem', color:'var(--text-secondary)' }}>
-            <BarChart2 size={40} style={{ opacity:0.3, marginBottom:'0.75rem' }} />
-            <p>Tidak ada data untuk filter yang dipilih.</p>
+      {(() => {
+        const totalPages = Math.max(1, Math.ceil(records.length / DETAIL_PER_PAGE));
+        const safePage   = Math.min(detailPage, totalPages);
+        const pageData   = records.slice((safePage-1)*DETAIL_PER_PAGE, safePage*DETAIL_PER_PAGE);
+        const from = (safePage-1)*DETAIL_PER_PAGE + 1;
+        const to   = Math.min(safePage*DETAIL_PER_PAGE, records.length);
+        return (
+          <div className="glass-card" style={{ padding:'1.5rem' }}>
+            <div style={{ fontWeight:700, fontSize:'0.85rem', marginBottom:'0.75rem' }}>
+              Detail Absensi {loading ? '— Memuat...' : `(${records.length} record)`}
+            </div>
+            {!loading && records.length === 0 ? (
+              <div style={{ textAlign:'center', padding:'3rem', color:'var(--text-secondary)' }}>
+                <BarChart2 size={40} style={{ opacity:0.3, marginBottom:'0.75rem' }} />
+                <p>Tidak ada data untuk filter yang dipilih.</p>
+              </div>
+            ) : (
+              <>
+                <div style={{ overflowX:'auto' }}>
+                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
+                    <thead>
+                      <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
+                        {['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Durasi','Status','Seragam','Catatan'].map(h=>(
+                          <th key={h} style={{ padding:'0.65rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {pageData.map((r,i) => (
+                        <tr key={r.id || i} style={{ borderBottom:'1px solid var(--glass-border)' }}
+                          onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
+                          onMouseOut={e=>e.currentTarget.style.background='transparent'}>
+                          <td style={{ padding:'0.7rem 0.75rem', whiteSpace:'nowrap' }}>{fmtTgl(r.tanggal)}</td>
+                          <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{r.gurus?.nama||'-'}</td>
+                          <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)' }}>{r.units?.nama||'-'}</td>
+                          <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem' }}>{r.shift_schedules?.shifts?.nama||'-'}</td>
+                          <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(r.check_in)}</td>
+                          <td style={{ padding:'0.7rem 0.75rem' }}>{fmtTime(r.check_out)}</td>
+                          <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(getDurasi(r))}</td>
+                          <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={r.status}/></td>
+                          <td style={{ padding:'0.7rem 0.75rem' }}><SeragamBadge v={r.seragam}/></td>
+                          <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.catatan||''}>{r.catatan||'—'}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+                {totalPages > 1 && (
+                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginTop:'0.85rem', flexWrap:'wrap', gap:'0.5rem' }}>
+                    <span style={{ fontSize:'0.8rem', color:'var(--text-secondary)' }}>Menampilkan {from}–{to} dari {records.length}</span>
+                    <div style={{ display:'flex', gap:'0.35rem', alignItems:'center' }}>
+                      <button onClick={()=>setDetailPage(p=>Math.max(1,p-1))} disabled={safePage<=1}
+                        style={{ padding:'0.3rem 0.7rem', borderRadius:'0.4rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', cursor:safePage<=1?'not-allowed':'pointer', opacity:safePage<=1?0.4:1 }}>‹</button>
+                      {Array.from({length:Math.min(totalPages,5)},(_,i)=>{
+                        let n = safePage<=3 ? i+1 : safePage>=totalPages-2 ? totalPages-4+i : safePage-2+i;
+                        n = Math.max(1,Math.min(n,totalPages));
+                        return (
+                          <button key={n} onClick={()=>setDetailPage(n)}
+                            style={{ padding:'0.3rem 0.6rem', borderRadius:'0.4rem', border:'1px solid var(--glass-border)', minWidth:32,
+                              background:n===safePage?'var(--primary)':'var(--surface-color)',
+                              color:n===safePage?'#fff':'inherit', cursor:'pointer', fontWeight:n===safePage?700:400 }}>
+                            {n}
+                          </button>
+                        );
+                      })}
+                      <button onClick={()=>setDetailPage(p=>Math.min(totalPages,p+1))} disabled={safePage>=totalPages}
+                        style={{ padding:'0.3rem 0.7rem', borderRadius:'0.4rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', cursor:safePage>=totalPages?'not-allowed':'pointer', opacity:safePage>=totalPages?0.4:1 }}>›</button>
+                    </div>
+                  </div>
+                )}
+              </>
+            )}
           </div>
-        ) : (
-          <div style={{ overflowX:'auto' }}>
-            <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
-              <thead>
-                <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
-                  {['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Durasi','Status','Seragam','Catatan'].map(h=>(
-                    <th key={h} style={{ padding:'0.65rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {records.map((r,i) => (
-                  <tr key={r.id || i} style={{ borderBottom:'1px solid var(--glass-border)' }}
-                    onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
-                    onMouseOut={e=>e.currentTarget.style.background='transparent'}>
-                    <td style={{ padding:'0.7rem 0.75rem', whiteSpace:'nowrap' }}>{fmtTgl(r.tanggal)}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', fontWeight:600 }}>{r.gurus?.nama||'-'}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)' }}>{r.units?.nama||'-'}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem' }}>{r.shift_schedules?.shifts?.nama||'-'}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', fontWeight:600, color:'var(--primary)' }}>{fmtTime(r.check_in)}</td>
-                    <td style={{ padding:'0.7rem 0.75rem' }}>{fmtTime(r.check_out)}</td>
-                    <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(getDurasi(r))}</td>
-                    <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={r.status}/></td>
-                    <td style={{ padding:'0.7rem 0.75rem' }}><SeragamBadge v={r.seragam}/></td>
-                    <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.catatan||''}>{r.catatan||'—'}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+        );
+      })()}
     </div>
   );
 }
