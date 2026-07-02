@@ -6,6 +6,11 @@ import { formatRupiah } from '../utils/formatRupiah';
 
 const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
 const fmt   = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+const waLink = (nowa) => {
+  if (!nowa) return null;
+  const num = nowa.replace(/\D/g,'').replace(/^0/,'62');
+  return `https://wa.me/${num}`;
+};
 const PER_PAGE = 20;
 
 const useIsMobile = () => {
@@ -100,6 +105,13 @@ const SiswaCard = ({ a, idx, isTunggakan }) => {
             {a._nominal>0?formatRupiah(a._nominal):'Belum diset'}
           </span>
         </div>
+        {a.siswa?.nowa && (
+          <div style={{gridColumn:'1/-1'}}>
+            <span style={{color:'var(--text-secondary)'}}>No WA: </span>
+            <a href={waLink(a.siswa.nowa)} target="_blank" rel="noreferrer"
+              style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.siswa.nowa}</a>
+          </div>
+        )}
       </div>
     </div>
   );
@@ -158,7 +170,7 @@ export default function LaporanSppPage() {
   const fetchAll = async () => {
     setLoading(true);
     const [aRes, pRes] = await Promise.all([
-      supabase.from('aktivasi_siswa').select('*').eq('status','Aktif').order('nama_siswa'),
+      supabase.from('aktivasi_siswa').select('*, siswa!siswa_id(nowa)').eq('status','Aktif').order('nama_siswa'),
       supabase.from('pembayaran_spp').select('*').order('tanggal_bayar',{ascending:false}),
     ]);
     setAktivasis(aRes.data  || []);
@@ -253,10 +265,11 @@ export default function LaporanSppPage() {
         'JATUH TEMPO': a._jt ? new Date(a._jt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
         'NOMINAL SPP': a._nominal || 0,
         'STATUS': a._status,
+        'NO WA': a.siswa?.nowa || '-',
       };
     });
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }];
+    ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 18 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Tunggakan');
     const now = new Date();
@@ -375,7 +388,7 @@ export default function LaporanSppPage() {
                       <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
                         <thead>
                           <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                            {['NO','NAMA SISWA','PROGRAM','UNIT','TGL MULAI','JATUH TEMPO','NOMINAL SPP','STATUS'].map(h=>(
+                            {['NO','NAMA SISWA','NO WA','PROGRAM','UNIT','TGL MULAI','JATUH TEMPO','NOMINAL SPP','STATUS'].map(h=>(
                               <th key={h} style={{padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',textAlign:h==='NOMINAL SPP'?'right':'left'}}>{h}</th>
                             ))}
                           </tr>
@@ -389,6 +402,11 @@ export default function LaporanSppPage() {
                                 onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{(s1-1)*PER_PAGE+idx+1}</td>
                                 <td style={{padding:'0.7rem 0.75rem',fontWeight:700}}>{a.nama_siswa}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>
+                                  {a.siswa?.nowa
+                                    ? <a href={waLink(a.siswa.nowa)} target="_blank" rel="noreferrer" style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.siswa.nowa}</a>
+                                    : <span style={{color:'var(--text-secondary)'}}>-</span>}
+                                </td>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>{dj.nama_program||'-'}</td>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a.tgl_mulai)}</td>
@@ -401,7 +419,7 @@ export default function LaporanSppPage() {
                         </tbody>
                         <tfoot>
                           <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(185,28,28,0.04)',fontWeight:700}}>
-                            <td colSpan={6} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({tunggakan.length} siswa)</td>
+                            <td colSpan={7} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>TOTAL ({tunggakan.length} siswa)</td>
                             <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'#b91c1c'}}>{formatRupiah(tunggakan.reduce((s,a)=>s+a._nominal,0))}</td>
                             <td/>
                           </tr>
@@ -435,7 +453,7 @@ export default function LaporanSppPage() {
                       <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
                         <thead>
                           <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
-                            {['NO','NAMA SISWA','PROGRAM','UNIT','TGL MULAI','JATUH TEMPO','BAYAR TERAKHIR','NOMINAL SPP','STATUS'].map(h=>(
+                            {['NO','NAMA SISWA','NO WA','PROGRAM','UNIT','TGL MULAI','JATUH TEMPO','BAYAR TERAKHIR','NOMINAL SPP','STATUS'].map(h=>(
                               <th key={h} style={{padding:'0.65rem 0.75rem',fontWeight:700,fontSize:'0.72rem',color:'var(--text-secondary)',whiteSpace:'nowrap',textAlign:h==='NOMINAL SPP'?'right':'left'}}>{h}</th>
                             ))}
                           </tr>
@@ -449,6 +467,11 @@ export default function LaporanSppPage() {
                                 onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{(s2-1)*PER_PAGE+idx+1}</td>
                                 <td style={{padding:'0.7rem 0.75rem',fontWeight:700}}>{a.nama_siswa}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>
+                                  {a.siswa?.nowa
+                                    ? <a href={waLink(a.siswa.nowa)} target="_blank" rel="noreferrer" style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.siswa.nowa}</a>
+                                    : <span style={{color:'var(--text-secondary)'}}>-</span>}
+                                </td>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>{dj.nama_program||'-'}</td>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a.tgl_mulai)}</td>
@@ -462,7 +485,7 @@ export default function LaporanSppPage() {
                         </tbody>
                         <tfoot>
                           <tr style={{borderTop:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)',fontWeight:700}}>
-                            <td colSpan={7} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>
+                            <td colSpan={8} style={{padding:'0.65rem 0.75rem',fontSize:'0.82rem'}}>
                               TOTAL ({belumJT.length}) — Lunas: {belumJT.filter(a=>a._status==='Lunas').length} | Belum Bayar: {belumJT.filter(a=>a._status==='Belum Bayar').length}
                             </td>
                             <td style={{padding:'0.65rem 0.75rem',textAlign:'right',color:'var(--primary)'}}>{formatRupiah(belumJT.reduce((s,a)=>s+a._nominal,0))}</td>
