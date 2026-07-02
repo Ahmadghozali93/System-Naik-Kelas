@@ -84,7 +84,7 @@ export default function TagihanSiswaPage() {
     setLoading(true);
     const [aRes, pRes] = await Promise.all([
       supabase.from('aktivasi_siswa').select('*, siswa!siswa_id(nowa)').eq('status','Aktif').order('nama_siswa'),
-      supabase.from('pembayaran_spp').select('*, siswa!siswa_id(nowa)').order('created_at',{ascending:false}),
+      supabase.from('pembayaran_spp').select('*').order('created_at',{ascending:false}),
     ]);
     setAktivasis(aRes.data || []);
     setTransaksis(pRes.data || []);
@@ -95,6 +95,13 @@ export default function TagihanSiswaPage() {
 
   const allUnits    = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.unit).filter(Boolean))].sort(), [aktivasis]);
   const allPrograms = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.nama_program).filter(Boolean))].sort(), [aktivasis]);
+
+  // Lookup nowa dari aktivasis berdasarkan siswa_id (untuk Daftar Transaksi)
+  const nowaMap = useMemo(() => {
+    const m = {};
+    aktivasis.forEach(a => { if (a.siswa_id && a.siswa?.nowa) m[a.siswa_id] = a.siswa.nowa; });
+    return m;
+  }, [aktivasis]);
 
   // Filter by aktivasi_id (primary) — fallback ke siswa_id+program+unit untuk payment lama
   const getLastPayment = (aktivasiId, siswaId, namaProgram, unit) =>
@@ -427,8 +434,8 @@ export default function TagihanSiswaPage() {
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem',color:'#b45309',fontWeight:600}}>{fmt(p.jatuh_tempo)}</td>
                             <td style={{padding:'0.75rem',fontWeight:500,whiteSpace:'nowrap'}}>{p.nama_siswa||'-'}</td>
                             <td style={{padding:'0.75rem',textAlign:'center'}}>
-                              {waLink(p.siswa?.nowa) ? (
-                                <a href={waLink(p.siswa?.nowa)} target="_blank" rel="noreferrer"
+                              {waLink(nowaMap[p.siswa_id]) ? (
+                                <a href={waLink(nowaMap[p.siswa_id])} target="_blank" rel="noreferrer"
                                   style={{color:'#25D366',display:'inline-flex',alignItems:'center',gap:'4px',textDecoration:'none',fontWeight:500,whiteSpace:'nowrap',fontSize:'0.8rem'}}>
                                   <MessageCircle size={14}/> Chat
                                 </a>
