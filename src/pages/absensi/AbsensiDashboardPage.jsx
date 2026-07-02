@@ -111,11 +111,12 @@ export default function AbsensiDashboardPage() {
   const resetFilter = () => { setSearch(''); setFilterRole(''); setFilterShift(''); setFilterStatus(''); };
 
   const stats = useMemo(() => {
-    const c = { Hadir:0, Telat:0, Izin:0, Alpha:0, seragamOk:0, seragamTidak:0 };
+    const c = { Hadir:0, Telat:0, Izin:0, Alpha:0, seragamOk:0, seragamTidak:0, seragamBelum:0 };
     filtered.forEach(a => {
       if (c[a.status] !== undefined) c[a.status]++;
-      if (a.seragam === 'Sesuai')       c.seragamOk++;
-      if (a.seragam === 'Tidak Sesuai') c.seragamTidak++;
+      if (a.seragam === 'Sesuai')        c.seragamOk++;
+      else if (a.seragam === 'Tidak Sesuai') c.seragamTidak++;
+      else                               c.seragamBelum++;
     });
     return c;
   }, [filtered]);
@@ -156,8 +157,9 @@ export default function AbsensiDashboardPage() {
         <Card label="Telat"           value={stats.Telat}       color="#92400e" icon={Clock} />
         <Card label="Izin"            value={stats.Izin}        color="#1e40af" icon={AlertCircle} />
         <Card label="Mangkir"         value={stats.Alpha}       color="#b91c1c" icon={XCircle} />
-        <Card label="Seragam Sesuai"  value={stats.seragamOk}   color="#047857" icon={ShirtIcon} />
-        <Card label="Tidak Sesuai"    value={stats.seragamTidak} color="#d97706" icon={ShirtIcon} />
+        <Card label="Seragam Sesuai"       value={stats.seragamOk}    color="#047857" icon={ShirtIcon} />
+        <Card label="Tidak Sesuai"         value={stats.seragamTidak} color="#d97706" icon={ShirtIcon} />
+        <Card label="Belum Divalidasi"     value={stats.seragamBelum} color="#6b7280" icon={ShirtIcon} />
       </div>
 
       {/* Filter bar */}
