@@ -1,17 +1,24 @@
-import { useState, useEffect, useMemo } from 'react';
-import { Plus, X, CheckCircle, Send, Edit2, Trash2, Award } from 'lucide-react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
+import { Plus, X, CheckCircle, Send, Edit2, Trash2, Award, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
-const BULAN_LABEL = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const BULAN_FULL  = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
+const BULAN_LABEL = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const THIS_YEAR   = new Date().getFullYear();
 const THIS_MONTH  = new Date().getMonth() + 1;
 
 const STATUS_COLOR = { Draft: '#6b7280', Submitted: '#d97706', Approved: '#059669' };
 const STATUS_BG    = { Draft: 'rgba(107,114,128,0.1)', Submitted: 'rgba(217,119,6,0.1)', Approved: 'rgba(5,150,105,0.1)' };
 
-const fmtRupiah = (n) => new Intl.NumberFormat('id-ID', { style: 'currency', currency: 'IDR', maximumFractionDigits: 0 }).format(n || 0);
+// UUID tetap 7 indikator (dari SQL seed)
+const IND_KUALITAS = 'a0000000-0000-0000-0000-000000000007';
+const IND_AUTO_IDS = new Set([
+  'a0000000-0000-0000-0000-000000000001',
+  'a0000000-0000-0000-0000-000000000002',
+  'a0000000-0000-0000-0000-000000000003',
+  'a0000000-0000-0000-0000-000000000004',
+]);
 
 const inp = {
   padding: '0.55rem 0.75rem', borderRadius: '0.5rem',
@@ -19,64 +26,103 @@ const inp = {
   fontFamily: 'inherit', fontSize: '0.88rem', width: '100%', boxSizing: 'border-box',
 };
 
-// Cari target yang paling relevan untuk indikator + periode
-function findTarget(allTargets, indicatorId, tahun, bulan) {
-  const forMonth = allTargets.find(t =>
-    t.kpi_indicator_id === indicatorId && t.periode_tahun === tahun && t.periode_bulan === bulan,
-  );
-  if (forMonth) return forMonth;
-  const forYear = allTargets.find(t =>
-    t.kpi_indicator_id === indicatorId && t.periode_tahun === tahun && t.periode_bulan === null,
-  );
-  if (forYear) return forYear;
-  // Fallback: target terbaru untuk indikator ini
-  return allTargets
-    .filter(t => t.kpi_indicator_id === indicatorId)
-    .sort((a, b) => b.periode_tahun - a.periode_tahun)[0] || null;
+// ── HELPERS ───────────────────────────────────────────────────
+
+function applyRule(nilai, rule) {
+  if (!rule || nilai === null || nilai === undefined || nilai === '') return 0;
+  const v = Number(nilai);
+  if (isNaN(v)) return 0;
+  if (rule.tier1_maks != null && v <= rule.tier1_maks) return rule.skor_tier1;
+  if (rule.tier2_maks != null && v <= rule.tier2_maks) return rule.skor_tier2;
+  return rule.skor_tier3;
 }
 
-function calcSkor(nilai_aktual, target) {
-  if (nilai_aktual === null || nilai_aktual === '' || !target) return 0;
-  const raw = (parseFloat(nilai_aktual) / parseFloat(target.target_nilai)) * parseFloat(target.bobot);
-  return Math.min(parseFloat(raw.toFixed(2)), parseFloat(target.bobot));
+function getTmMinimum(role_guru) {
+  if (role_guru === 'learning_coordinator') return 200;
+  return 100;
 }
 
-// Hitung nilai otomatis dari data absensi
+function getMasaKerja(tanggal_masuk, tahun, bulan) {
+  if (!tanggal_masuk) return null;
+  const masuk = new Date(tanggal_masuk);
+  const periodeStart = new Date(tahun, bulan - 1, 1);
+  return (periodeStart.getFullYear() - masuk.getFullYear()) * 12
+       + (periodeStart.getMonth() - masuk.getMonth());
+}
+
+function computeKelayakan(guru, tahun, bulan, jumlahTm, tmMinimum, skorAkhir) {
+  const checks = [];
+  let layak = true;
+
+  const masaKerja = getMasaKerja(guru?.tanggal_masuk, tahun, bulan);
+  if (masaKerja == null) {
+    layak = false;
+    checks.push({ ok: false, label: 'Tanggal masuk kerja belum diisi' });
+  } else {
+    const ok = masaKerja >= 3;
+    if (!ok) layak = false;
+    checks.push({ ok, label: `Masa kerja ${masaKerja} bulan (min 3)` });
+  }
+
+  const tmOk = jumlahTm >= tmMinimum;
+  if (!tmOk) layak = false;
+  checks.push({ ok: tmOk, label: `TM: ${jumlahTm} dari min ${tmMinimum}` });
+
+  const skorOk = skorAkhir >= 90;
+  if (!skorOk) layak = false;
+  checks.push({ ok: skorOk, label: `Skor: ${Number(skorAkhir).toFixed(1)} (min 90)` });
+
+  return { layak, checks };
+}
+
+function scoreColor(s) {
+  if (s >= 90) return '#059669';
+  if (s >= 75) return '#d97706';
+  return '#b91c1c';
+}
+
+// Hitung nilai otomatis dari 4 sumber data
 async function calcAutoValues(guruId, tahun, bulan) {
   const mulai = `${tahun}-${String(bulan).padStart(2, '0')}-01`;
   const lastDay = new Date(tahun, bulan, 0).getDate();
-  const akhir = `${tahun}-${String(bulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  const akhir   = `${tahun}-${String(bulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-  const [attRes, otRes] = await Promise.all([
-    supabase.from('attendances').select('status')
+  const [attRes, izinRes, komplainRes, tmRes] = await Promise.all([
+    supabase.from('attendances').select('status, seragam')
       .eq('guru_id', guruId).gte('tanggal', mulai).lte('tanggal', akhir),
-    supabase.from('overtime').select('durasi_menit')
-      .eq('guru_id', guruId).eq('status', 'Approved').gte('tanggal', mulai).lte('tanggal', akhir),
+    supabase.from('leave_requests').select('id')
+      .eq('guru_id', guruId).eq('jenis', 'Izin').eq('status', 'Approved')
+      .gte('tanggal_mulai', mulai).lte('tanggal_mulai', akhir),
+    supabase.from('kpi_complaints').select('id')
+      .eq('guru_id', guruId).eq('periode_tahun', tahun).eq('periode_bulan', bulan)
+      .eq('kategori', 'dihitung'),
+    supabase.from('jurnal_entries').select('id', { count: 'exact', head: true })
+      .eq('guru_id', guruId)
+      .gte('timestamp', mulai + 'T00:00:00')
+      .lte('timestamp', akhir + 'T23:59:59'),
   ]);
 
   const atts = attRes.data || [];
-  const ots  = otRes.data || [];
-  const hadir = atts.filter(a => a.status === 'Hadir').length;
-  const telat = atts.filter(a => a.status === 'Telat').length;
-  const total = atts.length;
-  const lemburMenit = ots.reduce((s, o) => s + (o.durasi_menit || 0), 0);
-
   return {
-    kehadiran:       total > 0             ? parseFloat(((hadir + telat) / total * 100).toFixed(2)) : 0,
-    ketepatan_waktu: (hadir + telat) > 0   ? parseFloat((hadir / (hadir + telat) * 100).toFixed(2)) : 0,
-    lembur:          parseFloat((lemburMenit / 60).toFixed(2)),
+    komplain:      (komplainRes.data || []).length,
+    keterlambatan: atts.filter(a => a.status === 'Telat').length,
+    seragam:       atts.filter(a => a.seragam === 'Tidak Sesuai').length,
+    izin:          (izinRes.data || []).length,
+    jumlahTm:      tmRes.count || 0,
   };
 }
+
+// ── KOMPONEN UTAMA ────────────────────────────────────────────
 
 export default function KpiAssessmentPage() {
   const { user } = useAuth();
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
   // Master data
-  const [gurus, setGurus]       = useState([]);
-  const [units, setUnits]       = useState([]);
-  const [indicators, setIndicators] = useState([]);
-  const [allTargets, setAllTargets] = useState([]);
+  const [gurus,        setGurus]        = useState([]);
+  const [units,        setUnits]        = useState([]);
+  const [indicators,   setIndicators]   = useState([]);
+  const [scoringRules, setScoringRules] = useState({});
 
   // Filter
   const [filterTahun,  setFilterTahun]  = useState(THIS_YEAR);
@@ -95,35 +141,39 @@ export default function KpiAssessmentPage() {
     guru_id: '', unit_id: '', periode_tahun: THIS_YEAR, periode_bulan: THIS_MONTH,
   });
 
-  // Modal edit penilaian (isi skor)
+  // Modal edit/view
   const [editAssessment, setEditAssessment] = useState(null);
-  const [localScores, setLocalScores]       = useState([]);
-  const [loadingScores, setLoadingScores]   = useState(false);
-  const [saving, setSaving]                 = useState(false);
-
-  // Approval (bonus)
-  const [formApprove, setFormApprove] = useState({ bonus_eligible: false, bonus_nominal: 0, catatan: '' });
+  const [editGuru,       setEditGuru]       = useState(null);
+  const [localScores,    setLocalScores]    = useState([]);
+  const [loadingScores,  setLoadingScores]  = useState(false);
+  const [liveTm,         setLiveTm]        = useState(null);
+  const [loadingTm,      setLoadingTm]     = useState(false);
+  const [saving,         setSaving]        = useState(false);
+  const [formCatatan,    setFormCatatan]   = useState('');
+  const [formBonusNominal, setFormBonusNominal] = useState(0);
 
   // ── MASTER DATA ──────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
-      supabase.from('gurus').select('id,nama,role').eq('status', 'Aktif').order('nama'),
+      supabase.from('gurus').select('id,nama,role,tanggal_masuk,role_guru').eq('status','Aktif').order('nama'),
       supabase.from('units').select('*').eq('aktif', true).order('nama'),
-      supabase.from('kpi_indicators').select('*').eq('aktif', true).order('nama'),
-      supabase.from('kpi_targets').select('*').order('periode_tahun').order('periode_bulan'),
-    ]).then(([g, u, ind, t]) => {
+      supabase.from('kpi_indicators').select('*').eq('aktif', true).order('id'),
+      supabase.from('kpi_scoring_rules').select('*'),
+    ]).then(([g, u, ind, rules]) => {
       setGurus(g.data || []);
       setUnits(u.data || []);
       setIndicators(ind.data || []);
-      setAllTargets(t.data || []);
+      const rMap = {};
+      (rules.data || []).forEach(r => { rMap[r.kpi_indicator_id] = r; });
+      setScoringRules(rMap);
     });
   }, []);
 
   // ── FETCH ASSESSMENTS ─────────────────────────────────────────
-  const fetchAssessments = async () => {
+  const fetchAssessments = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('kpi_assessments')
-      .select('*, gurus!guru_id(nama, role), units!unit_id(nama)')
+      .select('*, gurus!guru_id(nama, role, tanggal_masuk, role_guru), units!unit_id(nama)')
       .eq('periode_tahun', filterTahun)
       .eq('periode_bulan', filterBulan)
       .order('created_at', { ascending: false });
@@ -133,39 +183,50 @@ export default function KpiAssessmentPage() {
     const { data } = await q;
     setAssessments(data || []);
     setLoading(false);
-  };
+  }, [filterTahun, filterBulan, filterUnit, filterStatus, isAdmin, user]);
 
-  useEffect(() => {
-    if (user) fetchAssessments();
-  }, [filterTahun, filterBulan, filterUnit, filterStatus, user, isAdmin]);
+  useEffect(() => { if (user) fetchAssessments(); }, [fetchAssessments, user]);
+
+  // ── HITUNG LIVE TM ────────────────────────────────────────────
+  const fetchLiveTm = async (guruId, tahun, bulan) => {
+    setLoadingTm(true);
+    const mulai = `${tahun}-${String(bulan).padStart(2,'0')}-01`;
+    const lastDay = new Date(tahun, bulan, 0).getDate();
+    const akhir   = `${tahun}-${String(bulan).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+    const { count } = await supabase.from('jurnal_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('guru_id', guruId)
+      .gte('timestamp', mulai + 'T00:00:00')
+      .lte('timestamp', akhir + 'T23:59:59');
+    setLiveTm(count || 0);
+    setLoadingTm(false);
+  };
 
   // ── BUAT PENILAIAN BARU ───────────────────────────────────────
   const handleCreate = async (e) => {
     e.preventDefault();
     if (!formCreate.guru_id) return alert('Pilih karyawan terlebih dahulu.');
+    if (!formCreate.unit_id) return alert('Pilih unit terlebih dahulu.');
     setCreating(true);
 
-    const guru = gurus.find(g => g.id === formCreate.guru_id);
-    const tahun = Number(formCreate.periode_tahun);
-    const bulan = Number(formCreate.periode_bulan);
+    const guru   = gurus.find(g => g.id === formCreate.guru_id);
+    const tahun  = Number(formCreate.periode_tahun);
+    const bulan  = Number(formCreate.periode_bulan);
+    const tmMin  = getTmMinimum(guru?.role_guru);
 
-    // Ambil indikator yang berlaku untuk role karyawan ini
-    const relevantInds = indicators.filter(ind =>
-      ind.role_target.length === 0 || ind.role_target.includes(guru.role),
-    );
-
-    // Hitung nilai otomatis
-    const autoValues = await calcAutoValues(formCreate.guru_id, tahun, bulan);
+    // Ambil nilai otomatis
+    const auto = await calcAutoValues(formCreate.guru_id, tahun, bulan);
 
     // Buat assessment header
-    const { data: newAssessment, error: errAss } = await supabase
+    const { data: newAss, error: errAss } = await supabase
       .from('kpi_assessments')
       .insert({
         guru_id:       formCreate.guru_id,
-        unit_id:       formCreate.unit_id || guru.unit_id || units[0]?.id,
+        unit_id:       formCreate.unit_id,
         periode_tahun: tahun,
         periode_bulan: bulan,
         dinilai_oleh:  user.id,
+        tm_minimum:    tmMin,
       })
       .select()
       .single();
@@ -176,19 +237,25 @@ export default function KpiAssessmentPage() {
       return alert('Gagal: ' + errAss.message);
     }
 
-    // Buat score rows
-    if (relevantInds.length > 0) {
-      const scoreRows = relevantInds.map(ind => {
-        const target = findTarget(allTargets, ind.id, tahun, bulan);
-        const nilai_aktual = ind.tipe === 'Otomatis' && ind.source_field
-          ? (autoValues[ind.source_field] ?? null)
-          : null;
+    // Source field → nilai aktual map
+    const autoMap = {
+      komplain:      auto.komplain,
+      keterlambatan: auto.keterlambatan,
+      seragam:       auto.seragam,
+      izin:          auto.izin,
+    };
+
+    // Buat 7 baris skor
+    if (indicators.length > 0) {
+      const scoreRows = indicators.map(ind => {
+        const isAuto = IND_AUTO_IDS.has(ind.id);
+        const rule = scoringRules[ind.id];
+        const nilai = isAuto ? (autoMap[ind.source_field] ?? 0) : null;
         return {
-          kpi_assessment_id: newAssessment.id,
+          kpi_assessment_id: newAss.id,
           kpi_indicator_id:  ind.id,
-          kpi_target_id:     target?.id || null,
-          nilai_aktual,
-          nilai_skor:        calcSkor(nilai_aktual, target),
+          nilai_aktual:      nilai,
+          nilai_skor:        isAuto ? applyRule(nilai, rule) : 0,
           tipe:              ind.tipe,
         };
       });
@@ -200,60 +267,107 @@ export default function KpiAssessmentPage() {
     fetchAssessments();
   };
 
-  // ── BUKA EDIT SKOR ────────────────────────────────────────────
+  // ── BUKA EDIT ─────────────────────────────────────────────────
   const openEdit = async (assessment) => {
     setEditAssessment(assessment);
+    setEditGuru(assessment.gurus || null);
+    setFormCatatan(assessment.catatan || '');
+    setFormBonusNominal(assessment.bonus_nominal || 0);
     setLoadingScores(true);
-    setFormApprove({
-      bonus_eligible: assessment.bonus_eligible,
-      bonus_nominal:  assessment.bonus_nominal,
-      catatan:        assessment.catatan || '',
-    });
+    setLiveTm(null);
+
     const { data } = await supabase.from('kpi_scores')
-      .select('*, kpi_indicators(*), kpi_targets(*)')
+      .select('*, kpi_indicators(*)')
       .eq('kpi_assessment_id', assessment.id)
-      .order('created_at');
-    setLocalScores((data || []).map(s => ({ ...s, nilai_aktual: s.nilai_aktual ?? '' })));
+      .order('kpi_indicator_id');
+
+    const sorted = (data || []).sort((a, b) => a.kpi_indicator_id.localeCompare(b.kpi_indicator_id));
+    setLocalScores(sorted.map(s => ({
+      ...s,
+      nilai_aktual: s.nilai_aktual ?? '',
+    })));
     setLoadingScores(false);
+
+    // Fetch live TM
+    fetchLiveTm(assessment.guru_id, assessment.periode_tahun, assessment.periode_bulan);
   };
 
-  // Update nilai_aktual dan recalc nilai_skor secara lokal
-  const handleScoreChange = (scoreId, nilai_aktual) => {
+  // ── REFRESH NILAI OTOMATIS ────────────────────────────────────
+  const handleRefreshAuto = async () => {
+    if (!editAssessment) return;
+    const auto = await calcAutoValues(
+      editAssessment.guru_id,
+      editAssessment.periode_tahun,
+      editAssessment.periode_bulan,
+    );
+    fetchLiveTm(editAssessment.guru_id, editAssessment.periode_tahun, editAssessment.periode_bulan);
+    const autoMap = {
+      komplain: auto.komplain, keterlambatan: auto.keterlambatan,
+      seragam: auto.seragam, izin: auto.izin,
+    };
     setLocalScores(prev => prev.map(s => {
-      if (s.id !== scoreId) return s;
-      return { ...s, nilai_aktual, nilai_skor: calcSkor(nilai_aktual, s.kpi_targets) };
+      const isAuto = IND_AUTO_IDS.has(s.kpi_indicator_id);
+      if (!isAuto) return s;
+      const rule   = scoringRules[s.kpi_indicator_id];
+      const sfield = s.kpi_indicators?.source_field;
+      const nilai  = autoMap[sfield] ?? 0;
+      return { ...s, nilai_aktual: nilai, nilai_skor: applyRule(nilai, rule) };
     }));
   };
-  const handleCatatanChange = (scoreId, catatan) => {
-    setLocalScores(prev => prev.map(s => s.id === scoreId ? { ...s, catatan } : s));
+
+  // Ubah nilai manual → recalc skor
+  const handleScoreChange = (scoreId, rawValue) => {
+    setLocalScores(prev => prev.map(s => {
+      if (s.id !== scoreId) return s;
+      const rule = scoringRules[s.kpi_indicator_id];
+      return { ...s, nilai_aktual: rawValue, nilai_skor: applyRule(rawValue, rule) };
+    }));
   };
 
+  // Total skor
   const totalSkor = useMemo(
-    () => parseFloat(localScores.reduce((s, r) => s + (parseFloat(r.nilai_skor) || 0), 0).toFixed(2)),
+    () => localScores.reduce((sum, s) => sum + (Number(s.nilai_skor) || 0), 0),
     [localScores],
   );
 
-  // Simpan skor (draft mode)
-  const saveScores = async () => {
-    setSaving(true);
+  const editTmMinimum = editAssessment?.tm_minimum || getTmMinimum(editGuru?.role_guru);
+
+  const kelayakan = useMemo(() => {
+    if (!editAssessment) return null;
+    return computeKelayakan(
+      editGuru,
+      editAssessment.periode_tahun,
+      editAssessment.periode_bulan,
+      liveTm ?? 0,
+      editTmMinimum,
+      totalSkor,
+    );
+  }, [editGuru, editAssessment, liveTm, editTmMinimum, totalSkor]);
+
+  // ── SIMPAN SKOR KE DB ─────────────────────────────────────────
+  const persistScores = async () => {
     for (const s of localScores) {
       await supabase.from('kpi_scores').update({
-        nilai_aktual: s.nilai_aktual !== '' ? parseFloat(s.nilai_aktual) : null,
-        nilai_skor:   parseFloat(s.nilai_skor) || 0,
-        catatan:      s.catatan || null,
+        nilai_aktual: s.nilai_aktual !== '' ? Number(s.nilai_aktual) : null,
+        nilai_skor:   Number(s.nilai_skor) || 0,
       }).eq('id', s.id);
     }
     await supabase.from('kpi_assessments').update({ skor_akhir: totalSkor }).eq('id', editAssessment.id);
+  };
+
+  const saveScores = async () => {
+    setSaving(true);
+    await persistScores();
     setSaving(false);
     alert('Skor berhasil disimpan.');
     fetchAssessments();
   };
 
-  // Submit: Draft → Submitted
+  // ── SUBMIT: Draft → Submitted ─────────────────────────────────
   const submitAssessment = async () => {
     if (!window.confirm('Submit penilaian ini untuk direview?')) return;
     setSaving(true);
-    await saveScoresInline();
+    await persistScores();
     await supabase.from('kpi_assessments').update({
       status: 'Submitted', skor_akhir: totalSkor, dinilai_oleh: user.id,
     }).eq('id', editAssessment.id);
@@ -262,31 +376,42 @@ export default function KpiAssessmentPage() {
     fetchAssessments();
   };
 
-  // Approve: Submitted → Approved
+  // ── APPROVE: Submitted → Approved (snapshot + kelayakan) ──────
   const approveAssessment = async () => {
     if (!window.confirm('Finalisasi & setujui penilaian ini?')) return;
     setSaving(true);
+
+    // Re-fetch TM terbaru untuk snapshot
+    const mulai = `${editAssessment.periode_tahun}-${String(editAssessment.periode_bulan).padStart(2,'0')}-01`;
+    const lastDay = new Date(editAssessment.periode_tahun, editAssessment.periode_bulan, 0).getDate();
+    const akhir   = `${editAssessment.periode_tahun}-${String(editAssessment.periode_bulan).padStart(2,'0')}-${String(lastDay).padStart(2,'0')}`;
+    const { count: snapshotTm } = await supabase.from('jurnal_entries')
+      .select('id', { count: 'exact', head: true })
+      .eq('guru_id', editAssessment.guru_id)
+      .gte('timestamp', mulai + 'T00:00:00')
+      .lte('timestamp', akhir + 'T23:59:59');
+
+    const tmSnap = snapshotTm || 0;
+    const kel = computeKelayakan(
+      editGuru, editAssessment.periode_tahun, editAssessment.periode_bulan,
+      tmSnap, editTmMinimum, totalSkor,
+    );
+
     await supabase.from('kpi_assessments').update({
-      status:         'Approved',
-      skor_akhir:     totalSkor,
-      bonus_eligible: formApprove.bonus_eligible,
-      bonus_nominal:  Number(formApprove.bonus_nominal) || 0,
-      catatan:        formApprove.catatan || null,
-      disetujui_oleh: user.id,
+      status:           'Approved',
+      skor_akhir:       totalSkor,
+      jumlah_tm:        tmSnap,
+      tm_minimum:       editTmMinimum,
+      status_kelayakan: kel.layak ? 'LAYAK' : 'TIDAK LAYAK',
+      bonus_eligible:   kel.layak,
+      bonus_nominal:    Number(formBonusNominal) || 0,
+      catatan:          formCatatan || null,
+      disetujui_oleh:   user.id,
     }).eq('id', editAssessment.id);
+
     setSaving(false);
     setEditAssessment(null);
     fetchAssessments();
-  };
-
-  const saveScoresInline = async () => {
-    for (const s of localScores) {
-      await supabase.from('kpi_scores').update({
-        nilai_aktual: s.nilai_aktual !== '' ? parseFloat(s.nilai_aktual) : null,
-        nilai_skor:   parseFloat(s.nilai_skor) || 0,
-        catatan:      s.catatan || null,
-      }).eq('id', s.id);
-    }
   };
 
   const deleteAssessment = async (id) => {
@@ -296,17 +421,7 @@ export default function KpiAssessmentPage() {
     fetchAssessments();
   };
 
-  // Auto-fill unit_id saat guru dipilih
-  const handleGuruChange = (guruId) => {
-    const guru = gurus.find(g => g.id === guruId);
-    setFormCreate(f => ({ ...f, guru_id: guruId, unit_id: guru?.unit_id || f.unit_id }));
-  };
-
-  const scoreColor = (skor) => {
-    if (skor >= 90) return '#059669';
-    if (skor >= 75) return '#d97706';
-    return '#b91c1c';
-  };
+  // ── RENDER ────────────────────────────────────────────────────
 
   return (
     <div>
@@ -327,7 +442,7 @@ export default function KpiAssessmentPage() {
         <div>
           <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Bulan</label>
           <select value={filterBulan} onChange={e => setFilterBulan(Number(e.target.value))} style={{ ...inp, width: 130 }}>
-            {BULAN_FULL.slice(1).map((b, i) => <option key={i + 1} value={i + 1}>{b}</option>)}
+            {BULAN_FULL.slice(1).map((b, i) => <option key={i+1} value={i+1}>{b}</option>)}
           </select>
         </div>
         {isAdmin && (
@@ -350,7 +465,7 @@ export default function KpiAssessmentPage() {
         </div>
         {isAdmin && (
           <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}
-            onClick={() => { setFormCreate({ guru_id: '', unit_id: '', periode_tahun: filterTahun, periode_bulan: filterBulan }); setModalCreate(true); }}>
+            onClick={() => { setFormCreate({ guru_id:'', unit_id:'', periode_tahun: filterTahun, periode_bulan: filterBulan }); setModalCreate(true); }}>
             <Plus size={16} /> Buat Penilaian
           </button>
         )}
@@ -369,56 +484,66 @@ export default function KpiAssessmentPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                {['Karyawan', 'Unit', 'Periode', 'Skor', 'Bonus', 'Status', 'Aksi'].map(h => (
+                {['Karyawan', 'Unit', 'Periode', 'Skor', 'TM', 'Kelayakan', 'Status', 'Aksi'].map(h => (
                   <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
             </thead>
             <tbody>
-              {assessments.map(a => (
-                <tr key={a.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
-                  <td style={{ padding: '0.75rem', fontWeight: 600 }}>
-                    {a.gurus?.nama || '-'}
-                    <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{a.gurus?.role}</div>
-                  </td>
-                  <td style={{ padding: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{a.units?.nama || '-'}</td>
-                  <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>{BULAN_LABEL[a.periode_bulan]} {a.periode_tahun}</td>
-                  <td style={{ padding: '0.75rem' }}>
-                    {a.skor_akhir != null ? (
-                      <span style={{ fontWeight: 800, fontSize: '1rem', color: scoreColor(a.skor_akhir) }}>
-                        {parseFloat(a.skor_akhir).toFixed(1)}
+              {assessments.map(a => {
+                const skor = a.skor_akhir != null ? parseFloat(a.skor_akhir) : null;
+                const kel  = a.status_kelayakan;
+                return (
+                  <tr key={a.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                    <td style={{ padding: '0.75rem', fontWeight: 600 }}>
+                      {a.gurus?.nama || '-'}
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{a.gurus?.role}</div>
+                    </td>
+                    <td style={{ padding: '0.75rem', color: 'var(--text-secondary)', fontSize: '0.82rem' }}>{a.units?.nama || '-'}</td>
+                    <td style={{ padding: '0.75rem', whiteSpace: 'nowrap' }}>{BULAN_LABEL[a.periode_bulan]} {a.periode_tahun}</td>
+                    <td style={{ padding: '0.75rem' }}>
+                      {skor != null ? (
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: scoreColor(skor) }}>
+                          {skor.toFixed(1)}
+                        </span>
+                      ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.75rem', fontSize: '0.82rem' }}>
+                      {a.jumlah_tm != null
+                        ? <span style={{ fontWeight: 600 }}>{a.jumlah_tm}<span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>/{a.tm_minimum}</span></span>
+                        : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.75rem' }}>
+                      {kel ? (
+                        <span style={{
+                          background: kel === 'LAYAK' ? 'rgba(5,150,105,0.1)' : '#fee2e2',
+                          color: kel === 'LAYAK' ? '#059669' : '#b91c1c',
+                          padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700,
+                        }}>{kel}</span>
+                      ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                    </td>
+                    <td style={{ padding: '0.75rem' }}>
+                      <span style={{ background: STATUS_BG[a.status], color: STATUS_COLOR[a.status], padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
+                        {a.status}
                       </span>
-                    ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '0.75rem' }}>
-                    {a.bonus_eligible ? (
-                      <div>
-                        <span style={{ background: 'rgba(5,150,105,0.1)', color: '#059669', padding: '0.1rem 0.45rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>Eligible</span>
-                        {a.bonus_nominal > 0 && <div style={{ fontSize: '0.78rem', color: '#059669', marginTop: '0.2rem', fontWeight: 600 }}>{fmtRupiah(a.bonus_nominal)}</div>}
-                      </div>
-                    ) : <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>—</span>}
-                  </td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <span style={{ background: STATUS_BG[a.status], color: STATUS_COLOR[a.status], padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
-                      {a.status}
-                    </span>
-                  </td>
-                  <td style={{ padding: '0.75rem' }}>
-                    <div style={{ display: 'flex', gap: '0.35rem' }}>
-                      <button onClick={() => openEdit(a)}
-                        style={{ background: 'rgba(79,70,229,0.1)', border: 'none', borderRadius: '0.4rem', padding: '0.3rem 0.55rem', cursor: 'pointer', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem' }}>
-                        <Edit2 size={13} /> {a.status === 'Approved' ? 'Lihat' : 'Edit'}
-                      </button>
-                      {isAdmin && a.status !== 'Approved' && (
-                        <button onClick={() => deleteAssessment(a.id)}
-                          style={{ background: '#fee2e2', border: 'none', borderRadius: '0.4rem', padding: '0.3rem 0.5rem', cursor: 'pointer', color: '#b91c1c' }}>
-                          <Trash2 size={13} />
+                    </td>
+                    <td style={{ padding: '0.75rem' }}>
+                      <div style={{ display: 'flex', gap: '0.35rem' }}>
+                        <button onClick={() => openEdit(a)}
+                          style={{ background: 'rgba(79,70,229,0.1)', border: 'none', borderRadius: '0.4rem', padding: '0.3rem 0.55rem', cursor: 'pointer', color: 'var(--primary)', display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem' }}>
+                          <Edit2 size={13} /> {a.status === 'Approved' ? 'Lihat' : 'Edit'}
                         </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                        {isAdmin && a.status !== 'Approved' && (
+                          <button onClick={() => deleteAssessment(a.id)}
+                            style={{ background: '#fee2e2', border: 'none', borderRadius: '0.4rem', padding: '0.3rem 0.5rem', cursor: 'pointer', color: '#b91c1c' }}>
+                            <Trash2 size={13} />
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         )}
@@ -435,7 +560,7 @@ export default function KpiAssessmentPage() {
             <form onSubmit={handleCreate} style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem' }}>
               <div>
                 <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Karyawan *</label>
-                <select required value={formCreate.guru_id} onChange={e => handleGuruChange(e.target.value)} style={inp}>
+                <select required value={formCreate.guru_id} onChange={e => setFormCreate(f => ({ ...f, guru_id: e.target.value }))} style={inp}>
                   <option value="">-- Pilih karyawan --</option>
                   {gurus.map(g => <option key={g.id} value={g.id}>{g.nama} ({g.role})</option>)}
                 </select>
@@ -457,12 +582,22 @@ export default function KpiAssessmentPage() {
                 <div>
                   <label style={{ fontSize: '0.82rem', fontWeight: 600, display: 'block', marginBottom: '0.3rem' }}>Bulan *</label>
                   <select value={formCreate.periode_bulan} onChange={e => setFormCreate(f => ({ ...f, periode_bulan: Number(e.target.value) }))} style={inp}>
-                    {BULAN_FULL.slice(1).map((b, i) => <option key={i + 1} value={i + 1}>{b}</option>)}
+                    {BULAN_FULL.slice(1).map((b, i) => <option key={i+1} value={i+1}>{b}</option>)}
                   </select>
                 </div>
               </div>
+              {formCreate.guru_id && (() => {
+                const g = gurus.find(x => x.id === formCreate.guru_id);
+                return g ? (
+                  <div style={{ background: 'rgba(79,70,229,0.05)', borderRadius: '0.5rem', padding: '0.65rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                    <strong>TM Minimum:</strong> {getTmMinimum(g.role_guru)} sesi
+                    {!g.role_guru && <span style={{ color: '#d97706', marginLeft: '0.5rem' }}>⚠️ Role KPI belum diset</span>}
+                    {!g.tanggal_masuk && <span style={{ color: '#d97706', display: 'block', marginTop: '0.2rem' }}>⚠️ Tanggal masuk kerja belum diisi</span>}
+                  </div>
+                ) : null;
+              })()}
               <p style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', margin: 0 }}>
-                Indikator otomatis akan dihitung dari data absensi periode tersebut.
+                4 kriteria otomatis akan dihitung dari data absensi, izin, dan komplain CS periode tersebut.
               </p>
               <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end' }}>
                 <button type="button" className="btn" onClick={() => setModalCreate(false)}>Batal</button>
@@ -478,8 +613,8 @@ export default function KpiAssessmentPage() {
       {/* ── MODAL EDIT / LIHAT SKOR ── */}
       {editAssessment && (
         <div className="modal-overlay">
-          <div className="modal-content" style={{ maxWidth: 780, width: '95vw' }} onClick={e => e.stopPropagation()}>
-            {/* Header modal */}
+          <div className="modal-content" style={{ maxWidth: 820, width: '95vw' }} onClick={e => e.stopPropagation()}>
+            {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1rem' }}>
               <div>
                 <h2 style={{ fontWeight: 700, fontSize: '1.1rem', margin: 0 }}>
@@ -497,76 +632,99 @@ export default function KpiAssessmentPage() {
               </div>
             </div>
 
+            {/* Syarat Kelayakan */}
+            <div style={{ background: kelayakan?.layak ? 'rgba(5,150,105,0.06)' : 'rgba(185,28,28,0.05)', border: `1px solid ${kelayakan?.layak ? 'rgba(5,150,105,0.2)' : 'rgba(185,28,28,0.15)'}`, borderRadius: '0.75rem', padding: '0.85rem 1rem', marginBottom: '1rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '0.5rem' }}>
+                <div style={{ fontWeight: 700, fontSize: '0.85rem' }}>
+                  Syarat Kelayakan Bonus
+                  {loadingTm && <span style={{ fontWeight: 400, color: 'var(--text-secondary)', marginLeft: '0.5rem', fontSize: '0.78rem' }}>Menghitung TM...</span>}
+                </div>
+                <div style={{ fontWeight: 800, padding: '0.2rem 0.75rem', borderRadius: 999, fontSize: '0.82rem', background: kelayakan?.layak ? 'rgba(5,150,105,0.15)' : '#fee2e2', color: kelayakan?.layak ? '#059669' : '#b91c1c' }}>
+                  {editAssessment.status === 'Approved'
+                    ? (editAssessment.status_kelayakan || '—')
+                    : (kelayakan?.layak ? 'Proyeksi: LAYAK' : 'Proyeksi: TIDAK LAYAK')}
+                </div>
+              </div>
+              <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
+                {(kelayakan?.checks || []).map((c, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem' }}>
+                    <span style={{ color: c.ok ? '#059669' : '#b91c1c', fontWeight: 700 }}>{c.ok ? '✓' : '✗'}</span>
+                    <span style={{ color: c.ok ? '#059669' : '#b91c1c' }}>{c.label}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
             {/* Tabel skor */}
             {loadingScores ? (
               <p style={{ color: 'var(--text-secondary)' }}>Memuat skor...</p>
-            ) : localScores.length === 0 ? (
-              <p style={{ color: 'var(--text-secondary)' }}>Tidak ada indikator untuk role karyawan ini.</p>
             ) : (
               <div style={{ overflowX: 'auto', marginBottom: '1rem' }}>
                 <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem' }}>
                   <thead>
                     <tr style={{ borderBottom: '2px solid var(--glass-border)', background: 'rgba(79,70,229,0.04)' }}>
-                      {['Indikator', 'Tipe', 'Bobot', 'Target', 'Nilai Aktual', 'Skor', 'Catatan'].map(h => (
+                      {['#', 'Kriteria', 'Tipe', 'Nilai Aktual', 'Skor', '/Maks', 'Aturan'].map(h => (
                         <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700, fontSize: '0.73rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
                       ))}
                     </tr>
                   </thead>
                   <tbody>
-                    {localScores.map(s => {
-                      const locked = editAssessment.status === 'Approved';
-                      const bobot = parseFloat(s.kpi_targets?.bobot || 0);
-                      const target_nilai = s.kpi_targets?.target_nilai ?? '—';
-                      const satuan = s.kpi_targets?.satuan || '';
+                    {localScores.map((s, i) => {
+                      const locked  = editAssessment.status === 'Approved';
+                      const isAuto  = IND_AUTO_IDS.has(s.kpi_indicator_id);
+                      const rule    = scoringRules[s.kpi_indicator_id];
+                      const isKual  = s.kpi_indicator_id === IND_KUALITAS;
+                      const nilaiNum = Number(s.nilai_aktual);
                       return (
                         <tr key={s.id} style={{ borderBottom: '1px solid var(--glass-border)' }}>
+                          <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{i + 1}</td>
                           <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>
                             {s.kpi_indicators?.nama}
-                            {s.kpi_indicators?.deskripsi && (
-                              <div style={{ fontSize: '0.73rem', color: 'var(--text-secondary)', fontWeight: 400 }}>{s.kpi_indicators.deskripsi}</div>
-                            )}
                           </td>
                           <td style={{ padding: '0.65rem 0.75rem' }}>
                             <span style={{
-                              background: s.tipe === 'Otomatis' ? 'rgba(5,150,105,0.1)' : 'rgba(79,70,229,0.1)',
-                              color: s.tipe === 'Otomatis' ? '#059669' : 'var(--primary)',
-                              padding: '0.1rem 0.45rem', borderRadius: 999, fontSize: '0.73rem', fontWeight: 700,
+                              background: isAuto ? 'rgba(5,150,105,0.1)' : 'rgba(79,70,229,0.1)',
+                              color: isAuto ? '#059669' : 'var(--primary)',
+                              padding: '0.1rem 0.45rem', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700,
                             }}>
-                              {s.tipe}
+                              {isAuto ? 'Auto' : 'Manual'}
                             </span>
                           </td>
-                          <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>{bobot}%</td>
-                          <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)' }}>
-                            {target_nilai} {satuan}
-                          </td>
                           <td style={{ padding: '0.65rem 0.75rem' }}>
-                            {locked ? (
-                              <span style={{ fontWeight: 600 }}>{s.nilai_aktual ?? '—'} {satuan}</span>
+                            {locked || isAuto ? (
+                              <span style={{ fontWeight: 600 }}>
+                                {s.nilai_aktual !== '' && s.nilai_aktual != null
+                                  ? (isKual ? (nilaiNum === 1 ? 'Sesuai' : 'Tidak Sesuai') : s.nilai_aktual)
+                                  : '—'}
+                              </span>
+                            ) : isKual ? (
+                              <select value={s.nilai_aktual} onChange={e => handleScoreChange(s.id, e.target.value)}
+                                style={{ ...inp, width: 140, padding: '0.35rem 0.55rem' }}>
+                                <option value="">-- Pilih --</option>
+                                <option value="1">Sesuai Metode</option>
+                                <option value="0">Tidak Sesuai</option>
+                              </select>
                             ) : (
-                              <input type="number" min={0} step={0.01} value={s.nilai_aktual}
+                              <input type="number" min={0} step={1} value={s.nilai_aktual}
                                 onChange={e => handleScoreChange(s.id, e.target.value)}
-                                style={{ ...inp, width: 90, padding: '0.35rem 0.55rem' }}
+                                style={{ ...inp, width: 80, padding: '0.35rem 0.55rem' }}
                                 placeholder="0" />
                             )}
                           </td>
                           <td style={{ padding: '0.65rem 0.75rem' }}>
                             <span style={{
                               fontWeight: 800, fontSize: '0.95rem',
-                              color: parseFloat(s.nilai_skor) >= bobot * 0.9 ? '#059669'
-                                : parseFloat(s.nilai_skor) >= bobot * 0.75 ? '#d97706' : '#b91c1c',
+                              color: (rule && Number(s.nilai_skor) >= rule.skor_maksimal)
+                                ? '#059669' : Number(s.nilai_skor) > 0 ? '#d97706' : '#b91c1c',
                             }}>
-                              {parseFloat(s.nilai_skor || 0).toFixed(2)}
+                              {Number(s.nilai_skor || 0)}
                             </span>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>/{bobot}</span>
                           </td>
-                          <td style={{ padding: '0.65rem 0.75rem' }}>
-                            {locked ? (
-                              <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{s.catatan || '—'}</span>
-                            ) : (
-                              <input value={s.catatan || ''} onChange={e => handleCatatanChange(s.id, e.target.value)}
-                                style={{ ...inp, width: 120, padding: '0.35rem 0.55rem', fontSize: '0.8rem' }}
-                                placeholder="Catatan..." />
-                            )}
+                          <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', fontSize: '0.78rem' }}>
+                            {rule ? rule.skor_maksimal : '—'}
+                          </td>
+                          <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', fontSize: '0.75rem', maxWidth: 160 }}>
+                            {rule?.deskripsi_aturan || '—'}
                           </td>
                         </tr>
                       );
@@ -574,13 +732,13 @@ export default function KpiAssessmentPage() {
                   </tbody>
                   <tfoot>
                     <tr style={{ borderTop: '2px solid var(--glass-border)', background: 'rgba(79,70,229,0.04)' }}>
-                      <td colSpan={5} style={{ padding: '0.65rem 0.75rem', fontWeight: 700, textAlign: 'right' }}>Total Skor:</td>
+                      <td colSpan={4} style={{ padding: '0.65rem 0.75rem', fontWeight: 700, textAlign: 'right' }}>Total Skor:</td>
                       <td style={{ padding: '0.65rem 0.75rem' }}>
-                        <span style={{ fontSize: '1.15rem', fontWeight: 800, color: scoreColor(totalSkor) }}>
-                          {totalSkor.toFixed(2)}
+                        <span style={{ fontSize: '1.2rem', fontWeight: 800, color: scoreColor(totalSkor) }}>
+                          {totalSkor}
                         </span>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>/100</span>
                       </td>
+                      <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>/100</td>
                       <td />
                     </tr>
                   </tfoot>
@@ -588,34 +746,29 @@ export default function KpiAssessmentPage() {
               </div>
             )}
 
-            {/* Seksi approval bonus */}
+            {/* Seksi approve: catatan + bonus nominal */}
             {isAdmin && editAssessment.status === 'Submitted' && (
               <div style={{ background: 'rgba(5,150,105,0.05)', border: '1px solid rgba(5,150,105,0.2)', borderRadius: '0.75rem', padding: '1rem', marginBottom: '1rem' }}>
-                <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.75rem', color: '#059669' }}>
-                  Persetujuan & Bonus
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem', marginBottom: '0.65rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <input type="checkbox" id="bonus_eligible" checked={formApprove.bonus_eligible}
-                      onChange={e => setFormApprove(f => ({ ...f, bonus_eligible: e.target.checked }))} style={{ width: 16, height: 16 }} />
-                    <label htmlFor="bonus_eligible" style={{ fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer' }}>Eligible Bonus</label>
+                <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '0.75rem', color: '#059669' }}>Persetujuan</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.65rem' }}>
+                  <div>
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>
+                      Nominal Bonus (Rp) — opsional
+                    </label>
+                    <input type="number" min={0} value={formBonusNominal}
+                      onChange={e => setFormBonusNominal(e.target.value)} style={inp} placeholder="0" />
                   </div>
                   <div>
-                    <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Nominal Bonus (Rp)</label>
-                    <input type="number" min={0} value={formApprove.bonus_nominal}
-                      onChange={e => setFormApprove(f => ({ ...f, bonus_nominal: e.target.value }))}
-                      disabled={!formApprove.bonus_eligible} style={{ ...inp }} placeholder="0" />
+                    <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Catatan Approver</label>
+                    <input value={formCatatan} onChange={e => setFormCatatan(e.target.value)} style={inp} placeholder="Opsional..." />
                   </div>
                 </div>
-                <div>
-                  <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Catatan Approver</label>
-                  <textarea value={formApprove.catatan} onChange={e => setFormApprove(f => ({ ...f, catatan: e.target.value }))}
-                    rows={2} style={{ ...inp, resize: 'vertical' }} placeholder="Opsional..." />
-                </div>
+                <p style={{ margin: '0.5rem 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                  Kelayakan bonus ditentukan otomatis berdasarkan masa kerja, TM, dan skor.
+                </p>
               </div>
             )}
 
-            {/* View catatan jika sudah Approved */}
             {editAssessment.status === 'Approved' && editAssessment.catatan && (
               <div style={{ background: 'rgba(5,150,105,0.05)', border: '1px solid rgba(5,150,105,0.2)', borderRadius: '0.75rem', padding: '0.85rem', marginBottom: '1rem', fontSize: '0.85rem' }}>
                 <strong>Catatan approver:</strong> {editAssessment.catatan}
@@ -623,33 +776,32 @@ export default function KpiAssessmentPage() {
             )}
 
             {/* Action buttons */}
-            {editAssessment.status !== 'Approved' && (
-              <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
-                <button className="btn" onClick={() => setEditAssessment(null)}>Tutup</button>
-                {isAdmin && editAssessment.status === 'Draft' && (
-                  <>
-                    <button className="btn" onClick={saveScores} disabled={saving}>
-                      {saving ? 'Menyimpan...' : 'Simpan Draft'}
-                    </button>
-                    <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
-                      onClick={submitAssessment} disabled={saving}>
-                      <Send size={14} /> Submit
-                    </button>
-                  </>
-                )}
-                {isAdmin && editAssessment.status === 'Submitted' && (
-                  <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#059669' }}
-                    onClick={approveAssessment} disabled={saving}>
-                    <CheckCircle size={14} /> Approve
+            <div style={{ display: 'flex', gap: '0.65rem', justifyContent: 'flex-end', flexWrap: 'wrap' }}>
+              <button className="btn" onClick={() => setEditAssessment(null)}>Tutup</button>
+              {editAssessment.status !== 'Approved' && isAdmin && (
+                <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                  onClick={handleRefreshAuto} disabled={saving}>
+                  <RefreshCw size={14} /> Refresh Auto
+                </button>
+              )}
+              {isAdmin && editAssessment.status === 'Draft' && (
+                <>
+                  <button className="btn" onClick={saveScores} disabled={saving}>
+                    {saving ? 'Menyimpan...' : 'Simpan Draft'}
                   </button>
-                )}
-              </div>
-            )}
-            {editAssessment.status === 'Approved' && (
-              <div style={{ textAlign: 'right' }}>
-                <button className="btn" onClick={() => setEditAssessment(null)}>Tutup</button>
-              </div>
-            )}
+                  <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}
+                    onClick={submitAssessment} disabled={saving}>
+                    <Send size={14} /> Submit
+                  </button>
+                </>
+              )}
+              {isAdmin && editAssessment.status === 'Submitted' && (
+                <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: '#059669' }}
+                  onClick={approveAssessment} disabled={saving}>
+                  <CheckCircle size={14} /> Approve & Finalisasi
+                </button>
+              )}
+            </div>
           </div>
         </div>
       )}

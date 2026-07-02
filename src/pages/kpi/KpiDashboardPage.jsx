@@ -92,7 +92,7 @@ export default function KpiDashboardPage() {
 
   // ── EXPORT CSV ───────────────────────────────────────────────
   const exportCSV = () => {
-    const header = ['Rank', 'Nama', 'Role', 'Unit', 'Periode', 'Skor', 'Status', 'Bonus Eligible', 'Nominal Bonus'];
+    const header = ['Rank', 'Nama', 'Role', 'Unit', 'Periode', 'Skor', 'TM', 'TM Min', 'Kelayakan', 'Status', 'Bonus Eligible', 'Nominal Bonus'];
     const rows = assessments.map((a, i) => [
       i + 1,
       a.gurus?.nama || '-',
@@ -100,6 +100,9 @@ export default function KpiDashboardPage() {
       a.units?.nama || '-',
       `${BULAN_LABEL[a.periode_bulan]} ${a.periode_tahun}`,
       a.skor_akhir != null ? parseFloat(a.skor_akhir).toFixed(2) : '-',
+      a.jumlah_tm ?? '-',
+      a.tm_minimum ?? '-',
+      a.status_kelayakan || '-',
       a.status,
       a.bonus_eligible ? 'Ya' : 'Tidak',
       a.bonus_nominal || 0,
@@ -193,7 +196,7 @@ export default function KpiDashboardPage() {
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
               <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                {['#', 'Karyawan', 'Role', 'Unit', 'Skor', 'Predikat', 'Bonus', 'Status'].map(h => (
+                {['#', 'Karyawan', 'Role', 'Unit', 'Skor', 'TM', 'Kelayakan', 'Bonus', 'Status'].map(h => (
                   <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
                 ))}
               </tr>
@@ -216,10 +219,19 @@ export default function KpiDashboardPage() {
                         {skor != null ? skor.toFixed(1) : '—'}
                       </span>
                     </td>
+                    <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.82rem' }}>
+                      {a.jumlah_tm != null
+                        ? <span style={{ fontWeight: 600 }}>{a.jumlah_tm}<span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>/{a.tm_minimum}</span></span>
+                        : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                    </td>
                     <td style={{ padding: '0.7rem 0.75rem' }}>
-                      <span style={{ background: scoreBg(skor), color: scoreColor(skor), padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
-                        {scoreLabel(skor)}
-                      </span>
+                      {a.status_kelayakan ? (
+                        <span style={{
+                          background: a.status_kelayakan === 'LAYAK' ? 'rgba(5,150,105,0.1)' : '#fee2e2',
+                          color: a.status_kelayakan === 'LAYAK' ? '#059669' : '#b91c1c',
+                          padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700,
+                        }}>{a.status_kelayakan}</span>
+                      ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                     </td>
                     <td style={{ padding: '0.7rem 0.75rem' }}>
                       {a.bonus_eligible ? (

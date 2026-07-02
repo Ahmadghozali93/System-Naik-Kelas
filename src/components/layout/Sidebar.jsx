@@ -508,7 +508,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {/* KPI GROUP */}
-                {['/kpi/indikator', '/kpi/penilaian', '/kpi/dashboard'].some(p => hasPermission(p)) && (
+                {['/kpi/indikator', '/kpi/penilaian', '/kpi/dashboard', '/kpi/komplain'].some(p => hasPermission(p)) && (
                     <SidebarGroup
                         title="KPI Karyawan"
                         icon={Target}
@@ -528,6 +528,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/kpi/dashboard') && (
                             <NavLink to="/kpi/dashboard" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <TrendingUp className="w-4 h-4" /><span>Dashboard KPI</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/kpi/komplain') && (
+                            <NavLink to="/kpi/komplain" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ListChecks className="w-4 h-4" /><span>Komplain CS</span>
                             </NavLink>
                         )}
                     </SidebarGroup>

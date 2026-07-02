@@ -43,6 +43,7 @@ import HariLiburPage from './pages/absensi/HariLiburPage';
 import KpiIndicatorPage from './pages/kpi/KpiIndicatorPage';
 import KpiAssessmentPage from './pages/kpi/KpiAssessmentPage';
 import KpiDashboardPage from './pages/kpi/KpiDashboardPage';
+import KpiComplaintsPage from './pages/kpi/KpiComplaintsPage';
 import SalaryComponentPage from './pages/payroll/SalaryComponentPage';
 import EmployeeSalaryPage from './pages/payroll/EmployeeSalaryPage';
 import PayrollPage from './pages/payroll/PayrollPage';
@@ -164,6 +165,7 @@ function App() {
             <Route path="/kpi/indikator"  element={<KpiIndicatorPage />} />
             <Route path="/kpi/penilaian"  element={<KpiAssessmentPage />} />
             <Route path="/kpi/dashboard"  element={<KpiDashboardPage />} />
+            <Route path="/kpi/komplain"   element={<KpiComplaintsPage />} />
 
             {/* PAYROLL */}
             <Route path="/payroll/komponen"  element={<SalaryComponentPage />} />
