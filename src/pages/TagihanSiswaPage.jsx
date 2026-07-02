@@ -27,7 +27,7 @@ const buildBroadcastUrl = (nowa, p) => {
     ? new Date(p.tanggal_bayar).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})
     : '-';
   const nominal = (p.nominal||0).toLocaleString('id-ID');
-  const msg = `Halo Ayah/Bunda 🙏\nTerima kasih, pembayaran SPP ananda ${p.nama_siswa||''} sudah kami terima ✅\n📚 Program: ${p.nama_program||'-'}\n🗓️ SPP Bulan: ${bulan}\n💰 Nominal: Rp ${nominal}\n📅 Tanggal Bayar: ${tglBayar}\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas 💙`;
+  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nPembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\nSPP bulan : ${bulan}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 };
 
