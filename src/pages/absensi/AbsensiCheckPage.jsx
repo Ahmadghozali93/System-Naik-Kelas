@@ -31,40 +31,63 @@ function CameraModal({ onCapture, onClose, label }) {
   const [ready, setReady] = useState(false);
   const [preview, setPreview] = useState(null); // blob URL setelah ambil foto
   const [capturedBlob, setCapturedBlob] = useState(null);
+  const [camError, setCamError] = useState(null); // pesan error kamera
+
+  const stopStream = () => {
+    try { streamRef.current?.getTracks().forEach(t => t.stop()); } catch (_e) {}
+  };
+
+  const getCamErrorMsg = (err) => {
+    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia)
+      return 'Kamera tidak tersedia di browser ini. Coba buka lewat Chrome dan pastikan menggunakan HTTPS.';
+    const name = err?.name || '';
+    if (name === 'NotAllowedError' || name === 'PermissionDeniedError')
+      return 'Izin kamera ditolak. Buka Pengaturan > Privasi > Kamera dan izinkan akses untuk browser ini.';
+    if (name === 'NotFoundError' || name === 'DevicesNotFoundError')
+      return 'Tidak ada kamera yang terdeteksi di perangkat ini.';
+    if (name === 'NotReadableError' || name === 'TrackStartError')
+      return 'Kamera sedang digunakan aplikasi lain. Tutup aplikasi lain lalu coba lagi.';
+    if (name === 'OverconstrainedError')
+      return 'Kamera tidak mendukung resolusi yang diminta.';
+    return 'Gagal membuka kamera: ' + (err?.message || String(err));
+  };
+
+  const startCamera = async () => {
+    setCamError(null);
+    try {
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+        throw new Error('MediaDevices API tidak tersedia');
+      }
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
+      streamRef.current = stream;
+      if (videoRef.current) { videoRef.current.srcObject = stream; setReady(true); }
+    } catch (err) {
+      setCamError(getCamErrorMsg(err));
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user', width: 640, height: 480 } });
-        streamRef.current = stream;
-        if (videoRef.current) { videoRef.current.srcObject = stream; setReady(true); }
-      } catch {
-        alert('Tidak bisa akses kamera. Pastikan izin kamera sudah diberikan.');
-        onClose();
-      }
-    })();
-    return () => streamRef.current?.getTracks().forEach(t => t.stop());
+    startCamera();
+    return () => stopStream();
   }, []);
 
   const ambilFoto = () => {
+    if (!videoRef.current) return;
     const canvas = document.createElement('canvas');
     canvas.width  = videoRef.current.videoWidth  || 640;
     canvas.height = videoRef.current.videoHeight || 480;
     canvas.getContext('2d').drawImage(videoRef.current, 0, 0);
     canvas.toBlob(blob => {
+      if (!blob) { setCamError('Gagal mengambil foto. Coba lagi.'); return; }
       setCapturedBlob(blob);
       setPreview(URL.createObjectURL(blob));
-      streamRef.current?.getTracks().forEach(t => t.stop());
+      stopStream();
     }, 'image/jpeg', 0.85);
   };
 
   const ulangi = async () => {
     setPreview(null); setCapturedBlob(null);
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
-      streamRef.current = stream;
-      videoRef.current.srcObject = stream;
-    } catch { onClose(); }
+    await startCamera();
   };
 
   return (
@@ -72,7 +95,20 @@ function CameraModal({ onCapture, onClose, label }) {
       <div className="modal-content" style={{ maxWidth: 480 }} onClick={e => e.stopPropagation()}>
         <h2 style={{ fontWeight: 700, fontSize: '1.1rem', marginBottom: '1rem' }}>{label}</h2>
 
-        {!preview ? (
+        {camError ? (
+          <>
+            <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.65rem', padding: '1rem', marginBottom: '1rem', color: '#b91c1c', fontSize: '0.88rem', lineHeight: 1.5 }}>
+              <AlertCircle size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
+              {camError}
+            </div>
+            <div style={{ display: 'flex', gap: '0.75rem' }}>
+              <button className="btn" style={{ flex: 1 }} onClick={onClose}>Tutup</button>
+              <button className="btn btn-primary" style={{ flex: 1 }} onClick={startCamera}>
+                <RefreshCw size={14} /> Coba Lagi
+              </button>
+            </div>
+          </>
+        ) : !preview ? (
           <>
             <video ref={videoRef} autoPlay playsInline muted
               style={{ width: '100%', borderRadius: '0.75rem', background: '#000', display: 'block' }} />
