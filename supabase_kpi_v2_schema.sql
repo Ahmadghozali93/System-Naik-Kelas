@@ -12,9 +12,7 @@
 -- 1. TAMBAH KOLOM DI gurus
 -- ============================================================
 ALTER TABLE gurus
-  ADD COLUMN IF NOT EXISTS tanggal_masuk DATE,
-  ADD COLUMN IF NOT EXISTS role_guru     TEXT
-    CHECK (role_guru IN ('learning_coordinator', 'tutor'));
+  ADD COLUMN IF NOT EXISTS tanggal_masuk DATE;
 
 -- ============================================================
 -- 2. TAMBAH KOLOM DI kpi_assessments

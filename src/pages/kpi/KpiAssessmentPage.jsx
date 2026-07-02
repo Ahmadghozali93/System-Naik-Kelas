@@ -37,8 +37,8 @@ function applyRule(nilai, rule) {
   return rule.skor_tier3;
 }
 
-function getTmMinimum(role_guru) {
-  if (role_guru === 'learning_coordinator') return 200;
+function getTmMinimum(role) {
+  if (role === 'Learning Koordinator') return 200;
   return 100;
 }
 
@@ -155,7 +155,7 @@ export default function KpiAssessmentPage() {
   // ── MASTER DATA ──────────────────────────────────────────────
   useEffect(() => {
     Promise.all([
-      supabase.from('gurus').select('id,nama,role,tanggal_masuk,role_guru').eq('status','Aktif').order('nama'),
+      supabase.from('gurus').select('id,nama,role,tanggal_masuk').eq('status','Aktif').order('nama'),
       supabase.from('units').select('*').eq('aktif', true).order('nama'),
       supabase.from('kpi_indicators').select('*').eq('aktif', true).order('id'),
       supabase.from('kpi_scoring_rules').select('*'),
@@ -173,7 +173,7 @@ export default function KpiAssessmentPage() {
   const fetchAssessments = useCallback(async () => {
     setLoading(true);
     let q = supabase.from('kpi_assessments')
-      .select('*, gurus!guru_id(nama, role, tanggal_masuk, role_guru), units!unit_id(nama)')
+      .select('*, gurus!guru_id(nama, role, tanggal_masuk), units!unit_id(nama)')
       .eq('periode_tahun', filterTahun)
       .eq('periode_bulan', filterBulan)
       .order('created_at', { ascending: false });
@@ -212,7 +212,7 @@ export default function KpiAssessmentPage() {
     const guru   = gurus.find(g => g.id === formCreate.guru_id);
     const tahun  = Number(formCreate.periode_tahun);
     const bulan  = Number(formCreate.periode_bulan);
-    const tmMin  = getTmMinimum(guru?.role_guru);
+    const tmMin  = getTmMinimum(guru?.role);
 
     // Ambil nilai otomatis
     const auto = await calcAutoValues(formCreate.guru_id, tahun, bulan);
@@ -330,7 +330,7 @@ export default function KpiAssessmentPage() {
     [localScores],
   );
 
-  const editTmMinimum = editAssessment?.tm_minimum || getTmMinimum(editGuru?.role_guru);
+  const editTmMinimum = editAssessment?.tm_minimum || getTmMinimum(editGuru?.role);
 
   const kelayakan = useMemo(() => {
     if (!editAssessment) return null;
@@ -590,8 +590,7 @@ export default function KpiAssessmentPage() {
                 const g = gurus.find(x => x.id === formCreate.guru_id);
                 return g ? (
                   <div style={{ background: 'rgba(79,70,229,0.05)', borderRadius: '0.5rem', padding: '0.65rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                    <strong>TM Minimum:</strong> {getTmMinimum(g.role_guru)} sesi
-                    {!g.role_guru && <span style={{ color: '#d97706', marginLeft: '0.5rem' }}>⚠️ Role KPI belum diset</span>}
+                    <strong>TM Minimum:</strong> {getTmMinimum(g.role)} sesi
                     {!g.tanggal_masuk && <span style={{ color: '#d97706', display: 'block', marginTop: '0.2rem' }}>⚠️ Tanggal masuk kerja belum diisi</span>}
                   </div>
                 ) : null;
