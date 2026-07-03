@@ -46,6 +46,8 @@ const AVAILABLE_MENUS = [
     { path: '/kpi/indikator',    label: 'KPI - Master Indikator' },
     { path: '/kpi/penilaian',    label: 'KPI - Penilaian' },
     { path: '/kpi/dashboard',    label: 'KPI - Dashboard' },
+    { path: '/kpi/komplain',     label: 'KPI - Komplain CS' },
+    { path: '/kpi/bonus-tier',   label: 'KPI - Tier Bonus' },
     // ── Pengaturan ───────────────────────────────────
     { path: '/role-setup',       label: 'Setup Hak Akses' },
     { path: '/pengaturan',       label: 'Pengaturan Aplikasi' },
