@@ -199,7 +199,10 @@ export default function KpiAssessmentPage() {
       .order('tm_dari', { ascending: false })
       .limit(1)
       .maybeSingle()
-      .then(({ data }) => setPreviewBonus(data?.bonus_nominal || 0));
+      .then(({ data, error }) => {
+        if (error) { setPreviewBonus(0); return; }
+        setPreviewBonus(data?.bonus_nominal || 0);
+      });
   }, [liveTm, editAssessment, editGuru]);
 
   // ── HITUNG LIVE TM ────────────────────────────────────────────
@@ -415,14 +418,18 @@ export default function KpiAssessmentPage() {
     // Lookup bonus otomatis dari bonus_tiers
     let bonusNominal = 0;
     if (kel.layak && editGuru?.role_guru) {
-      const { data: tierRow } = await supabase.from('bonus_tiers')
-        .select('bonus_nominal')
-        .eq('role_guru', editGuru.role_guru)
-        .lte('tm_dari', tmSnap)
-        .order('tm_dari', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-      bonusNominal = tierRow?.bonus_nominal || 0;
+      try {
+        const { data: tierRow, error: tierErr } = await supabase.from('bonus_tiers')
+          .select('bonus_nominal')
+          .eq('role_guru', editGuru.role_guru)
+          .lte('tm_dari', tmSnap)
+          .order('tm_dari', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+        if (!tierErr) bonusNominal = tierRow?.bonus_nominal || 0;
+      } catch(err) {
+        console.warn('bonus_tiers lookup failed:', err);
+      }
     }
 
     await supabase.from('kpi_assessments').update({

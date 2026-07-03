@@ -35,10 +35,14 @@ export default function BonusTiersPage() {
 
   const fetchTiers = async () => {
     setLoading(true);
-    const { data } = await supabase.from('bonus_tiers')
+    const { data, error } = await supabase.from('bonus_tiers')
       .select('*')
       .order('role_guru')
       .order('tm_dari');
+    if (error) {
+      console.error('bonus_tiers:', error.message);
+      alert('Tabel bonus_tiers belum ada. Jalankan supabase_bonus_tiers.sql di Supabase SQL Editor terlebih dahulu.');
+    }
     setTiers(data || []);
     setLoading(false);
   };
