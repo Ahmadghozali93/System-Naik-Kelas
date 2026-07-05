@@ -183,38 +183,47 @@ CREATE POLICY "ta_select" ON task_assignees FOR SELECT
   USING (
     task_is_owner()
     OR guru_id = absensi_guru_id()
-    OR EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-        AND t.unit_id = ANY(absensi_unit_ids())
-        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
-    )
+    OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+      absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id()
+    ))
   );
 
 CREATE POLICY "ta_insert" ON task_assignees FOR INSERT
   WITH CHECK (
     task_is_owner()
-    OR EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-        AND t.unit_id = ANY(absensi_unit_ids())
-        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
-    )
+    OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+      absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id()
+    ))
   );
 
 CREATE POLICY "ta_delete" ON task_assignees FOR DELETE
   USING (
     task_is_owner()
-    OR EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-        AND t.unit_id = ANY(absensi_unit_ids())
-        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
-    )
+    OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+      absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id()
+    ))
   );
 
 -- ============================================================
--- 5b. TASKS — pasang RLS policy (task_assignees sudah ada)
+-- 5b. Helper SECURITY DEFINER — break RLS recursion antara tasks ↔ task_assignees
+-- ============================================================
+CREATE OR REPLACE FUNCTION task_is_assignee(p_task_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (SELECT 1 FROM task_assignees WHERE task_id = p_task_id AND guru_id = absensi_guru_id());
+$$;
+
+CREATE OR REPLACE FUNCTION task_get_unit(p_task_id UUID)
+RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT unit_id FROM tasks WHERE id = p_task_id LIMIT 1;
+$$;
+
+CREATE OR REPLACE FUNCTION task_get_creator(p_task_id UUID)
+RETURNS TEXT LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT dibuat_oleh FROM tasks WHERE id = p_task_id LIMIT 1;
+$$;
+
+-- ============================================================
+-- 5c. TASKS — pasang RLS policy (task_assignees sudah ada)
 -- ============================================================
 DROP POLICY IF EXISTS "tasks_select" ON tasks;
 DROP POLICY IF EXISTS "tasks_insert" ON tasks;
@@ -224,17 +233,9 @@ DROP POLICY IF EXISTS "tasks_delete" ON tasks;
 CREATE POLICY "tasks_select" ON tasks FOR SELECT
   USING (
     task_is_owner()
-    OR (
-      unit_id = ANY(absensi_unit_ids())
-      AND (
-        absensi_is_admin()
-        OR dibuat_oleh = absensi_guru_id()
-        OR EXISTS (
-          SELECT 1 FROM task_assignees ta
-          WHERE ta.task_id = tasks.id AND ta.guru_id = absensi_guru_id()
-        )
-      )
-    )
+    OR (unit_id = ANY(absensi_unit_ids()) AND (
+      absensi_is_admin() OR dibuat_oleh = absensi_guru_id() OR task_is_assignee(id)
+    ))
   );
 
 CREATE POLICY "tasks_insert" ON tasks FOR INSERT
@@ -247,17 +248,9 @@ CREATE POLICY "tasks_insert" ON tasks FOR INSERT
 CREATE POLICY "tasks_update" ON tasks FOR UPDATE
   USING (
     task_is_owner()
-    OR (
-      unit_id = ANY(absensi_unit_ids())
-      AND (
-        absensi_is_admin()
-        OR dibuat_oleh = absensi_guru_id()
-        OR EXISTS (
-          SELECT 1 FROM task_assignees ta
-          WHERE ta.task_id = tasks.id AND ta.guru_id = absensi_guru_id()
-        )
-      )
-    )
+    OR (unit_id = ANY(absensi_unit_ids()) AND (
+      absensi_is_admin() OR dibuat_oleh = absensi_guru_id() OR task_is_assignee(id)
+    ))
   );
 
 CREATE POLICY "tasks_delete" ON tasks FOR DELETE
@@ -287,39 +280,24 @@ DROP POLICY IF EXISTS "tcl_update" ON task_checklists;
 DROP POLICY IF EXISTS "tcl_delete" ON task_checklists;
 
 CREATE POLICY "tcl_select" ON task_checklists FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM tasks t WHERE t.id = task_checklists.task_id
-    AND (task_is_owner() OR (t.unit_id = ANY(absensi_unit_ids()) AND (
-      absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id()
-      OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.guru_id = absensi_guru_id())
-    )))
-  ));
+  USING (task_is_owner() OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+    absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id() OR task_is_assignee(task_id)
+  )));
 
 CREATE POLICY "tcl_insert" ON task_checklists FOR INSERT
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM tasks t WHERE t.id = task_checklists.task_id
-    AND (task_is_owner() OR (t.unit_id = ANY(absensi_unit_ids()) AND (
-      absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id()
-      OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.guru_id = absensi_guru_id())
-    )))
-  ));
+  WITH CHECK (task_is_owner() OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+    absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id() OR task_is_assignee(task_id)
+  )));
 
 CREATE POLICY "tcl_update" ON task_checklists FOR UPDATE
-  USING (EXISTS (
-    SELECT 1 FROM tasks t WHERE t.id = task_checklists.task_id
-    AND (task_is_owner() OR (t.unit_id = ANY(absensi_unit_ids()) AND (
-      absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id()
-      OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.guru_id = absensi_guru_id())
-    )))
-  ));
+  USING (task_is_owner() OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+    absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id() OR task_is_assignee(task_id)
+  )));
 
 CREATE POLICY "tcl_delete" ON task_checklists FOR DELETE
-  USING (EXISTS (
-    SELECT 1 FROM tasks t WHERE t.id = task_checklists.task_id
-    AND (task_is_owner() OR (t.unit_id = ANY(absensi_unit_ids()) AND (
-      absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id()
-    )))
-  ));
+  USING (task_is_owner() OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+    absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id()
+  )));
 
 -- ============================================================
 -- 8. TASK_COMMENTS
@@ -339,13 +317,9 @@ DROP POLICY IF EXISTS "tco_insert" ON task_comments;
 DROP POLICY IF EXISTS "tco_delete" ON task_comments;
 
 CREATE POLICY "tco_select" ON task_comments FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM tasks t WHERE t.id = task_comments.task_id
-    AND (task_is_owner() OR (t.unit_id = ANY(absensi_unit_ids()) AND (
-      absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id()
-      OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.guru_id = absensi_guru_id())
-    )))
-  ));
+  USING (task_is_owner() OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+    absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id() OR task_is_assignee(task_id)
+  )));
 
 CREATE POLICY "tco_insert" ON task_comments FOR INSERT
   WITH CHECK (
@@ -384,13 +358,9 @@ DROP POLICY IF EXISTS "tat_insert" ON task_attachments;
 DROP POLICY IF EXISTS "tat_delete" ON task_attachments;
 
 CREATE POLICY "tat_select" ON task_attachments FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM tasks t WHERE t.id = task_attachments.task_id
-    AND (task_is_owner() OR (t.unit_id = ANY(absensi_unit_ids()) AND (
-      absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id()
-      OR EXISTS (SELECT 1 FROM task_assignees ta WHERE ta.task_id = t.id AND ta.guru_id = absensi_guru_id())
-    )))
-  ));
+  USING (task_is_owner() OR (task_get_unit(task_id) = ANY(absensi_unit_ids()) AND (
+    absensi_is_admin() OR task_get_creator(task_id) = absensi_guru_id() OR task_is_assignee(task_id)
+  )));
 
 CREATE POLICY "tat_insert" ON task_attachments FOR INSERT
   WITH CHECK (
