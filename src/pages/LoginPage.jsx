@@ -46,7 +46,7 @@ export default function LoginPage() {
         }
         const result = await login(credentials.email, credentials.password);
         if (result.success) {
-            navigate('/kanban', { replace: true });
+            navigate('/tugas/saya', { replace: true });
         } else {
             setErrorMsg(result.error || 'Login gagal. Periksa kembali email dan password Anda.');
         }

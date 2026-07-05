@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Award } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
@@ -26,12 +26,19 @@ export default function BonusTiersPage() {
   const { user } = useAuth();
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
-  const [tiers, setTiers]   = useState([]);
+  const [tiers, setTiers]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [modal, setModal]   = useState(false);
-  const [editId, setEditId] = useState(null);
-  const [form, setForm]     = useState(EMPTY_FORM);
-  const [saving, setSaving] = useState(false);
+  const [modal, setModal]     = useState(false);
+  const [editId, setEditId]   = useState(null);
+  const [form, setForm]       = useState(EMPTY_FORM);
+  const [saving, setSaving]   = useState(false);
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const fetchTiers = async () => {
     setLoading(true);
@@ -98,7 +105,8 @@ export default function BonusTiersPage() {
       return <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', padding: '1rem 0' }}>Belum ada tier untuk kelas ini.</p>;
     }
     return (
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+      <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 280 }}>
         <thead>
           <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
             {['TM Minimum', 'Bonus Nominal', 'Aksi'].map(h => (
@@ -136,31 +144,31 @@ export default function BonusTiersPage() {
           ))}
         </tbody>
       </table>
+      </div>
     );
   };
 
   return (
     <div>
-      <div style={{ marginBottom: '1.25rem' }}>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>KPI</p>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0 }}>Tier Bonus KPI</h1>
-        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0' }}>
-          Pemetaan jumlah TM → nominal bonus per kelas. Sistem otomatis memilih tier tertinggi yang dicapai saat finalisasi KPI.
-        </p>
-      </div>
-
-      {isAdmin && (
-        <div style={{ marginBottom: '1rem', display: 'flex', justifyContent: 'flex-end' }}>
-          <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }} onClick={openAdd}>
+      <div style={{ marginBottom: '1.25rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '0.75rem' }}>
+        <div style={{ flex: 1 }}>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>KPI</p>
+          <h1 style={{ fontSize: isMobile ? '1.3rem' : '1.6rem', fontWeight: 700, margin: 0 }}>Tier Bonus KPI</h1>
+          <p style={{ fontSize: '0.82rem', color: 'var(--text-secondary)', margin: '0.25rem 0 0' }}>
+            Pemetaan jumlah TM → nominal bonus per kelas.
+          </p>
+        </div>
+        {isAdmin && (
+          <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', whiteSpace: 'nowrap' }} onClick={openAdd}>
             <Plus size={16} /> Tambah Tier
           </button>
-        </div>
-      )}
+        )}
+      </div>
 
       {loading ? (
         <p style={{ color: 'var(--text-secondary)' }}>Memuat...</p>
       ) : (
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: '1rem' }}>
           {ROLE_GURU_OPTIONS.map(({ value, label }) => {
             const c = ROLE_COLOR[value];
             const rows = value === 'learning_coordinator' ? tiersA : tiersB;

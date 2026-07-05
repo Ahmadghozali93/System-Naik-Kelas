@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Download, TrendingUp, Award, Star } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
@@ -46,6 +46,13 @@ export default function KpiDashboardPage() {
   const [assessments, setAssessments] = useState([]);
   const [units, setUnits]             = useState([]);
   const [loading, setLoading]         = useState(false);
+  const [isMobile, setIsMobile]       = useState(() => window.innerWidth < 768);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   const [filterTahun, setFilterTahun]   = useState(THIS_YEAR);
   const [filterBulan, setFilterBulan]   = useState(THIS_MONTH);
@@ -161,7 +168,7 @@ export default function KpiDashboardPage() {
       </div>
 
       {/* Summary cards */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: isMobile ? 'repeat(2, 1fr)' : 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1rem' }}>
         {[
           { label: 'Total Penilaian', value: summary.total, sub: 'periode ini', color: 'var(--primary)', bg: 'rgba(79,70,229,0.06)', icon: <TrendingUp size={18} /> },
           { label: 'Rata-rata Skor', value: summary.rataSkor ?? '—', sub: summary.approved + ' approved', color: scoreColor(summary.rataSkor), bg: scoreBg(summary.rataSkor), icon: <Star size={18} /> },
@@ -180,9 +187,12 @@ export default function KpiDashboardPage() {
       </div>
 
       {/* Ranking table */}
-      <div className="glass-card" style={{ padding: '1.25rem', overflowX: 'auto' }}>
-        <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-          <TrendingUp size={16} /> Ranking Karyawan — {BULAN_FULL[filterBulan]} {filterTahun}
+      <div className="glass-card" style={{ padding: isMobile ? '0.85rem' : '1.25rem' }}>
+        <div style={{ fontWeight: 700, fontSize: '0.88rem', marginBottom: '1rem', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '0.5rem' }}>
+          <span style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <TrendingUp size={16} /> Ranking Karyawan — {BULAN_FULL[filterBulan]} {filterTahun}
+          </span>
+          {isMobile && <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>← geser untuk lihat semua</span>}
         </div>
 
         {loading ? (
@@ -193,64 +203,66 @@ export default function KpiDashboardPage() {
             <p>Belum ada data penilaian untuk periode ini.</p>
           </div>
         ) : (
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
-                {['#', 'Karyawan', 'Role', 'Unit', 'Skor', 'TM', 'Kelayakan', 'Bonus', 'Status'].map(h => (
-                  <th key={h} style={{ padding: '0.6rem 0.75rem', textAlign: 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {assessments.map((a, i) => {
-                const skor = a.skor_akhir != null ? parseFloat(a.skor_akhir) : null;
-                return (
-                  <tr key={a.id} style={{ borderBottom: '1px solid var(--glass-border)' }}
-                    onMouseOver={e => e.currentTarget.style.background = 'rgba(79,70,229,0.03)'}
-                    onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '0.7rem 0.75rem', fontWeight: 700, color: i === 0 ? '#d97706' : i === 1 ? '#6b7280' : i === 2 ? '#92400e' : 'var(--text-secondary)', fontSize: i < 3 ? '1rem' : '0.85rem' }}>
-                      {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
-                    </td>
-                    <td style={{ padding: '0.7rem 0.75rem', fontWeight: 600 }}>{a.gurus?.nama || '-'}</td>
-                    <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{a.gurus?.role || '-'}</td>
-                    <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>{a.units?.nama || '-'}</td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}>
-                      <span style={{ fontWeight: 800, fontSize: '1rem', color: scoreColor(skor) }}>
-                        {skor != null ? skor.toFixed(1) : '—'}
-                      </span>
-                    </td>
-                    <td style={{ padding: '0.7rem 0.75rem', fontSize: '0.82rem' }}>
-                      {a.jumlah_tm != null
-                        ? <span style={{ fontWeight: 600 }}>{a.jumlah_tm}<span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>/{a.tm_minimum}</span></span>
-                        : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
-                    </td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}>
-                      {a.status_kelayakan ? (
-                        <span style={{
-                          background: a.status_kelayakan === 'LAYAK' ? 'rgba(5,150,105,0.1)' : '#fee2e2',
-                          color: a.status_kelayakan === 'LAYAK' ? '#059669' : '#b91c1c',
-                          padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700,
-                        }}>{a.status_kelayakan}</span>
-                      ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
-                    </td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}>
-                      {a.bonus_eligible ? (
-                        <div>
-                          <span style={{ background: 'rgba(5,150,105,0.1)', color: '#059669', padding: '0.1rem 0.4rem', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700 }}>Eligible</span>
-                          {a.bonus_nominal > 0 && <div style={{ fontSize: '0.78rem', color: '#059669', fontWeight: 600, marginTop: '0.2rem' }}>{fmtRupiah(a.bonus_nominal)}</div>}
-                        </div>
-                      ) : <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>—</span>}
-                    </td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}>
-                      <span style={{ background: STATUS_BG[a.status], color: STATUS_COLOR[a.status], padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700 }}>
-                        {a.status}
-                      </span>
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+          <div style={{ overflowX: 'auto', WebkitOverflowScrolling: 'touch' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', minWidth: 600 }}>
+              <thead>
+                <tr style={{ borderBottom: '2px solid var(--glass-border)' }}>
+                  {['#', 'Karyawan', 'Role', 'Unit', 'Skor', 'TM', 'Kelayakan', 'Bonus', 'Status'].map(h => (
+                    <th key={h} style={{ padding: '0.6rem 0.65rem', textAlign: 'left', fontWeight: 700, fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {assessments.map((a, i) => {
+                  const skor = a.skor_akhir != null ? parseFloat(a.skor_akhir) : null;
+                  return (
+                    <tr key={a.id} style={{ borderBottom: '1px solid var(--glass-border)' }}
+                      onMouseOver={e => e.currentTarget.style.background = 'rgba(79,70,229,0.03)'}
+                      onMouseOut={e => e.currentTarget.style.background = 'transparent'}>
+                      <td style={{ padding: '0.6rem 0.65rem', fontWeight: 700, color: i === 0 ? '#d97706' : i === 1 ? '#6b7280' : i === 2 ? '#92400e' : 'var(--text-secondary)', fontSize: i < 3 ? '1rem' : '0.85rem' }}>
+                        {i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : i + 1}
+                      </td>
+                      <td style={{ padding: '0.6rem 0.65rem', fontWeight: 600, whiteSpace: 'nowrap' }}>{a.gurus?.nama || '-'}</td>
+                      <td style={{ padding: '0.6rem 0.65rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{a.gurus?.role || '-'}</td>
+                      <td style={{ padding: '0.6rem 0.65rem', fontSize: '0.8rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{a.units?.nama || '-'}</td>
+                      <td style={{ padding: '0.6rem 0.65rem' }}>
+                        <span style={{ fontWeight: 800, fontSize: '1rem', color: scoreColor(skor) }}>
+                          {skor != null ? skor.toFixed(1) : '—'}
+                        </span>
+                      </td>
+                      <td style={{ padding: '0.6rem 0.65rem', fontSize: '0.82rem' }}>
+                        {a.jumlah_tm != null
+                          ? <span style={{ fontWeight: 600 }}>{a.jumlah_tm}<span style={{ color: 'var(--text-secondary)', fontWeight: 400 }}>/{a.tm_minimum}</span></span>
+                          : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '0.6rem 0.65rem' }}>
+                        {a.status_kelayakan ? (
+                          <span style={{
+                            background: a.status_kelayakan === 'LAYAK' ? 'rgba(5,150,105,0.1)' : '#fee2e2',
+                            color: a.status_kelayakan === 'LAYAK' ? '#059669' : '#b91c1c',
+                            padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.73rem', fontWeight: 700, whiteSpace: 'nowrap',
+                          }}>{a.status_kelayakan}</span>
+                        ) : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '0.6rem 0.65rem' }}>
+                        {a.bonus_eligible ? (
+                          <div>
+                            <span style={{ background: 'rgba(5,150,105,0.1)', color: '#059669', padding: '0.1rem 0.4rem', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700 }}>Eligible</span>
+                            {a.bonus_nominal > 0 && <div style={{ fontSize: '0.75rem', color: '#059669', fontWeight: 600, marginTop: '0.2rem', whiteSpace: 'nowrap' }}>{fmtRupiah(a.bonus_nominal)}</div>}
+                          </div>
+                        ) : <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>—</span>}
+                      </td>
+                      <td style={{ padding: '0.6rem 0.65rem' }}>
+                        <span style={{ background: STATUS_BG[a.status], color: STATUS_COLOR[a.status], padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.73rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                          {a.status}
+                        </span>
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         )}
       </div>
     </div>
