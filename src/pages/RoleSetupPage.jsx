@@ -48,6 +48,12 @@ const AVAILABLE_MENUS = [
     { path: '/kpi/dashboard',    label: 'KPI - Dashboard' },
     { path: '/kpi/komplain',     label: 'KPI - Komplain CS' },
     { path: '/kpi/bonus-tier',   label: 'KPI - Tier Bonus' },
+    // ── Tugas ─────────────────────────────────────────
+    { path: '/tugas/saya',        label: 'Tugas - Tugas Saya' },
+    { path: '/tugas/kanban',      label: 'Tugas - Papan Kanban' },
+    { path: '/tugas/daftar',      label: 'Tugas - Daftar Tugas' },
+    { path: '/tugas/project',     label: 'Tugas - Kelola Project' },
+    { path: '/tugas/pengaturan',  label: 'Tugas - Pengaturan Stage & Label' },
     // ── Pengaturan ───────────────────────────────────
     { path: '/role-setup',       label: 'Setup Hak Akses' },
     { path: '/pengaturan',       label: 'Pengaturan Aplikasi' },

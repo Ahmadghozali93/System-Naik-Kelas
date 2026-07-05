@@ -41,6 +41,10 @@ import {
     UserCog,
     CreditCard,
     Award,
+    CheckSquare2,
+    LayoutGrid,
+    List,
+    FolderOpen,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -539,6 +543,42 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/kpi/bonus-tier') && (
                             <NavLink to="/kpi/bonus-tier" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <Award className="w-4 h-4" /><span>Tier Bonus</span>
+                            </NavLink>
+                        )}
+                    </SidebarGroup>
+                )}
+
+                {/* TUGAS GROUP */}
+                {['/tugas/saya','/tugas/kanban','/tugas/daftar','/tugas/project','/tugas/pengaturan'].some(p => hasPermission(p)) && (
+                    <SidebarGroup
+                        title="Tugas"
+                        icon={CheckSquare2}
+                        isOpen={activeGroup === 'tugas'}
+                        onToggle={() => toggleGroup('tugas')}
+                    >
+                        {hasPermission('/tugas/saya') && (
+                            <NavLink to="/tugas/saya" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ClipboardCheck className="w-4 h-4" /><span>Tugas Saya</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/tugas/kanban') && (
+                            <NavLink to="/tugas/kanban" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <LayoutGrid className="w-4 h-4" /><span>Papan Kanban</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/tugas/daftar') && (
+                            <NavLink to="/tugas/daftar" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <List className="w-4 h-4" /><span>Daftar Tugas</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/tugas/project') && (
+                            <NavLink to="/tugas/project" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <FolderOpen className="w-4 h-4" /><span>Kelola Project</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/tugas/pengaturan') && (
+                            <NavLink to="/tugas/pengaturan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Settings className="w-4 h-4" /><span>Stage & Label</span>
                             </NavLink>
                         )}
                     </SidebarGroup>

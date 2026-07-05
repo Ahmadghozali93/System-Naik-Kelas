@@ -49,6 +49,11 @@ import SalaryComponentPage from './pages/payroll/SalaryComponentPage';
 import EmployeeSalaryPage from './pages/payroll/EmployeeSalaryPage';
 import PayrollPage from './pages/payroll/PayrollPage';
 import LoanPage from './pages/payroll/LoanPage';
+import TugasSayaPage from './pages/tasks/TugasSayaPage';
+import TaskKanbanPage from './pages/tasks/TaskKanbanPage';
+import TaskListPage from './pages/tasks/TaskListPage';
+import TaskProjectPage from './pages/tasks/TaskProjectPage';
+import TaskSettingsPage from './pages/tasks/TaskSettingsPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -174,6 +179,13 @@ function App() {
             <Route path="/payroll/struktur"  element={<EmployeeSalaryPage />} />
             <Route path="/payroll/proses"    element={<PayrollPage />} />
             <Route path="/payroll/kasbon"    element={<LoanPage />} />
+
+            {/* TUGAS */}
+            <Route path="/tugas/saya"       element={<TugasSayaPage />} />
+            <Route path="/tugas/kanban"     element={<TaskKanbanPage />} />
+            <Route path="/tugas/daftar"     element={<TaskListPage />} />
+            <Route path="/tugas/project"    element={<TaskProjectPage />} />
+            <Route path="/tugas/pengaturan" element={<TaskSettingsPage />} />
 
             {/* FALLBACK */}
             <Route
