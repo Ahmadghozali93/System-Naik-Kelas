@@ -13,10 +13,8 @@
 
 import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
 
-// Jadwal otomatis: jalan setiap tengah malam WIB (17:00 UTC)
-Deno.cron('cleanup-task-photos-cron', '0 17 * * *', doCleanup);
-
-// HTTP handler untuk trigger manual
+// Jadwal ditangani pg_cron di database. Function ini dipanggil via HTTP.
+// HTTP handler untuk trigger manual / dipanggil pg_cron
 Deno.serve(async (req) => {
   if (req.method !== 'POST') {
     return new Response('Method not allowed', { status: 405 });
