@@ -26,7 +26,7 @@ CREATE TABLE IF NOT EXISTS task_stages (
   nama       TEXT    NOT NULL UNIQUE,
   urutan     INT     NOT NULL DEFAULT 0,
   warna      TEXT    NOT NULL DEFAULT '#6366f1',
-  is_final   BOOLEAN NOT NULL DEFAULT false, -- stage "selesai" → set selesai_pada pada task
+  is_final   BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -113,7 +113,7 @@ CREATE TABLE IF NOT EXISTS task_recurring_rules (
   label_id             UUID    REFERENCES task_labels(id) ON DELETE SET NULL,
   assignee_guru_ids    TEXT[]  NOT NULL DEFAULT '{}',
   frekuensi            TEXT    NOT NULL CHECK (frekuensi IN ('harian', 'mingguan', 'bulanan')),
-  hari_dalam_minggu    INT[],  -- 0=Senin ... 6=Minggu (untuk mingguan, bisa multi-hari)
+  hari_dalam_minggu    INT[],
   tanggal_dalam_bulan  INT     CHECK (tanggal_dalam_bulan BETWEEN 1 AND 31),
   aktif                BOOLEAN NOT NULL DEFAULT true,
   next_run_date        DATE,
@@ -141,7 +141,7 @@ CREATE POLICY "trr_delete" ON task_recurring_rules FOR DELETE
   USING (task_is_owner() OR (unit_id = ANY(absensi_unit_ids()) AND absensi_is_admin()));
 
 -- ============================================================
--- 5. TASKS — tabel utama
+-- 5a. TASKS — buat tabel dulu, RLS policy menyusul setelah task_assignees dibuat
 -- ============================================================
 CREATE TABLE IF NOT EXISTS tasks (
   id                UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -155,13 +155,67 @@ CREATE TABLE IF NOT EXISTS tasks (
   dibuat_oleh       TEXT    REFERENCES gurus(id) ON DELETE SET NULL,
   label_id          UUID    REFERENCES task_labels(id) ON DELETE SET NULL,
   recurring_rule_id UUID    REFERENCES task_recurring_rules(id) ON DELETE SET NULL,
-  selesai_pada      TIMESTAMPTZ,             -- set saat task masuk stage is_final
-  is_late           BOOLEAN,                  -- true jika selesai_pada > deadline
+  selesai_pada      TIMESTAMPTZ,
+  is_late           BOOLEAN,
   created_at        TIMESTAMPTZ DEFAULT now()
 );
 
 ALTER TABLE tasks ENABLE ROW LEVEL SECURITY;
 
+-- ============================================================
+-- 6. TASK_ASSIGNEES — harus ada sebelum policy tasks dibuat
+-- ============================================================
+CREATE TABLE IF NOT EXISTS task_assignees (
+  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  task_id    UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+  guru_id    TEXT NOT NULL REFERENCES gurus(id) ON DELETE CASCADE,
+  created_at TIMESTAMPTZ DEFAULT now(),
+  UNIQUE(task_id, guru_id)
+);
+
+ALTER TABLE task_assignees ENABLE ROW LEVEL SECURITY;
+
+DROP POLICY IF EXISTS "ta_select" ON task_assignees;
+DROP POLICY IF EXISTS "ta_insert" ON task_assignees;
+DROP POLICY IF EXISTS "ta_delete" ON task_assignees;
+
+CREATE POLICY "ta_select" ON task_assignees FOR SELECT
+  USING (
+    task_is_owner()
+    OR guru_id = absensi_guru_id()
+    OR EXISTS (
+      SELECT 1 FROM tasks t
+      WHERE t.id = task_assignees.task_id
+        AND t.unit_id = ANY(absensi_unit_ids())
+        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
+    )
+  );
+
+CREATE POLICY "ta_insert" ON task_assignees FOR INSERT
+  WITH CHECK (
+    task_is_owner()
+    OR EXISTS (
+      SELECT 1 FROM tasks t
+      WHERE t.id = task_assignees.task_id
+        AND t.unit_id = ANY(absensi_unit_ids())
+        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
+    )
+  );
+
+CREATE POLICY "ta_delete" ON task_assignees FOR DELETE
+  USING (
+    task_is_owner()
+    OR EXISTS (
+      SELECT 1 FROM tasks t
+      WHERE t.id = task_assignees.task_id
+        AND t.unit_id = ANY(absensi_unit_ids())
+        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
+    )
+  );
+
+-- ============================================================
+-- 5b. TASKS — pasang RLS policy (task_assignees sudah ada)
+-- ============================================================
 DROP POLICY IF EXISTS "tasks_select" ON tasks;
 DROP POLICY IF EXISTS "tasks_insert" ON tasks;
 DROP POLICY IF EXISTS "tasks_update" ON tasks;
@@ -211,57 +265,6 @@ CREATE POLICY "tasks_delete" ON tasks FOR DELETE
     task_is_owner()
     OR (unit_id = ANY(absensi_unit_ids()) AND absensi_is_admin())
     OR dibuat_oleh = absensi_guru_id()
-  );
-
--- ============================================================
--- 6. TASK_ASSIGNEES — many-to-many task ↔ guru
--- ============================================================
-CREATE TABLE IF NOT EXISTS task_assignees (
-  id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  task_id    UUID NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
-  guru_id    TEXT NOT NULL REFERENCES gurus(id) ON DELETE CASCADE,
-  created_at TIMESTAMPTZ DEFAULT now(),
-  UNIQUE(task_id, guru_id)
-);
-
-ALTER TABLE task_assignees ENABLE ROW LEVEL SECURITY;
-
-DROP POLICY IF EXISTS "ta_select" ON task_assignees;
-DROP POLICY IF EXISTS "ta_insert" ON task_assignees;
-DROP POLICY IF EXISTS "ta_delete" ON task_assignees;
-
-CREATE POLICY "ta_select" ON task_assignees FOR SELECT
-  USING (
-    task_is_owner()
-    OR guru_id = absensi_guru_id()
-    OR EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-        AND t.unit_id = ANY(absensi_unit_ids())
-        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
-    )
-  );
-
-CREATE POLICY "ta_insert" ON task_assignees FOR INSERT
-  WITH CHECK (
-    task_is_owner()
-    OR EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-        AND t.unit_id = ANY(absensi_unit_ids())
-        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
-    )
-  );
-
-CREATE POLICY "ta_delete" ON task_assignees FOR DELETE
-  USING (
-    task_is_owner()
-    OR EXISTS (
-      SELECT 1 FROM tasks t
-      WHERE t.id = task_assignees.task_id
-        AND t.unit_id = ANY(absensi_unit_ids())
-        AND (absensi_is_admin() OR t.dibuat_oleh = absensi_guru_id())
-    )
   );
 
 -- ============================================================
@@ -363,7 +366,7 @@ CREATE TABLE IF NOT EXISTS task_attachments (
   id                 UUID    PRIMARY KEY DEFAULT gen_random_uuid(),
   task_id            UUID    NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
   guru_id            TEXT    NOT NULL REFERENCES gurus(id) ON DELETE CASCADE,
-  storage_path       TEXT,   -- NULL setelah file dihapus dari Storage oleh Edge Function
+  storage_path       TEXT,
   original_name      TEXT    NOT NULL,
   mime_type          TEXT    NOT NULL
     CHECK (mime_type IN ('image/jpeg', 'image/jpg', 'image/png', 'image/webp')),
@@ -371,7 +374,7 @@ CREATE TABLE IF NOT EXISTS task_attachments (
   uploaded_at        TIMESTAMPTZ DEFAULT now(),
   expires_at         TIMESTAMPTZ DEFAULT (now() + INTERVAL '45 days'),
   is_expired         BOOLEAN NOT NULL DEFAULT false,
-  storage_deleted_at TIMESTAMPTZ -- set oleh Edge Function setelah file Storage benar-benar dihapus
+  storage_deleted_at TIMESTAMPTZ
 );
 
 ALTER TABLE task_attachments ENABLE ROW LEVEL SECURITY;
@@ -409,12 +412,11 @@ VALUES (
   'task-photos',
   'task-photos',
   false,
-  3145728,  -- 3 MB max (setelah kompresi jauh lebih kecil)
+  3145728,
   ARRAY['image/jpeg', 'image/jpg', 'image/png', 'image/webp']
 )
 ON CONFLICT (id) DO NOTHING;
 
--- Storage RLS Policies
 DROP POLICY IF EXISTS "task_photos_select" ON storage.objects;
 DROP POLICY IF EXISTS "task_photos_insert" ON storage.objects;
 DROP POLICY IF EXISTS "task_photos_delete" ON storage.objects;
@@ -434,16 +436,13 @@ CREATE POLICY "task_photos_delete" ON storage.objects FOR DELETE
 
 -- ============================================================
 -- 11. AUTO-DELETE: pg_cron — tandai foto expired tiap tengah malam WIB
--- ============================================================
--- LANGKAH: Aktifkan ekstensi pg_cron di Supabase Dashboard
---   → Database → Extensions → cari "pg_cron" → Enable
--- Setelah diaktifkan, jalankan perintah di bawah ini:
+-- Syarat: aktifkan ekstensi pg_cron di Dashboard → Database → Extensions
 -- ============================================================
 CREATE EXTENSION IF NOT EXISTS pg_cron;
 
 SELECT cron.schedule(
   'task-mark-expired-photos',
-  '0 17 * * *',  -- 17:00 UTC = 00:00 WIB
+  '0 17 * * *',
   $$UPDATE task_attachments
     SET is_expired = true
     WHERE expires_at < now() AND is_expired = false$$
