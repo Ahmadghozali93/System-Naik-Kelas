@@ -45,6 +45,7 @@ import {
     LayoutGrid,
     List,
     FolderOpen,
+    RotateCcw,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
