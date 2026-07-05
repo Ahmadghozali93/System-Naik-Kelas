@@ -48,6 +48,13 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   const [pendingAssignees, setPendingAssignees]   = useState([]);
   const [pendingChecklists, setPendingChecklists] = useState([]);
 
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
   const [form, setForm] = useState({
     judul: '', deskripsi: '',
     stage_id: defaultStageId || '',
@@ -318,16 +325,35 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     </button>
   );
 
+  // Padding helper
+  const ph = isMobile ? '1rem' : '1.75rem';
+  const pv = isMobile ? '1rem' : '1.25rem';
+
   return (
-    <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '2rem' }} onClick={onClose}>
-      <div className="modal-content" style={{ maxWidth: 740, padding: 0 }} onClick={e => e.stopPropagation()}>
+    <div className="modal-overlay"
+      style={isMobile
+        ? { alignItems: 'flex-end', padding: 0 }
+        : { alignItems: 'flex-start', paddingTop: '2rem' }}
+      onClick={onClose}>
+      <div className="modal-content"
+        style={isMobile
+          ? { maxWidth: '100%', width: '100%', padding: 0, borderRadius: '1.25rem 1.25rem 0 0', maxHeight: '93vh', overflowY: 'auto', margin: 0 }
+          : { maxWidth: 740, padding: 0 }}
+        onClick={e => e.stopPropagation()}>
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Memuat...</div>
         ) : (
           <form onSubmit={handleSave}>
 
+            {/* Drag handle (mobile bottom sheet) */}
+            {isMobile && (
+              <div style={{ display: 'flex', justifyContent: 'center', padding: '0.6rem 0 0' }}>
+                <div style={{ width: 36, height: 4, borderRadius: 2, background: 'var(--glass-border)' }} />
+              </div>
+            )}
+
             {/* ── Header ── */}
-            <div style={{ padding: '1.5rem 1.75rem 1.25rem', borderBottom: '1px solid var(--glass-border)' }}>
+            <div style={{ padding: `${isMobile ? '1.1rem' : '1.5rem'} ${ph} ${pv}`, borderBottom: '1px solid var(--glass-border)' }}>
 
               {/* Judul + X */}
               <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1.1rem' }}>
@@ -336,7 +362,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                   onChange={e => setForm(f => ({ ...f, judul: e.target.value }))}
                   required disabled={!canEdit}
                   placeholder="Judul task..."
-                  style={{ flex: 1, fontSize: '1.35rem', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', color: 'var(--text-primary)', fontFamily: 'inherit', padding: 0, lineHeight: 1.3 }}
+                  style={{ flex: 1, fontSize: isMobile ? '1.1rem' : '1.35rem', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', color: 'var(--text-primary)', fontFamily: 'inherit', padding: 0, lineHeight: 1.3 }}
                 />
                 <button type="button" onClick={onClose}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.2rem', flexShrink: 0 }}>
@@ -345,7 +371,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
               </div>
 
               {/* Metadata 2-kolom */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem 2.5rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: isMobile ? '1fr' : '1fr 1fr', gap: isMobile ? '0.45rem' : '0.6rem 2.5rem' }}>
 
                 {/* Kiri */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
@@ -449,13 +475,13 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
             </div>
 
             {/* ── Tabs: Deskripsi | Checklist ── */}
-            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', padding: '0 1.25rem' }}>
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', padding: `0 ${isMobile ? '0.75rem' : '1.25rem'}` }}>
               {tabBtn('deskripsi', 'Deskripsi')}
               {tabBtn('checklist', `Checklist${!isNew && checklists.length ? ` ${doneCount}/${checklists.length}` : isNew && pendingChecklists.length ? ` (${pendingChecklists.length})` : ''}`)}
             </div>
 
             {/* ── Tab content ── */}
-            <div style={{ padding: '1.25rem 1.75rem', minHeight: 140 }}>
+            <div style={{ padding: `${pv} ${ph}`, minHeight: 120 }}>
 
               {/* Deskripsi */}
               {activeTab === 'deskripsi' && (
@@ -529,7 +555,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
 
             {/* ── Komentar — selalu di bawah (hanya task yang ada) ── */}
             {!isNew && (
-              <div style={{ borderTop: '1px solid var(--glass-border)', padding: '1.25rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+              <div style={{ borderTop: '1px solid var(--glass-border)', padding: `${pv} ${ph}`, display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
                 <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
                   Komentar {comments.length > 0 ? `(${comments.length})` : ''}
                 </p>
@@ -609,7 +635,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
             )}
 
             {/* ── Footer ── */}
-            <div style={{ padding: '0.85rem 1.75rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div style={{ padding: `0.85rem ${ph}`, borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '0.5rem' }}>
               <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                 {task ? `Dibuat ${fmtDT(task.created_at)}` : 'Task baru'}
                 {task?.recurring_rule_id && (
