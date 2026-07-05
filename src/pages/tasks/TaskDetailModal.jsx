@@ -1,18 +1,17 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { X, Plus, Trash2, Send, CheckSquare, Square, User, AlertCircle } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import AttachmentUploader from '../../components/tasks/AttachmentUploader';
 
 const PRIORITAS_COLOR = { Tinggi: '#ef4444', Sedang: '#f59e0b', Rendah: '#22c55e' };
-const fmtDT = (d) => d ? new Date(d).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const fmtDT   = (d) => d ? new Date(d).toLocaleString('id-ID',  { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 
 const inp = {
   width: '100%', padding: '0.5rem 0.75rem', borderRadius: '0.5rem',
   border: '1px solid var(--glass-border)', background: 'var(--surface-color)',
-  fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--text-primary)',
-  boxSizing: 'border-box',
+  fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--text-primary)', boxSizing: 'border-box',
 };
 const lb = (text, req) => (
   <label style={{ display: 'block', marginBottom: '0.3rem', fontWeight: 600, fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
@@ -24,68 +23,72 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   const { user } = useAuth();
   const isNew = !taskId;
 
-  const [task, setTask]             = useState(null);
-  const [stages, setStages]         = useState([]);
-  const [labels, setLabels]         = useState([]);
-  const [projects, setProjects]     = useState([]);
-  const [unitGurus, setUnitGurus]   = useState([]);
-  const [assignees, setAssignees]   = useState([]);
+  const [task, setTask]           = useState(null);
+  const [stages, setStages]       = useState([]);
+  const [labels, setLabels]       = useState([]);
+  const [projects, setProjects]   = useState([]);
+  const [unitGurus, setUnitGurus] = useState([]);
+  const [assignees, setAssignees] = useState([]);
   const [checklists, setChecklists] = useState([]);
-  const [comments, setComments]     = useState([]);
+  const [comments, setComments]   = useState([]);
   const [attachments, setAttachments] = useState([]);
-  const [units, setUnits]           = useState([]);
 
-  const [loading, setLoading]   = useState(!isNew);
-  const [saving, setSaving]     = useState(false);
+  // Unit di-resolve otomatis, tidak tampil di form
+  const [unitId, setUnitId] = useState(defaultUnitId || '');
+
+  const [loading, setLoading]       = useState(!isNew);
+  const [saving, setSaving]         = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newCheckItem, setNewCheckItem] = useState('');
 
-  // Form state
+  // Pending untuk task baru (disimpan bersama task saat submit)
+  const [pendingAssignees, setPendingAssignees]   = useState([]); // [guruId, ...]
+  const [pendingChecklists, setPendingChecklists] = useState([]); // [teks, ...]
+
   const [form, setForm] = useState({
     judul: '', deskripsi: '',
     stage_id: defaultStageId || '',
-    unit_id: defaultUnitId || '',
-    prioritas: 'Sedang',
-    deadline: '',
-    label_id: '',
-    project_id: '',
+    prioritas: 'Sedang', deadline: '',
+    label_id: '', project_id: '',
   });
 
-  const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
-  const canEdit = isNew || isAdmin || task?.dibuat_oleh === user?.id || assignees.some(a => a.guru_id === user?.id);
+  const isAdmin  = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
+  const canEdit  = isNew || isAdmin || task?.dibuat_oleh === user?.id || assignees.some(a => a.guru_id === user?.id);
 
-  // ── Fetch base data ──
+  // ── Load base data + resolve unit ──
   useEffect(() => {
     const load = async () => {
-      const [stRes, lbRes, unRes] = await Promise.all([
+      const [stRes, lbRes] = await Promise.all([
         supabase.from('task_stages').select('*').order('urutan'),
         supabase.from('task_labels').select('*').order('nama'),
-        supabase.from('units').select('id, nama').eq('aktif', true).order('nama'),
       ]);
       setStages(stRes.data || []);
       setLabels(lbRes.data || []);
-      setUnits(unRes.data || []);
 
-      if (!isNew) await loadTask();
-      else setLoading(false);
+      if (isNew) {
+        // Resolve unit: prop → user's first unit
+        let uid = defaultUnitId;
+        if (!uid && user?.id) {
+          const { data } = await supabase.from('guru_units').select('unit_id').eq('guru_id', user.id).limit(1).single();
+          uid = data?.unit_id || '';
+        }
+        setUnitId(uid);
+        setLoading(false);
+      } else {
+        await loadTask();
+      }
     };
     load();
   }, [taskId]);
 
-  // ── Load projects when unit changes ──
+  // ── Load projects + gurus saat unit berubah ──
   useEffect(() => {
-    if (!form.unit_id) { setProjects([]); return; }
-    supabase.from('task_projects').select('id, nama').eq('unit_id', form.unit_id).eq('status', 'aktif')
-      .order('nama')
+    if (!unitId) { setProjects([]); setUnitGurus([]); return; }
+    supabase.from('task_projects').select('id, nama').eq('unit_id', unitId).eq('status', 'aktif').order('nama')
       .then(({ data }) => setProjects(data || []));
-    supabase.from('guru_units').select('guru_id').eq('unit_id', form.unit_id)
-      .then(async ({ data: guData }) => {
-        if (!guData?.length) { setUnitGurus([]); return; }
-        const { data: gData } = await supabase.from('gurus')
-          .select('id, nama, role').in('id', guData.map(g => g.guru_id)).eq('status', 'Aktif').order('nama');
-        setUnitGurus(gData || []);
-      });
-  }, [form.unit_id]);
+    supabase.from('guru_units').select('guru_id, gurus(id, nama, role)').eq('unit_id', unitId)
+      .then(({ data }) => setUnitGurus((data || []).map(g => g.gurus).filter(Boolean)));
+  }, [unitId]);
 
   const loadTask = async () => {
     setLoading(true);
@@ -99,15 +102,12 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     const t = tRes.data;
     if (t) {
       setTask(t);
+      setUnitId(t.unit_id || '');
       setForm({
-        judul: t.judul || '',
-        deskripsi: t.deskripsi || '',
-        stage_id: t.stage_id || '',
-        unit_id: t.unit_id || '',
-        prioritas: t.prioritas || 'Sedang',
+        judul: t.judul || '', deskripsi: t.deskripsi || '',
+        stage_id: t.stage_id || '', prioritas: t.prioritas || 'Sedang',
         deadline: t.deadline ? t.deadline.slice(0, 16) : '',
-        label_id: t.label_id || '',
-        project_id: t.project_id || '',
+        label_id: t.label_id || '', project_id: t.project_id || '',
       });
     }
     setAssignees(aRes.data || []);
@@ -117,27 +117,22 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setLoading(false);
   };
 
-  // ── Save task ──
+  // ── Save ──
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.judul.trim()) return alert('Judul task wajib diisi.');
-    if (!form.unit_id) return alert('Unit wajib dipilih.');
-    if (!form.stage_id) return alert('Stage wajib dipilih.');
+    if (!form.stage_id)     return alert('Stage wajib dipilih.');
+    if (!unitId)            return alert('Unit belum terdeteksi. Pastikan akun Anda terdaftar di salah satu unit.');
     setSaving(true);
 
     const selectedStage = stages.find(s => s.id === form.stage_id);
     const payload = {
-      judul:      form.judul.trim(),
-      deskripsi:  form.deskripsi || null,
-      stage_id:   form.stage_id,
-      unit_id:    form.unit_id,
-      prioritas:  form.prioritas,
-      deadline:   form.deadline || null,
-      label_id:   form.label_id || null,
-      project_id: form.project_id || null,
+      judul: form.judul.trim(), deskripsi: form.deskripsi || null,
+      stage_id: form.stage_id, unit_id: unitId,
+      prioritas: form.prioritas, deadline: form.deadline || null,
+      label_id: form.label_id || null, project_id: form.project_id || null,
     };
 
-    // Set selesai_pada & is_late saat masuk stage final
     if (selectedStage?.is_final && !task?.selesai_pada) {
       payload.selesai_pada = new Date().toISOString();
       payload.is_late = form.deadline ? new Date() > new Date(form.deadline) : false;
@@ -152,6 +147,14 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
       const { data, error } = await supabase.from('tasks').insert(payload).select().single();
       if (error) { alert('Gagal: ' + error.message); setSaving(false); return; }
       savedTask = data;
+
+      // Simpan pending assignees & checklists bersama task baru
+      const ops = [];
+      if (pendingAssignees.length)
+        ops.push(supabase.from('task_assignees').insert(pendingAssignees.map(gid => ({ task_id: savedTask.id, guru_id: gid }))));
+      if (pendingChecklists.length)
+        ops.push(supabase.from('task_checklists').insert(pendingChecklists.map((teks, i) => ({ task_id: savedTask.id, teks, urutan: i }))));
+      if (ops.length) await Promise.all(ops);
     } else {
       const { data, error } = await supabase.from('tasks').update(payload).eq('id', taskId).select().single();
       if (error) { alert('Gagal: ' + error.message); setSaving(false); return; }
@@ -160,11 +163,11 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
 
     setSaving(false);
     onSaved?.(savedTask);
-    if (isNew) onClose(); // tutup modal setelah buat baru; user bisa buka lagi untuk edit detail
+    if (isNew) onClose();
     else await loadTask();
   };
 
-  // ── Assignees ──
+  // ── Assignees (edit mode — DB langsung) ──
   const addAssignee = async (guruId) => {
     if (assignees.some(a => a.guru_id === guruId)) return;
     const { error } = await supabase.from('task_assignees').insert({ task_id: taskId, guru_id: guruId });
@@ -172,35 +175,27 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     const guru = unitGurus.find(g => g.id === guruId);
     setAssignees(prev => [...prev, { guru_id: guruId, gurus: guru }]);
   };
-
   const removeAssignee = async (guruId) => {
-    const { error } = await supabase.from('task_assignees').delete().eq('task_id', taskId).eq('guru_id', guruId);
-    if (error) return alert('Gagal: ' + error.message);
+    await supabase.from('task_assignees').delete().eq('task_id', taskId).eq('guru_id', guruId);
     setAssignees(prev => prev.filter(a => a.guru_id !== guruId));
   };
 
-  // ── Checklists ──
+  // ── Checklists (edit mode — DB langsung) ──
   const addCheckItem = async () => {
     const txt = newCheckItem.trim();
     if (!txt || !taskId) return;
     const { data, error } = await supabase.from('task_checklists')
-      .insert({ task_id: taskId, teks: txt, urutan: checklists.length })
-      .select().single();
+      .insert({ task_id: taskId, teks: txt, urutan: checklists.length }).select().single();
     if (error) return alert('Gagal: ' + error.message);
     setChecklists(prev => [...prev, data]);
     setNewCheckItem('');
   };
-
   const toggleCheck = async (item) => {
-    const { error } = await supabase.from('task_checklists')
-      .update({ selesai: !item.selesai }).eq('id', item.id);
-    if (error) return;
+    await supabase.from('task_checklists').update({ selesai: !item.selesai }).eq('id', item.id);
     setChecklists(prev => prev.map(c => c.id === item.id ? { ...c, selesai: !c.selesai } : c));
   };
-
   const deleteCheck = async (id) => {
-    const { error } = await supabase.from('task_checklists').delete().eq('id', id);
-    if (error) return alert('Gagal: ' + error.message);
+    await supabase.from('task_checklists').delete().eq('id', id);
     setChecklists(prev => prev.filter(c => c.id !== id));
   };
 
@@ -216,21 +211,118 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setNewComment('');
   };
 
-  // ── Overdue check ──
   const isOverdue = task && !task.selesai_pada && task.deadline && new Date(task.deadline) < new Date();
   const doneCount = checklists.filter(c => c.selesai).length;
 
+  // ── Assignee section (reusable untuk new & edit) ──
+  const renderAssignees = () => {
+    const list = isNew
+      ? pendingAssignees.map(gid => ({ guru_id: gid, gurus: unitGurus.find(g => g.id === gid) }))
+      : assignees;
+    const available = unitGurus.filter(g => !list.some(a => a.guru_id === g.id));
+
+    return (
+      <section>
+        <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+          <User size={14} /> Assignee ({list.length})
+        </div>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: available.length ? '0.45rem' : 0 }}>
+          {list.map(a => (
+            <span key={a.guru_id} style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', background: 'rgba(79,70,229,0.08)', color: 'var(--primary)', padding: '0.2rem 0.55rem', borderRadius: 999, fontSize: '0.8rem', fontWeight: 600 }}>
+              {a.gurus?.nama || a.guru_id}
+              {canEdit && (
+                <button type="button" onClick={() => isNew
+                  ? setPendingAssignees(p => p.filter(id => id !== a.guru_id))
+                  : removeAssignee(a.guru_id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: 'inherit', opacity: 0.7 }}>
+                  <X size={11} />
+                </button>
+              )}
+            </span>
+          ))}
+          {list.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>Belum ada</span>}
+        </div>
+        {canEdit && available.length > 0 && (
+          <select style={{ ...inp, width: 'auto', fontSize: '0.8rem' }} value=""
+            onChange={e => {
+              if (!e.target.value) return;
+              if (isNew) setPendingAssignees(p => [...p, e.target.value]);
+              else addAssignee(e.target.value);
+            }}>
+            <option value="">+ Tambah assignee...</option>
+            {available.map(g => <option key={g.id} value={g.id}>{g.nama} ({g.role})</option>)}
+          </select>
+        )}
+      </section>
+    );
+  };
+
+  // ── Checklist section (reusable untuk new & edit) ──
+  const renderChecklist = () => {
+    const items = isNew ? pendingChecklists : checklists;
+    return (
+      <section>
+        <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          Checklist {isNew ? `(${items.length})` : `${doneCount}/${items.length}`}
+          {!isNew && items.length > 0 && (
+            <div style={{ flex: 1, maxWidth: 80, height: 6, background: 'var(--glass-border)', borderRadius: 3 }}>
+              <div style={{ width: `${(doneCount / items.length) * 100}%`, height: '100%', background: '#22c55e', borderRadius: 3, transition: 'width 0.3s' }} />
+            </div>
+          )}
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem', marginBottom: '0.5rem' }}>
+          {items.map((item, idx) => (
+            <div key={isNew ? idx : item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              {isNew ? (
+                <Square size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
+              ) : (
+                <button type="button" onClick={() => toggleCheck(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.selesai ? '#22c55e' : 'var(--text-secondary)', padding: 0, flexShrink: 0 }}>
+                  {item.selesai ? <CheckSquare size={16} /> : <Square size={16} />}
+                </button>
+              )}
+              <span style={{ flex: 1, fontSize: '0.85rem', textDecoration: !isNew && item.selesai ? 'line-through' : 'none', color: !isNew && item.selesai ? 'var(--text-secondary)' : 'inherit' }}>
+                {isNew ? item : item.teks}
+              </span>
+              {canEdit && (
+                <button type="button" onClick={() => isNew
+                  ? setPendingChecklists(p => p.filter((_, i) => i !== idx))
+                  : deleteCheck(item.id)}
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', opacity: 0.5, padding: 0 }}>
+                  <Trash2 size={12} />
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+        {canEdit && (
+          <div style={{ display: 'flex', gap: '0.5rem' }}>
+            <input style={{ ...inp, flex: 1, fontSize: '0.82rem' }}
+              placeholder="Tambah item checklist..."
+              value={newCheckItem}
+              onChange={e => setNewCheckItem(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), isNew
+                ? (newCheckItem.trim() && (setPendingChecklists(p => [...p, newCheckItem.trim()]), setNewCheckItem('')))
+                : addCheckItem()
+              )}
+            />
+            <button type="button" className="btn btn-primary" style={{ padding: '0.45rem 0.75rem' }}
+              onClick={() => isNew
+                ? (newCheckItem.trim() && (setPendingChecklists(p => [...p, newCheckItem.trim()]), setNewCheckItem('')))
+                : addCheckItem()
+              }>
+              <Plus size={14} />
+            </button>
+          </div>
+        )}
+      </section>
+    );
+  };
+
   return (
-    <div style={{
-      position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)',
-      zIndex: 1000, display: 'flex', alignItems: 'flex-start',
-      justifyContent: 'center', padding: '1.5rem 1rem', overflowY: 'auto',
-    }} onClick={onClose}>
-      <div
-        className="glass-card"
-        style={{ width: '100%', maxWidth: 700, padding: '1.5rem', position: 'relative' }}
-        onClick={e => e.stopPropagation()}
-      >
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '1.5rem 1rem', overflowY: 'auto' }}
+      onClick={onClose}>
+      <div className="glass-card" style={{ width: '100%', maxWidth: 700, padding: '1.5rem', position: 'relative' }} onClick={e => e.stopPropagation()}>
+
         {/* Header */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem' }}>
           <div>
@@ -244,9 +336,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                     {task.task_stages.nama}
                   </span>
                 )}
-                <span style={{ color: PRIORITAS_COLOR[task.prioritas], fontSize: '0.75rem', fontWeight: 700 }}>
-                  ● {task.prioritas}
-                </span>
+                <span style={{ color: PRIORITAS_COLOR[task.prioritas], fontSize: '0.75rem', fontWeight: 700 }}>● {task.prioritas}</span>
                 {isOverdue && (
                   <span style={{ background: '#fee2e2', color: '#b91c1c', padding: '0.15rem 0.55rem', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, display: 'flex', alignItems: 'center', gap: '0.2rem' }}>
                     <AlertCircle size={11} /> OVERDUE
@@ -269,21 +359,16 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
           <p style={{ color: 'var(--text-secondary)', textAlign: 'center', padding: '2rem' }}>Memuat...</p>
         ) : (
           <form onSubmit={handleSave}>
-            {/* ── Fields ── */}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.85rem', marginBottom: '1.25rem' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+
+              {/* Judul */}
               <div>
                 {lb('Judul Task', true)}
-                <input style={inp} value={form.judul} onChange={e => setForm(f => ({ ...f, judul: e.target.value }))} required disabled={!canEdit} />
+                <input style={inp} value={form.judul} onChange={e => setForm(f => ({ ...f, judul: e.target.value }))} required disabled={!canEdit} placeholder="Nama task..." />
               </div>
 
+              {/* Grid: Stage, Prioritas, Deadline, Label, Project */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
-                <div>
-                  {lb('Unit / Cabang', true)}
-                  <select style={inp} value={form.unit_id} onChange={e => setForm(f => ({ ...f, unit_id: e.target.value, project_id: '' }))} required disabled={!isNew && !isAdmin}>
-                    <option value="">-- Pilih Unit --</option>
-                    {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
-                  </select>
-                </div>
                 <div>
                   {lb('Stage', true)}
                   <select style={inp} value={form.stage_id} onChange={e => setForm(f => ({ ...f, stage_id: e.target.value }))} required disabled={!canEdit}>
@@ -310,150 +395,70 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                     {labels.map(l => <option key={l.id} value={l.id}>{l.nama}</option>)}
                   </select>
                 </div>
-                <div>
-                  {lb('Project')}
-                  <select style={inp} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))} disabled={!canEdit}>
-                    <option value="">Tanpa Project</option>
-                    {projects.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
-                  </select>
-                </div>
-              </div>
-
-              <div>
-                {lb('Deskripsi')}
-                <textarea
-                  rows={3}
-                  style={{ ...inp, resize: 'vertical' }}
-                  value={form.deskripsi}
-                  onChange={e => setForm(f => ({ ...f, deskripsi: e.target.value }))}
-                  disabled={!canEdit}
-                  placeholder="Penjelasan tugas..."
-                />
-              </div>
-            </div>
-
-            {canEdit && (
-              <div style={{ display: 'flex', gap: '0.65rem', marginBottom: '1.5rem' }}>
-                <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
-                  {saving ? 'Menyimpan...' : isNew ? 'Buat Task' : 'Simpan Perubahan'}
-                </button>
-                <button type="button" className="btn" onClick={onClose} style={{ background: 'var(--surface-color)' }}>Batal</button>
-              </div>
-            )}
-          </form>
-        )}
-
-        {/* ══ Bagian di bawah ini hanya tersedia untuk task yang sudah ada ══ */}
-        {!isNew && !loading && (
-          <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
-
-            {/* ── Assignees ── */}
-            <section>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                <User size={15} /> Ditugaskan kepada ({assignees.length})
-              </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginBottom: '0.5rem' }}>
-                {assignees.map(a => (
-                  <span key={a.guru_id} style={{
-                    display: 'flex', alignItems: 'center', gap: '0.35rem',
-                    background: 'rgba(79,70,229,0.08)', color: 'var(--primary)',
-                    padding: '0.25rem 0.6rem', borderRadius: 999, fontSize: '0.8rem', fontWeight: 600,
-                  }}>
-                    {a.gurus?.nama || a.guru_id}
-                    {canEdit && (
-                      <button onClick={() => removeAssignee(a.guru_id)} style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0, lineHeight: 1, color: 'inherit', opacity: 0.7 }}>
-                        <X size={12} />
-                      </button>
-                    )}
-                  </span>
-                ))}
-                {assignees.length === 0 && <span style={{ color: 'var(--text-secondary)', fontSize: '0.82rem' }}>Belum ada assignee</span>}
-              </div>
-              {canEdit && unitGurus.length > 0 && (
-                <select
-                  style={{ ...inp, width: 'auto', fontSize: '0.8rem' }}
-                  value=""
-                  onChange={e => { if (e.target.value) addAssignee(e.target.value); }}
-                >
-                  <option value="">+ Tambah assignee...</option>
-                  {unitGurus.filter(g => !assignees.some(a => a.guru_id === g.id)).map(g => (
-                    <option key={g.id} value={g.id}>{g.nama} ({g.role})</option>
-                  ))}
-                </select>
-              )}
-            </section>
-
-            {/* ── Checklist ── */}
-            <section>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem' }}>
-                Checklist {doneCount}/{checklists.length}
-                {checklists.length > 0 && (
-                  <div style={{ display: 'inline-block', marginLeft: '0.6rem', width: 80, height: 6, background: 'var(--glass-border)', borderRadius: 3, verticalAlign: 'middle' }}>
-                    <div style={{ width: `${(doneCount / checklists.length) * 100}%`, height: '100%', background: '#22c55e', borderRadius: 3, transition: 'width 0.3s' }} />
+                {projects.length > 0 && (
+                  <div style={{ gridColumn: 'span 2' }}>
+                    {lb('Project')}
+                    <select style={inp} value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))} disabled={!canEdit}>
+                      <option value="">Tanpa Project</option>
+                      {projects.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
+                    </select>
                   </div>
                 )}
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.6rem' }}>
-                {checklists.map(item => (
-                  <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <button type="button" onClick={() => toggleCheck(item)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: item.selesai ? '#22c55e' : 'var(--text-secondary)', padding: 0, flexShrink: 0 }}>
-                      {item.selesai ? <CheckSquare size={17} /> : <Square size={17} />}
-                    </button>
-                    <span style={{ flex: 1, fontSize: '0.85rem', textDecoration: item.selesai ? 'line-through' : 'none', color: item.selesai ? 'var(--text-secondary)' : 'inherit' }}>
-                      {item.teks}
-                    </span>
-                    {canEdit && (
-                      <button type="button" onClick={() => deleteCheck(item.id)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#b91c1c', opacity: 0.6, padding: 0 }}>
-                        <Trash2 size={13} />
-                      </button>
-                    )}
-                  </div>
-                ))}
+
+              {/* Assignee — di atas deskripsi */}
+              {renderAssignees()}
+
+              {/* Checklist — di atas deskripsi */}
+              {renderChecklist()}
+
+              {/* Deskripsi */}
+              <div>
+                {lb('Deskripsi')}
+                <textarea rows={3} style={{ ...inp, resize: 'vertical' }}
+                  value={form.deskripsi}
+                  onChange={e => setForm(f => ({ ...f, deskripsi: e.target.value }))}
+                  disabled={!canEdit}
+                  placeholder="Penjelasan tugas..." />
               </div>
+
+              {/* Save */}
               {canEdit && (
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <input
-                    style={{ ...inp, flex: 1, fontSize: '0.82rem' }}
-                    placeholder="Tambah item checklist..."
-                    value={newCheckItem}
-                    onChange={e => setNewCheckItem(e.target.value)}
-                    onKeyDown={e => e.key === 'Enter' && (e.preventDefault(), addCheckItem())}
-                  />
-                  <button type="button" onClick={addCheckItem} className="btn btn-primary" style={{ padding: '0.45rem 0.75rem', fontSize: '0.82rem' }}>
-                    <Plus size={14} />
+                <div style={{ display: 'flex', gap: '0.65rem' }}>
+                  <button type="submit" className="btn btn-primary" disabled={saving} style={{ flex: 1 }}>
+                    {saving ? 'Menyimpan...' : isNew ? 'Buat Task' : 'Simpan Perubahan'}
                   </button>
+                  <button type="button" className="btn" onClick={onClose} style={{ background: 'var(--surface-color)' }}>Batal</button>
                 </div>
               )}
-            </section>
+            </div>
+          </form>
+        )}
 
-            {/* ── Foto Lampiran ── */}
+        {/* Foto & Komentar — hanya task yang sudah ada */}
+        {!isNew && !loading && (
+          <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.25rem', marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+
+            {/* Foto Lampiran */}
             <section>
               <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem' }}>
                 Foto Lampiran ({attachments.filter(a => !a.is_expired).length})
-                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>
-                  · hapus otomatis setelah 45 hari
-                </span>
+                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>· hapus otomatis 45 hari</span>
               </div>
-              <AttachmentUploader
-                taskId={taskId}
-                guruId={user?.id}
-                attachments={attachments}
+              <AttachmentUploader taskId={taskId} guruId={user?.id} attachments={attachments}
                 readOnly={!canEdit}
                 onUploaded={rec => setAttachments(prev => [...prev, rec])}
-                onDeleted={id => setAttachments(prev => prev.filter(a => a.id !== id))}
-              />
+                onDeleted={id => setAttachments(prev => prev.filter(a => a.id !== id))} />
             </section>
 
-            {/* ── Komentar ── */}
+            {/* Komentar */}
             <section>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem' }}>
-                Komentar ({comments.length})
-              </div>
+              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem' }}>Komentar ({comments.length})</div>
               <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.75rem', maxHeight: 220, overflowY: 'auto' }}>
                 {comments.map(c => (
                   <div key={c.id} style={{ background: 'rgba(79,70,229,0.04)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                      <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama || c.guru_id}</span>
+                      <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
                     </div>
                     <p style={{ margin: 0, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{c.isi}</p>
@@ -462,20 +467,16 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                 {comments.length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: 0 }}>Belum ada komentar.</p>}
               </div>
               <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input
-                  style={{ ...inp, flex: 1, fontSize: '0.82rem' }}
-                  placeholder="Tulis komentar..."
-                  value={newComment}
-                  onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
-                />
+                <input style={{ ...inp, flex: 1, fontSize: '0.82rem' }} placeholder="Tulis komentar..."
+                  value={newComment} onChange={e => setNewComment(e.target.value)}
+                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())} />
                 <button type="button" onClick={addComment} className="btn btn-primary" style={{ padding: '0.45rem 0.75rem' }}>
                   <Send size={14} />
                 </button>
               </div>
             </section>
 
-            {/* ── Meta info ── */}
+            {/* Meta */}
             {task && (
               <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem' }}>
                 Dibuat {fmtDT(task.created_at)}
