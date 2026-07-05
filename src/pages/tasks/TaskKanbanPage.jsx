@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Plus, AlertCircle, Search, Filter } from 'lucide-react';
+import { Plus, AlertCircle, Search, SlidersHorizontal, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import TaskDetailModal from './TaskDetailModal';
@@ -27,11 +27,19 @@ export default function TaskKanbanPage() {
   const [search, setSearch]             = useState('');
   const [showDone, setShowDone]         = useState(false);
 
-  const [modalId, setModalId]           = useState(undefined);
-  const [newInStage, setNewInStage]     = useState(null); // stage_id untuk buat task baru
+  const [modalId, setModalId]       = useState(undefined);
+  const [newInStage, setNewInStage] = useState(null);
+  const [showFilters, setShowFilters] = useState(false);
+  const [isMobile, setIsMobile]     = useState(() => window.innerWidth < 768);
 
-  const dragTaskId  = useRef(null);
+  const dragTaskId    = useRef(null);
   const dragOverStage = useRef(null);
+
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth < 768);
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
 
   useEffect(() => { loadAll(); }, []);
 
@@ -111,49 +119,117 @@ export default function TaskKanbanPage() {
 
   const byStage = (stageId) => visible.filter(t => t.stage_id === stageId);
 
-  const sel = { padding: '0.4rem 0.65rem', borderRadius: '0.4rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit', fontSize: '0.8rem' };
+  const sel = {
+    padding: '0.4rem 0.65rem', borderRadius: '0.4rem',
+    border: '1px solid var(--glass-border)', background: 'var(--surface-color)',
+    fontFamily: 'inherit', fontSize: '0.8rem',
+  };
+
+  const activeFilterCount = [filterUnit, filterProj, filterLabel, filterPrior, showDone ? '1' : ''].filter(Boolean).length;
+
+  // Lebar kolom: 85vw di mobile (1 kolom hampir full), 280px di desktop
+  const colWidth = isMobile ? Math.min(window.innerWidth * 0.82, 320) : 280;
 
   return (
-    <div style={{ height: '100%', display: 'flex', flexDirection: 'column' }}>
-      <div style={{ marginBottom: '1rem' }}>
-        <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tugas</p>
-        <h1 style={{ fontSize: '1.6rem', fontWeight: 700, margin: 0 }}>Papan Kanban</h1>
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+
+      {/* Header */}
+      <div style={{ marginBottom: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', flexWrap: 'wrap', gap: '0.5rem' }}>
+        <div>
+          <p style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', margin: 0, textTransform: 'uppercase', letterSpacing: '0.05em' }}>Tugas</p>
+          <h1 style={{ fontSize: isMobile ? '1.3rem' : '1.6rem', fontWeight: 700, margin: 0 }}>Papan Kanban</h1>
+        </div>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          {isAdmin && (
+            <button
+              onClick={() => { setNewInStage(stages[0]?.id || null); setModalId(null); }}
+              className="btn btn-primary"
+              style={{ padding: '0.4rem 0.85rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+            >
+              <Plus size={14} /> Task Baru
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Filter bar */}
-      <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginBottom: '1rem' }}>
-        <div style={{ position: 'relative' }}>
-          <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
-          <input style={{ ...sel, paddingLeft: '2rem', minWidth: 180 }} placeholder="Cari judul..." value={search} onChange={e => setSearch(e.target.value)} />
+      <div style={{ marginBottom: '0.75rem' }}>
+        {/* Search + toggle filter */}
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
+          <div style={{ position: 'relative', flex: 1, maxWidth: isMobile ? '100%' : 220 }}>
+            <Search size={14} style={{ position: 'absolute', left: '0.6rem', top: '50%', transform: 'translateY(-50%)', color: 'var(--text-secondary)' }} />
+            <input style={{ ...sel, width: '100%', paddingLeft: '2rem', boxSizing: 'border-box' }}
+              placeholder="Cari judul task..." value={search} onChange={e => setSearch(e.target.value)} />
+          </div>
+          <button
+            onClick={() => setShowFilters(f => !f)}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '0.35rem',
+              padding: '0.4rem 0.75rem', borderRadius: '0.4rem',
+              border: '1px solid var(--glass-border)',
+              background: showFilters || activeFilterCount > 0 ? 'var(--primary)' : 'var(--surface-color)',
+              color: showFilters || activeFilterCount > 0 ? '#fff' : 'var(--text-secondary)',
+              cursor: 'pointer', fontSize: '0.8rem', fontWeight: 500,
+              transition: 'all 0.15s',
+            }}
+          >
+            <SlidersHorizontal size={14} />
+            {!isMobile && 'Filter'}
+            {activeFilterCount > 0 && (
+              <span style={{ background: showFilters ? 'rgba(255,255,255,0.3)' : 'rgba(79,70,229,0.15)', borderRadius: 999, padding: '0 0.35rem', fontSize: '0.72rem', fontWeight: 700 }}>
+                {activeFilterCount}
+              </span>
+            )}
+          </button>
+          <label style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', fontSize: '0.78rem', cursor: 'pointer', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+            <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
+            {isMobile ? 'Selesai' : 'Tampilkan Selesai'}
+          </label>
         </div>
-        <select style={sel} value={filterUnit} onChange={e => setFilterUnit(e.target.value)}>
-          <option value="">Semua Unit</option>
-          {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
-        </select>
-        <select style={sel} value={filterProj} onChange={e => setFilterProj(e.target.value)}>
-          <option value="">Semua Project</option>
-          {projects.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
-        </select>
-        <select style={sel} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
-          <option value="">Semua Label</option>
-          {labels.map(l => <option key={l.id} value={l.id}>{l.nama}</option>)}
-        </select>
-        <select style={sel} value={filterPrior} onChange={e => setFilterPrior(e.target.value)}>
-          <option value="">Semua Prioritas</option>
-          <option value="Tinggi">Tinggi</option>
-          <option value="Sedang">Sedang</option>
-          <option value="Rendah">Rendah</option>
-        </select>
-        <label style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-          <input type="checkbox" checked={showDone} onChange={e => setShowDone(e.target.checked)} style={{ accentColor: 'var(--primary)' }} />
-          Tampilkan Selesai
-        </label>
+
+        {/* Panel filter (collapsible) */}
+        {showFilters && (
+          <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', alignItems: 'center', marginTop: '0.5rem', padding: '0.75rem', background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem' }}>
+            <select style={sel} value={filterUnit} onChange={e => setFilterUnit(e.target.value)}>
+              <option value="">Semua Unit</option>
+              {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+            </select>
+            <select style={sel} value={filterProj} onChange={e => setFilterProj(e.target.value)}>
+              <option value="">Semua Project</option>
+              {projects.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
+            </select>
+            <select style={sel} value={filterLabel} onChange={e => setFilterLabel(e.target.value)}>
+              <option value="">Semua Label</option>
+              {labels.map(l => <option key={l.id} value={l.id}>{l.nama}</option>)}
+            </select>
+            <select style={sel} value={filterPrior} onChange={e => setFilterPrior(e.target.value)}>
+              <option value="">Semua Prioritas</option>
+              <option value="Tinggi">Tinggi</option>
+              <option value="Sedang">Sedang</option>
+              <option value="Rendah">Rendah</option>
+            </select>
+            {activeFilterCount > 0 && (
+              <button onClick={() => { setFilterUnit(''); setFilterProj(''); setFilterLabel(''); setFilterPrior(''); setShowDone(false); }}
+                style={{ ...sel, border: 'none', color: '#ef4444', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '0.25rem', background: '#fee2e2' }}>
+                <X size={12} /> Reset
+              </button>
+            )}
+          </div>
+        )}
       </div>
 
+      {/* Kanban board */}
       {loading ? (
         <p style={{ color: 'var(--text-secondary)' }}>Memuat...</p>
       ) : (
-        <div style={{ display: 'flex', gap: '0.85rem', overflowX: 'auto', flex: 1, paddingBottom: '1rem', alignItems: 'flex-start' }}>
+        <div style={{
+          display: 'flex', gap: '0.75rem',
+          overflowX: 'auto', flex: 1, minHeight: 0,
+          paddingBottom: '1rem', alignItems: 'flex-start',
+          // Snap ke kolom di mobile
+          scrollSnapType: isMobile ? 'x mandatory' : 'none',
+          WebkitOverflowScrolling: 'touch',
+        }}>
           {stages.map(stage => {
             const stageTasks = byStage(stage.id);
             return (
@@ -162,20 +238,21 @@ export default function TaskKanbanPage() {
                 onDragOver={e => onDragOver(e, stage.id)}
                 onDrop={e => onDrop(e, stage.id)}
                 style={{
-                  minWidth: 280, width: 280, flexShrink: 0,
+                  width: colWidth, minWidth: colWidth, flexShrink: 0,
                   background: 'var(--surface-color)',
                   border: '1px solid var(--glass-border)',
                   borderRadius: '0.75rem',
                   display: 'flex', flexDirection: 'column',
-                  maxHeight: 'calc(100vh - 220px)',
+                  maxHeight: isMobile ? 'calc(100vh - 260px)' : 'calc(100vh - 220px)',
+                  scrollSnapAlign: isMobile ? 'start' : 'none',
                 }}
               >
                 {/* Column header */}
                 <div style={{ padding: '0.75rem 1rem', borderBottom: '2px solid ' + stage.warna, display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                    <span style={{ width: 10, height: 10, borderRadius: '50%', background: stage.warna, display: 'inline-block' }} />
+                    <span style={{ width: 9, height: 9, borderRadius: '50%', background: stage.warna, display: 'inline-block', flexShrink: 0 }} />
                     <span style={{ fontWeight: 700, fontSize: '0.875rem' }}>{stage.nama}</span>
-                    <span style={{ background: 'var(--glass-border)', color: 'var(--text-secondary)', borderRadius: 999, padding: '0 0.4rem', fontSize: '0.75rem' }}>
+                    <span style={{ background: 'var(--glass-border)', color: 'var(--text-secondary)', borderRadius: 999, padding: '0 0.4rem', fontSize: '0.72rem' }}>
                       {stageTasks.length}
                     </span>
                   </div>
@@ -197,19 +274,20 @@ export default function TaskKanbanPage() {
                     return (
                       <div
                         key={task.id}
-                        draggable
-                        onDragStart={e => onDragStart(e, task.id)}
+                        draggable={!isMobile}
+                        onDragStart={!isMobile ? (e => onDragStart(e, task.id)) : undefined}
                         onClick={() => setModalId(task.id)}
                         style={{
                           background: 'var(--bg-color, #fff)',
                           border: `1px solid ${isOD ? '#fca5a5' : 'var(--glass-border)'}`,
-                          borderRadius: '0.5rem', padding: '0.65rem 0.75rem',
+                          borderRadius: '0.5rem', padding: '0.7rem 0.75rem',
                           cursor: 'pointer', transition: 'box-shadow 0.15s',
+                          userSelect: 'none',
                         }}
-                        onMouseOver={e => e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)'}
+                        onMouseOver={e => !isMobile && (e.currentTarget.style.boxShadow = '0 2px 8px rgba(0,0,0,0.1)')}
                         onMouseOut={e => e.currentTarget.style.boxShadow = 'none'}
                       >
-                        <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.35rem', lineHeight: 1.35 }}>{task.judul}</div>
+                        <div style={{ fontWeight: 600, fontSize: '0.875rem', marginBottom: '0.35rem', lineHeight: 1.4 }}>{task.judul}</div>
                         <div style={{ display: 'flex', gap: '0.35rem', flexWrap: 'wrap', alignItems: 'center' }}>
                           <span style={{ color: PRIORITAS_COLOR[task.prioritas], fontSize: '0.72rem', fontWeight: 700 }}>● {task.prioritas}</span>
                           {task.task_labels && (
@@ -228,14 +306,10 @@ export default function TaskKanbanPage() {
                             ⏰ {fmtDate(task.deadline)}
                           </div>
                         )}
-                        {/* Assignee bubbles */}
                         {task.task_assignees?.length > 0 && (
                           <div style={{ display: 'flex', gap: '0.2rem', marginTop: '0.4rem', flexWrap: 'wrap' }}>
                             {task.task_assignees.slice(0, 3).map(a => (
-                              <span key={a.guru_id} style={{
-                                background: 'rgba(79,70,229,0.1)', color: 'var(--primary)',
-                                borderRadius: 999, padding: '0.1rem 0.35rem', fontSize: '0.65rem', fontWeight: 600,
-                              }}>
+                              <span key={a.guru_id} style={{ background: 'rgba(79,70,229,0.1)', color: 'var(--primary)', borderRadius: 999, padding: '0.1rem 0.35rem', fontSize: '0.65rem', fontWeight: 600 }}>
                                 {a.gurus?.nama?.split(' ')[0] || '?'}
                               </span>
                             ))}
@@ -248,7 +322,7 @@ export default function TaskKanbanPage() {
                     );
                   })}
                   {stageTasks.length === 0 && (
-                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', padding: '1rem 0', opacity: 0.5 }}>
+                    <div style={{ textAlign: 'center', color: 'var(--text-secondary)', fontSize: '0.8rem', padding: '1.5rem 0', opacity: 0.4 }}>
                       Kosong
                     </div>
                   )}
