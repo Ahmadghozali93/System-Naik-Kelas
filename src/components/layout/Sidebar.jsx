@@ -549,7 +549,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {/* TUGAS GROUP */}
-                {['/tugas/saya','/tugas/kanban','/tugas/daftar','/tugas/project','/tugas/pengaturan'].some(p => hasPermission(p)) && (
+                {['/tugas/saya','/tugas/kanban','/tugas/daftar','/tugas/project','/tugas/rutin','/tugas/pengaturan'].some(p => hasPermission(p)) && (
                     <SidebarGroup
                         title="Tugas"
                         icon={CheckSquare2}
@@ -574,6 +574,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/tugas/project') && (
                             <NavLink to="/tugas/project" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <FolderOpen className="w-4 h-4" /><span>Kelola Project</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/tugas/rutin') && (
+                            <NavLink to="/tugas/rutin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <RotateCcw className="w-4 h-4" /><span>Tugas Rutin</span>
                             </NavLink>
                         )}
                         {hasPermission('/tugas/pengaturan') && (

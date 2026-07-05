@@ -3,6 +3,7 @@ import { Plus, AlertCircle, Search, Filter } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import TaskDetailModal from './TaskDetailModal';
+import { useRecurringTasks } from '../../hooks/useRecurringTasks';
 
 const PRIORITAS_COLOR = { Tinggi: '#ef4444', Sedang: '#f59e0b', Rendah: '#22c55e' };
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short' }) : null;
@@ -10,6 +11,7 @@ const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-dig
 export default function TaskKanbanPage() {
   const { user } = useAuth();
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
+  useRecurringTasks();
 
   const [stages, setStages]     = useState([]);
   const [tasks, setTasks]       = useState([]);

@@ -53,6 +53,7 @@ const AVAILABLE_MENUS = [
     { path: '/tugas/kanban',      label: 'Tugas - Papan Kanban' },
     { path: '/tugas/daftar',      label: 'Tugas - Daftar Tugas' },
     { path: '/tugas/project',     label: 'Tugas - Kelola Project' },
+    { path: '/tugas/rutin',        label: 'Tugas - Tugas Rutin' },
     { path: '/tugas/pengaturan',  label: 'Tugas - Pengaturan Stage & Label' },
     // ── Pengaturan ───────────────────────────────────
     { path: '/role-setup',       label: 'Setup Hak Akses' },

@@ -54,6 +54,7 @@ import TaskKanbanPage from './pages/tasks/TaskKanbanPage';
 import TaskListPage from './pages/tasks/TaskListPage';
 import TaskProjectPage from './pages/tasks/TaskProjectPage';
 import TaskSettingsPage from './pages/tasks/TaskSettingsPage';
+import TaskRecurringPage from './pages/tasks/TaskRecurringPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -186,6 +187,7 @@ function App() {
             <Route path="/tugas/daftar"     element={<TaskListPage />} />
             <Route path="/tugas/project"    element={<TaskProjectPage />} />
             <Route path="/tugas/pengaturan" element={<TaskSettingsPage />} />
+            <Route path="/tugas/rutin"      element={<TaskRecurringPage />} />
 
             {/* FALLBACK */}
             <Route
