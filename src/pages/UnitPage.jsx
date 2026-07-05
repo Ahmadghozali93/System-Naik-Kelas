@@ -277,52 +277,57 @@ export default function UnitPage() {
             {
                 isModalOpen && (
                     <div className="modal-overlay">
-                        <div className="modal-content" style={{ maxWidth: '400px' }} onClick={e => e.stopPropagation()}>
-                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                                <h2 className="text-xl font-bold">{editingId ? 'Edit Data Unit' : 'Tambah Unit Baru'}</h2>
-                                <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                                    <X className="w-5 h-5" />
+                        <div className="modal-content" style={{ maxWidth: '420px' }} onClick={e => e.stopPropagation()}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
+                                <div>
+                                    <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
+                                        {editingId ? 'Edit' : 'Tambah'} Data
+                                    </p>
+                                    <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Unit / Cabang</h2>
+                                </div>
+                                <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+                                    <X size={20} />
                                 </button>
                             </div>
 
-                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
+                            <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Unit</label>
+                                    <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Unit</label>
                                     <input
                                         type="text"
                                         name="nama"
                                         value={formData.nama}
                                         onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                        style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                         required
                                         placeholder="Mis: Cabang Jakarta Pusat"
                                     />
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Link Google Maps</label>
+                                    <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link Google Maps</label>
                                     <input
                                         type="url"
                                         name="maps"
                                         value={formData.maps}
                                         onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                        style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                         placeholder="https://maps.google.com/?q=..."
                                     />
                                 </div>
 
-                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer', marginTop: '0.5rem' }}>
+                                <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}>
                                     <input
                                         type="checkbox"
                                         name="aktif"
                                         checked={formData.aktif}
                                         onChange={handleInputChange}
-                                        style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)' }}
+                                        style={{ width: '1rem', height: '1rem', accentColor: 'var(--primary)', flexShrink: 0 }}
                                     />
-                                    <span style={{ fontWeight: 500 }}>Unit Aktif Beroperasi</span>
+                                    <span style={{ fontSize: '0.875rem', fontWeight: 500 }}>Unit Aktif Beroperasi</span>
                                 </label>
 
-                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                                <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
                                     <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Batal</button>
                                     <button type="submit" className="btn btn-primary">
                                         {editingId ? 'Simpan Perubahan' : 'Tambahkan'}

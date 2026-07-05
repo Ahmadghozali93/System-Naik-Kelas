@@ -353,94 +353,81 @@ export default function UserPage() {
             {isModalOpen && (
                 <div className="modal-overlay">
                     <div className="modal-content" style={{ maxWidth: '600px' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 className="text-xl font-bold">{isViewing ? 'Detail Data User' : editingId ? 'Edit Data User' : 'Tambah User Baru'}</h2>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                                <X className="w-5 h-5" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
+                            <div>
+                                <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
+                                    {isViewing ? 'Detail' : editingId ? 'Edit' : 'Tambah'} Data
+                                </p>
+                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>User / Guru</h2>
+                            </div>
+                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+                                <X size={20} />
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-
-                            <div style={{ gridColumn: 'span 2', display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Lengkap</label>
-                                    <input
-                                        type="text"
-                                        name="nama"
-                                        value={formData.nama}
-                                        onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                        required
-                                        disabled={isViewing}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>No WA</label>
-                                    <input
-                                        type="tel"
-                                        name="nowa"
-                                        value={formData.nowa}
-                                        onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                        required
-                                        disabled={isViewing}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Lahir</label>
-                                    <DatePicker
-                                        name="tanggal_lahir"
-                                        value={formData.tanggal_lahir}
-                                        onChange={handleInputChange}
-                                        disabled={isViewing}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Masuk Kerja</label>
-                                    <DatePicker
-                                        name="tanggal_masuk"
-                                        value={formData.tanggal_masuk}
-                                        onChange={handleInputChange}
-                                        disabled={isViewing}
-                                    />
-                                </div>
-                                <div>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Kelas Bonus KPI</label>
-                                    <select
-                                        name="role_guru"
-                                        value={formData.role_guru}
-                                        onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                        disabled={isViewing}
-                                    >
-                                        <option value="">-- Belum diset --</option>
-                                        <option value="learning_coordinator">Kelas A — Learning Koordinator</option>
-                                        <option value="tutor">Kelas B — Tutor</option>
-                                    </select>
-                                </div>
-                            </div>
+                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.1rem' }}>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Email</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Lengkap</label>
+                                <input
+                                    type="text"
+                                    name="nama"
+                                    value={formData.nama}
+                                    onChange={handleInputChange}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    required
+                                    disabled={isViewing}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>No WA</label>
+                                <input
+                                    type="tel"
+                                    name="nowa"
+                                    value={formData.nowa}
+                                    onChange={handleInputChange}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    required
+                                    disabled={isViewing}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tanggal Lahir</label>
+                                <DatePicker
+                                    name="tanggal_lahir"
+                                    value={formData.tanggal_lahir}
+                                    onChange={handleInputChange}
+                                    disabled={isViewing}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tanggal Masuk Kerja</label>
+                                <DatePicker
+                                    name="tanggal_masuk"
+                                    value={formData.tanggal_masuk}
+                                    onChange={handleInputChange}
+                                    disabled={isViewing}
+                                />
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</label>
                                 <input
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
-
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Role</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Role</label>
                                 <select
                                     name="role"
                                     value={formData.role}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 >
@@ -451,14 +438,27 @@ export default function UserPage() {
                                     <option value="Tutor">Tutor</option>
                                 </select>
                             </div>
-
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Status</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Kelas Bonus KPI</label>
+                                <select
+                                    name="role_guru"
+                                    value={formData.role_guru}
+                                    onChange={handleInputChange}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    disabled={isViewing}
+                                >
+                                    <option value="">-- Belum diset --</option>
+                                    <option value="learning_coordinator">Kelas A — Learning Koordinator</option>
+                                    <option value="tutor">Kelas B — Tutor</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</label>
                                 <select
                                     name="status"
                                     value={formData.status}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 >
@@ -468,32 +468,32 @@ export default function UserPage() {
                             </div>
 
                             <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Alamat Lengkap</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Alamat Lengkap</label>
                                 <textarea
                                     name="alamat"
                                     value={formData.alamat}
                                     onChange={handleInputChange}
                                     rows="2"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', resize: 'vertical' }}
                                     required
                                     disabled={isViewing}
-                                ></textarea>
+                                />
                             </div>
 
                             <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Link Maps Rumah</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link Maps Rumah</label>
                                 <input
                                     type="url"
                                     name="maps"
                                     value={formData.maps}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     placeholder="https://maps.google.com/..."
                                     disabled={isViewing}
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Tutup</button>
                                 {!isViewing && (
                                     <button type="submit" className="btn btn-primary">

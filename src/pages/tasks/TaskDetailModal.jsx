@@ -1,8 +1,12 @@
-import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Send, CheckSquare, Square, User, AlertCircle } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Plus, Trash2, Send, CheckSquare, Square, User, AlertCircle, Camera, Image, ImageOff } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
-import AttachmentUploader from '../../components/tasks/AttachmentUploader';
+
+const COMPRESS_OPTS = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true, initialQuality: 0.82 };
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ALLOWED_EXT   = ['jpg', 'jpeg', 'png', 'webp'];
 
 const PRIORITAS_COLOR = { Tinggi: '#ef4444', Sedang: '#f59e0b', Rendah: '#22c55e' };
 const fmtDT   = (d) => d ? new Date(d).toLocaleString('id-ID',  { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
@@ -22,6 +26,7 @@ const lb = (text, req) => (
 export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId, onClose, onSaved }) {
   const { user } = useAuth();
   const isNew = !taskId;
+  const photoInputRef = useRef();
 
   const [task, setTask]           = useState(null);
   const [stages, setStages]       = useState([]);
@@ -32,18 +37,19 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   const [checklists, setChecklists] = useState([]);
   const [comments, setComments]   = useState([]);
   const [attachments, setAttachments] = useState([]);
+  const [signedUrls, setSignedUrls]   = useState({});
 
-  // Unit di-resolve otomatis, tidak tampil di form
   const [unitId, setUnitId] = useState(defaultUnitId || '');
-
   const [loading, setLoading]       = useState(!isNew);
   const [saving, setSaving]         = useState(false);
   const [newComment, setNewComment] = useState('');
   const [newCheckItem, setNewCheckItem] = useState('');
+  const [commentPhoto, setCommentPhoto]         = useState(null);   // File
+  const [commentPhotoPreview, setCommentPhotoPreview] = useState(null); // blob URL
+  const [sendingComment, setSendingComment]     = useState(false);
 
-  // Pending untuk task baru (disimpan bersama task saat submit)
-  const [pendingAssignees, setPendingAssignees]   = useState([]); // [guruId, ...]
-  const [pendingChecklists, setPendingChecklists] = useState([]); // [teks, ...]
+  const [pendingAssignees, setPendingAssignees]   = useState([]);
+  const [pendingChecklists, setPendingChecklists] = useState([]);
 
   const [form, setForm] = useState({
     judul: '', deskripsi: '',
@@ -55,7 +61,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   const isAdmin  = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
   const canEdit  = isNew || isAdmin || task?.dibuat_oleh === user?.id || assignees.some(a => a.guru_id === user?.id);
 
-  // ── Load base data + resolve unit ──
+  // ── Load ──
   useEffect(() => {
     const load = async () => {
       const [stRes, lbRes] = await Promise.all([
@@ -66,7 +72,6 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
       setLabels(lbRes.data || []);
 
       if (isNew) {
-        // Resolve unit: prop → user's first unit
         let uid = defaultUnitId;
         if (!uid && user?.id) {
           const { data } = await supabase.from('guru_units').select('unit_id').eq('guru_id', user.id).limit(1).single();
@@ -81,7 +86,6 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     load();
   }, [taskId]);
 
-  // ── Load projects + gurus saat unit berubah ──
   useEffect(() => {
     if (!unitId) { setProjects([]); setUnitGurus([]); return; }
     supabase.from('task_projects').select('id, nama').eq('unit_id', unitId).eq('status', 'aktif').order('nama')
@@ -117,7 +121,14 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setLoading(false);
   };
 
-  // ── Save ──
+  // ── Signed URLs ──
+  const getSignedUrl = async (path, id) => {
+    if (signedUrls[id] || !path) return;
+    const { data } = await supabase.storage.from('task-photos').createSignedUrl(path, 3600);
+    if (data?.signedUrl) setSignedUrls(prev => ({ ...prev, [id]: data.signedUrl }));
+  };
+
+  // ── Save Task ──
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.judul.trim()) return alert('Judul task wajib diisi.');
@@ -148,7 +159,6 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
       if (error) { alert('Gagal: ' + error.message); setSaving(false); return; }
       savedTask = data;
 
-      // Simpan pending assignees & checklists bersama task baru
       const ops = [];
       if (pendingAssignees.length)
         ops.push(supabase.from('task_assignees').insert(pendingAssignees.map(gid => ({ task_id: savedTask.id, guru_id: gid }))));
@@ -167,7 +177,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     else await loadTask();
   };
 
-  // ── Assignees (edit mode — DB langsung) ──
+  // ── Assignees ──
   const addAssignee = async (guruId) => {
     if (assignees.some(a => a.guru_id === guruId)) return;
     const { error } = await supabase.from('task_assignees').insert({ task_id: taskId, guru_id: guruId });
@@ -180,7 +190,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setAssignees(prev => prev.filter(a => a.guru_id !== guruId));
   };
 
-  // ── Checklists (edit mode — DB langsung) ──
+  // ── Checklists ──
   const addCheckItem = async () => {
     const txt = newCheckItem.trim();
     if (!txt || !taskId) return;
@@ -199,28 +209,100 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setChecklists(prev => prev.filter(c => c.id !== id));
   };
 
-  // ── Comments ──
+  // ── Pilih foto komentar ──
+  const handleCommentPhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_TYPES.includes(file.type) || !ALLOWED_EXT.includes(ext)) {
+      alert('Hanya JPG, PNG, atau WebP yang diizinkan.');
+      e.target.value = '';
+      return;
+    }
+    setCommentPhoto(file);
+    setCommentPhotoPreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+
+  const clearCommentPhoto = () => {
+    if (commentPhotoPreview) URL.revokeObjectURL(commentPhotoPreview);
+    setCommentPhoto(null);
+    setCommentPhotoPreview(null);
+  };
+
+  // ── Kirim komentar + foto ──
   const addComment = async () => {
     const txt = newComment.trim();
-    if (!txt || !taskId) return;
-    const { data, error } = await supabase.from('task_comments')
-      .insert({ task_id: taskId, guru_id: user?.id, isi: txt })
-      .select('*, gurus(id, nama)').single();
-    if (error) return alert('Gagal: ' + error.message);
-    setComments(prev => [...prev, data]);
-    setNewComment('');
+    if (!txt && !commentPhoto) return;
+    if (!taskId) return;
+
+    setSendingComment(true);
+    try {
+      // Insert komentar dulu
+      const { data: commentData, error: commentErr } = await supabase
+        .from('task_comments')
+        .insert({ task_id: taskId, guru_id: user?.id, isi: txt })
+        .select('*, gurus(id, nama)')
+        .single();
+      if (commentErr) throw new Error(commentErr.message);
+
+      const newCommentRecord = { ...commentData };
+
+      // Upload foto jika ada
+      if (commentPhoto) {
+        const ext = commentPhoto.name.split('.').pop()?.toLowerCase();
+        const compressed = await imageCompression(commentPhoto, COMPRESS_OPTS);
+        const path = `tasks/${taskId}/${crypto.randomUUID()}.${ext}`;
+
+        const { error: storageErr } = await supabase.storage
+          .from('task-photos')
+          .upload(path, compressed, { contentType: compressed.type || commentPhoto.type });
+        if (storageErr) throw new Error(storageErr.message);
+
+        const { data: attRec, error: dbErr } = await supabase
+          .from('task_attachments')
+          .insert({
+            task_id:       taskId,
+            guru_id:       user?.id,
+            storage_path:  path,
+            original_name: commentPhoto.name,
+            mime_type:     compressed.type || commentPhoto.type,
+            size_bytes:    compressed.size,
+            comment_id:    commentData.id,
+          })
+          .select()
+          .single();
+        if (dbErr) throw new Error(dbErr.message);
+        setAttachments(prev => [...prev, attRec]);
+      }
+
+      setComments(prev => [...prev, newCommentRecord]);
+      setNewComment('');
+      clearCommentPhoto();
+    } catch (err) {
+      alert('Gagal mengirim: ' + err.message);
+    } finally {
+      setSendingComment(false);
+    }
+  };
+
+  // ── Hapus foto attachment ──
+  const deleteAttachment = async (att) => {
+    if (!window.confirm('Hapus foto ini?')) return;
+    if (att.storage_path) await supabase.storage.from('task-photos').remove([att.storage_path]);
+    await supabase.from('task_attachments').delete().eq('id', att.id);
+    setAttachments(prev => prev.filter(a => a.id !== att.id));
   };
 
   const isOverdue = task && !task.selesai_pada && task.deadline && new Date(task.deadline) < new Date();
   const doneCount = checklists.filter(c => c.selesai).length;
 
-  // ── Assignee section (reusable untuk new & edit) ──
+  // ── Assignee ──
   const renderAssignees = () => {
     const list = isNew
       ? pendingAssignees.map(gid => ({ guru_id: gid, gurus: unitGurus.find(g => g.id === gid) }))
       : assignees;
     const available = unitGurus.filter(g => !list.some(a => a.guru_id === g.id));
-
     return (
       <section>
         <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
@@ -257,7 +339,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     );
   };
 
-  // ── Checklist section (reusable untuk new & edit) ──
+  // ── Checklist ──
   const renderChecklist = () => {
     const items = isNew ? pendingChecklists : checklists;
     return (
@@ -315,6 +397,45 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
           </div>
         )}
       </section>
+    );
+  };
+
+  // ── Thumbnail foto di komentar ──
+  const CommentPhoto = ({ att }) => {
+    if (!signedUrls[att.id] && att.storage_path && !att.is_expired) {
+      getSignedUrl(att.storage_path, att.id);
+    }
+    if (att.is_expired) {
+      return (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.72rem', padding: '0.3rem 0.5rem', border: '1px solid var(--glass-border)', borderRadius: '0.375rem' }}>
+          <ImageOff size={13} /> Foto kedaluwarsa
+        </div>
+      );
+    }
+    return (
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        {signedUrls[att.id] ? (
+          <a href={signedUrls[att.id]} target="_blank" rel="noreferrer">
+            <img
+              src={signedUrls[att.id]}
+              alt={att.original_name}
+              style={{ width: 160, height: 120, objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', display: 'block', cursor: 'zoom-in' }}
+            />
+          </a>
+        ) : (
+          <div style={{ width: 160, height: 120, borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Image size={20} style={{ color: 'var(--text-secondary)' }} />
+          </div>
+        )}
+        {canEdit && (
+          <button
+            onClick={() => deleteAttachment(att)}
+            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}
+          >
+            <X size={11} color="#fff" />
+          </button>
+        )}
+      </div>
     );
   };
 
@@ -406,10 +527,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                 )}
               </div>
 
-              {/* Assignee — di atas deskripsi */}
               {renderAssignees()}
-
-              {/* Checklist — di atas deskripsi */}
               {renderChecklist()}
 
               {/* Deskripsi */}
@@ -435,50 +553,114 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
           </form>
         )}
 
-        {/* Foto & Komentar — hanya task yang sudah ada */}
+        {/* Komentar — hanya task yang sudah ada */}
         {!isNew && !loading && (
-          <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.25rem', marginTop: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1.5rem' }}>
+          <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.25rem', marginTop: '1.25rem' }}>
+            <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.75rem' }}>
+              Komentar ({comments.length})
+            </div>
 
-            {/* Foto Lampiran */}
-            <section>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem' }}>
-                Foto Lampiran ({attachments.filter(a => !a.is_expired).length})
-                <span style={{ marginLeft: '0.5rem', fontSize: '0.72rem', color: 'var(--text-secondary)', fontWeight: 400 }}>· hapus otomatis 45 hari</span>
-              </div>
-              <AttachmentUploader taskId={taskId} guruId={user?.id} attachments={attachments}
-                readOnly={!canEdit}
-                onUploaded={rec => setAttachments(prev => [...prev, rec])}
-                onDeleted={id => setAttachments(prev => prev.filter(a => a.id !== id))} />
-            </section>
-
-            {/* Komentar */}
-            <section>
-              <div style={{ fontWeight: 700, fontSize: '0.85rem', marginBottom: '0.6rem' }}>Komentar ({comments.length})</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', marginBottom: '0.75rem', maxHeight: 220, overflowY: 'auto' }}>
-                {comments.map(c => (
+            {/* Daftar komentar */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem', marginBottom: '1rem', maxHeight: 300, overflowY: 'auto' }}>
+              {comments.map(c => {
+                const commentAtts = attachments.filter(a => a.comment_id === c.id);
+                return (
                   <div key={c.id} style={{ background: 'rgba(79,70,229,0.04)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: c.isi ? '0.25rem' : '0.4rem' }}>
                       <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
                       <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
                     </div>
-                    <p style={{ margin: 0, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{c.isi}</p>
+                    {c.isi && <p style={{ margin: 0, fontSize: '0.85rem', whiteSpace: 'pre-wrap' }}>{c.isi}</p>}
+                    {commentAtts.length > 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.45rem' }}>
+                        {commentAtts.map(att => <CommentPhoto key={att.id} att={att} />)}
+                      </div>
+                    )}
                   </div>
-                ))}
-                {comments.length === 0 && <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: 0 }}>Belum ada komentar.</p>}
-              </div>
-              <div style={{ display: 'flex', gap: '0.5rem' }}>
-                <input style={{ ...inp, flex: 1, fontSize: '0.82rem' }} placeholder="Tulis komentar..."
-                  value={newComment} onChange={e => setNewComment(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())} />
-                <button type="button" onClick={addComment} className="btn btn-primary" style={{ padding: '0.45rem 0.75rem' }}>
-                  <Send size={14} />
+                );
+              })}
+              {comments.length === 0 && (
+                <p style={{ color: 'var(--text-secondary)', fontSize: '0.82rem', margin: 0 }}>Belum ada komentar.</p>
+              )}
+            </div>
+
+            {/* Compose komentar */}
+            <div style={{ border: '1px solid var(--glass-border)', borderRadius: '0.6rem', overflow: 'hidden', background: 'var(--surface-color)' }}>
+              {/* Preview foto terpilih */}
+              {commentPhotoPreview && (
+                <div style={{ padding: '0.5rem 0.65rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                  <div style={{ position: 'relative' }}>
+                    <img src={commentPhotoPreview} alt="preview"
+                      style={{ width: 72, height: 56, objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', display: 'block' }} />
+                    <button type="button" onClick={clearCommentPhoto}
+                      style={{ position: 'absolute', top: -5, right: -5, background: '#ef4444', border: 'none', borderRadius: '50%', width: 17, height: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                      <X size={10} color="#fff" />
+                    </button>
+                  </div>
+                  <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingTop: '0.2rem' }}>{commentPhoto?.name}</span>
+                </div>
+              )}
+
+              {/* Input teks */}
+              <textarea
+                rows={2}
+                style={{ width: '100%', padding: '0.65rem 0.75rem', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--text-primary)', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
+                placeholder="Tulis komentar..."
+                value={newComment}
+                onChange={e => setNewComment(e.target.value)}
+                onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
+              />
+
+              {/* Toolbar */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.65rem', borderTop: '1px solid var(--glass-border)' }}>
+                <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+                  <input
+                    ref={photoInputRef}
+                    type="file"
+                    accept="image/jpeg,image/jpg,image/png,image/webp"
+                    onChange={handleCommentPhotoSelect}
+                    style={{ display: 'none' }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => photoInputRef.current?.click()}
+                    title="Lampirkan foto"
+                    style={{ background: commentPhotoPreview ? 'rgba(79,70,229,0.1)' : 'none', border: 'none', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', color: commentPhotoPreview ? 'var(--primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}
+                  >
+                    <Camera size={16} />
+                  </button>
+                  <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>JPG/PNG/WebP</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={addComment}
+                  disabled={sendingComment || (!newComment.trim() && !commentPhoto)}
+                  className="btn btn-primary"
+                  style={{ padding: '0.35rem 0.75rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}
+                >
+                  <Send size={13} />
+                  {sendingComment ? 'Mengirim...' : 'Kirim'}
                 </button>
               </div>
-            </section>
+            </div>
+
+            {/* Lampiran lama (tanpa comment_id) — backward compat */}
+            {attachments.filter(a => !a.comment_id && !a.is_expired).length > 0 && (
+              <div style={{ marginTop: '1rem' }}>
+                <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>
+                  Lampiran
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                  {attachments.filter(a => !a.comment_id && !a.is_expired).map(att => (
+                    <CommentPhoto key={att.id} att={att} />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Meta */}
             {task && (
-              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem' }}>
+              <div style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', borderTop: '1px solid var(--glass-border)', paddingTop: '0.75rem', marginTop: '1rem' }}>
                 Dibuat {fmtDT(task.created_at)}
                 {task.recurring_rule_id && <span style={{ marginLeft: '1rem', background: '#ede9fe', color: '#7c3aed', padding: '0.1rem 0.4rem', borderRadius: 4 }}>↻ Recurring</span>}
               </div>

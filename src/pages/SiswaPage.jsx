@@ -475,44 +475,50 @@ export default function SiswaPage() {
             {isModalOpen && (
                 <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 0' }}>
                     <div className="modal-content" style={{ maxWidth: '700px', margin: 'auto' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 className="text-xl font-bold">{isViewing ? 'Detail Data Siswa' : editingId ? 'Edit Data Siswa' : 'Tambah Siswa Baru'}</h2>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
-                                <X className="w-5 h-5" />
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
+                            <div>
+                                <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
+                                    {isViewing ? 'Detail' : editingId ? 'Edit' : 'Tambah'} Data
+                                </p>
+                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Siswa</h2>
+                            </div>
+                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+                                <X size={20} />
                             </button>
                         </div>
 
 
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.1rem' }}>
 
                             {/* Info Dasar */}
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Informasi Dasar</h3>
+                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Informasi Dasar</span>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
 
                             {isViewing && editingId && (
                                 <div style={{ gridColumn: 'span 2' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>ID Siswa</label>
-                                    <input type="text" value={editingId} disabled style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }} />
+                                    <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>ID Siswa</label>
+                                    <input type="text" value={editingId} disabled style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-secondary)' }} />
                                 </div>
                             )}
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Lengkap Siswa</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Lengkap Siswa</label>
                                 <input
                                     type="text"
                                     name="nama"
                                     value={formData.nama}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Lahir *</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tanggal Lahir</label>
                                 <DatePicker
                                     name="tanggal_lahir"
                                     value={formData.tanggal_lahir}
@@ -523,25 +529,25 @@ export default function SiswaPage() {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Orang Tua/Wali</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Orang Tua / Wali</label>
                                 <input
                                     type="text"
                                     name="nama_ortu"
                                     value={formData.nama_ortu}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Unit / Cabang</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Unit / Cabang</label>
                                 <select
                                     name="unit"
                                     value={formData.unit}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 >
@@ -556,12 +562,12 @@ export default function SiswaPage() {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Status</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</label>
                                 <select
                                     name="status"
                                     value={formData.status}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 >
@@ -576,12 +582,12 @@ export default function SiswaPage() {
                             {formData.status === 'Booking' && (
                                 <>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Program (Booking)</label>
+                                        <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Program (Booking)</label>
                                         <select
                                             name="booking_program"
                                             value={formData.booking_program}
                                             onChange={handleInputChange}
-                                            style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                            style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                             disabled={isViewing}
                                         >
                                             <option value="">-- Pilih Program --</option>
@@ -591,12 +597,12 @@ export default function SiswaPage() {
                                         </select>
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Jam (Booking)</label>
+                                        <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Jam (Booking)</label>
                                         <select
                                             name="booking_jam"
                                             value={formData.booking_jam}
                                             onChange={handleInputChange}
-                                            style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                            style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                             disabled={isViewing}
                                         >
                                             <option value="">-- Pilih Jam --</option>
@@ -609,99 +615,101 @@ export default function SiswaPage() {
                             )}
 
                             {/* Kontak & Alamat */}
-                            <div style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Kontak & Alamat</h3>
+                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Kontak & Alamat</span>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>No. WhatsApp</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>No. WhatsApp</label>
                                 <input
                                     type="tel"
                                     name="nowa"
                                     value={formData.nowa}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
 
                             <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Alamat Lengkap</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Alamat Lengkap</label>
                                 <textarea
                                     name="alamat"
                                     value={formData.alamat}
                                     onChange={handleInputChange}
                                     rows="2"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', resize: 'vertical' }}
                                     required
                                     disabled={isViewing}
-                                ></textarea>
+                                />
                             </div>
 
                             {/* Sosial Media */}
-                            <div style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Sosial Media</h3>
+                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Sosial Media</span>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Instagram Username</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Instagram</label>
                                 <input
                                     type="text"
                                     name="ig"
                                     value={formData.ig}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    placeholder="@..."
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    placeholder="@username"
                                     disabled={isViewing}
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Facebook</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Facebook</label>
                                 <input
                                     type="text"
                                     name="fb"
                                     value={formData.fb}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                     placeholder="Nama FB..."
                                     disabled={isViewing}
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>TikTok Username</label>
+                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>TikTok</label>
                                 <input
                                     type="text"
                                     name="tiktok"
                                     value={formData.tiktok}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
-                                    placeholder="@..."
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    placeholder="@username"
                                     disabled={isViewing}
                                 />
                             </div>
 
                             {/* Lain-lain */}
-                            <div style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Lain-lain</h3>
+                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                                <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Catatan</span>
+                                <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
 
                             <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Catatan</label>
                                 <textarea
                                     name="catatan"
                                     value={formData.catatan}
                                     onChange={handleInputChange}
                                     rows="3"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit' }}
-                                    placeholder="Catatan khusus terkait siswa (Opsional)"
+                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', resize: 'vertical' }}
+                                    placeholder="Catatan khusus terkait siswa (opsional)"
                                     disabled={isViewing}
-                                ></textarea>
+                                />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Tutup</button>
                                 {!isViewing && (
                                     <button type="submit" className="btn btn-primary" disabled={isSaving}>
