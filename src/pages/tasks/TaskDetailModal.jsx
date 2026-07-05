@@ -8,11 +8,15 @@ const COMPRESS_OPTS = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: tr
 const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
 const ALLOWED_EXT   = ['jpg', 'jpeg', 'png', 'webp'];
 
-const STAGE_COLOR = { default: '#6b7280' };
-const fmtDT   = (d) => d ? new Date(d).toLocaleString('id-ID',  { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+const fmtDT   = (d) => d ? new Date(d).toLocaleString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '';
 
 const PRIORITY_STARS = { Tinggi: 3, Sedang: 2, Rendah: 1 };
+
+const inpStyle = {
+  border: 'none', background: 'transparent', fontFamily: 'inherit',
+  fontSize: '0.875rem', color: 'var(--text-primary)', outline: 'none',
+};
 
 export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId, onClose, onSaved }) {
   const { user } = useAuth();
@@ -30,16 +34,16 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   const [attachments, setAttachments] = useState([]);
   const [signedUrls, setSignedUrls]   = useState({});
 
-  const [unitId, setUnitId]         = useState(defaultUnitId || '');
-  const [loading, setLoading]       = useState(!isNew);
-  const [saving, setSaving]         = useState(false);
-  const [activeTab, setActiveTab]   = useState('deskripsi'); // deskripsi | checklist | komentar
+  const [unitId, setUnitId]     = useState(defaultUnitId || '');
+  const [loading, setLoading]   = useState(!isNew);
+  const [saving, setSaving]     = useState(false);
+  const [activeTab, setActiveTab] = useState('deskripsi');
 
   const [newComment, setNewComment]   = useState('');
   const [newCheckItem, setNewCheckItem] = useState('');
-  const [commentPhoto, setCommentPhoto]           = useState(null);
+  const [commentPhoto, setCommentPhoto]             = useState(null);
   const [commentPhotoPreview, setCommentPhotoPreview] = useState(null);
-  const [sendingComment, setSendingComment]       = useState(false);
+  const [sendingComment, setSendingComment]         = useState(false);
 
   const [pendingAssignees, setPendingAssignees]   = useState([]);
   const [pendingChecklists, setPendingChecklists] = useState([]);
@@ -53,7 +57,6 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
 
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
   const canEdit = isNew || isAdmin || task?.dibuat_oleh === user?.id || assignees.some(a => a.guru_id === user?.id);
-
   const doneCount = checklists.filter(c => c.selesai).length;
   const isOverdue = task && !task.selesai_pada && task.deadline && new Date(task.deadline) < new Date();
   const currentStage = stages.find(s => s.id === form.stage_id);
@@ -117,21 +120,19 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setLoading(false);
   };
 
-  // ── Signed URL ──
   const getSignedUrl = async (path, id) => {
     if (signedUrls[id] || !path) return;
     const { data } = await supabase.storage.from('task-photos').createSignedUrl(path, 3600);
     if (data?.signedUrl) setSignedUrls(prev => ({ ...prev, [id]: data.signedUrl }));
   };
 
-  // ── Save Task ──
+  // ── Save ──
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.judul.trim()) return alert('Judul task wajib diisi.');
     if (!form.stage_id)     return alert('Stage wajib dipilih.');
     if (!unitId)            return alert('Unit belum terdeteksi.');
     setSaving(true);
-
     const selectedStage = stages.find(s => s.id === form.stage_id);
     const payload = {
       judul: form.judul.trim(), deskripsi: form.deskripsi || null,
@@ -145,7 +146,6 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     } else if (!selectedStage?.is_final && task?.selesai_pada) {
       payload.selesai_pada = null; payload.is_late = null;
     }
-
     let savedTask;
     if (isNew) {
       payload.dibuat_oleh = user?.id;
@@ -253,18 +253,35 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     setAttachments(prev => prev.filter(a => a.id !== att.id));
   };
 
-  // ── Assignee chip list ──
   const assigneeList = isNew
     ? pendingAssignees.map(gid => ({ guru_id: gid, gurus: unitGurus.find(g => g.id === gid) }))
     : assignees;
   const available = unitGurus.filter(g => !assigneeList.some(a => a.guru_id === g.id));
+
+  // ── Bintang prioritas ──
+  const PriorityStars = () => {
+    const count = PRIORITY_STARS[form.prioritas] || 2;
+    const cycle = () => {
+      if (!canEdit) return;
+      setForm(f => ({ ...f, prioritas: f.prioritas === 'Tinggi' ? 'Rendah' : f.prioritas === 'Sedang' ? 'Tinggi' : 'Sedang' }));
+    };
+    return (
+      <button type="button" onClick={cycle} title={`Prioritas: ${form.prioritas} — klik untuk ganti`}
+        style={{ background: 'none', border: 'none', cursor: canEdit ? 'pointer' : 'default', display: 'flex', gap: '1px', padding: 0, alignItems: 'center' }}>
+        {[1,2,3].map(i => (
+          <Star key={i} size={15} fill={i <= count ? '#f59e0b' : 'none'} stroke={i <= count ? '#f59e0b' : '#d1d5db'} />
+        ))}
+        <span style={{ marginLeft: '0.35rem', fontSize: '0.75rem', color: 'var(--text-secondary)', fontWeight: 500 }}>{form.prioritas}</span>
+      </button>
+    );
+  };
 
   // ── Foto di komentar ──
   const CommentPhoto = ({ att }) => {
     if (!signedUrls[att.id] && att.storage_path && !att.is_expired) getSignedUrl(att.storage_path, att.id);
     if (att.is_expired) return (
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.72rem', padding: '0.3rem 0.5rem', border: '1px solid var(--glass-border)', borderRadius: '0.375rem' }}>
-        <ImageOff size={13} /> Foto kedaluwarsa
+        <ImageOff size={13} /> Kedaluwarsa
       </div>
     );
     return (
@@ -272,10 +289,10 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
         {signedUrls[att.id] ? (
           <a href={signedUrls[att.id]} target="_blank" rel="noreferrer">
             <img src={signedUrls[att.id]} alt={att.original_name}
-              style={{ width: 160, height: 110, objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', display: 'block', cursor: 'zoom-in' }} />
+              style={{ width: 150, height: 105, objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', display: 'block', cursor: 'zoom-in' }} />
           </a>
         ) : (
-          <div style={{ width: 160, height: 110, borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 150, height: 105, borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <Image size={20} style={{ color: 'var(--text-secondary)' }} />
           </div>
         )}
@@ -289,60 +306,37 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
     );
   };
 
-  // ── Stars priority ──
-  const PriorityStars = () => {
-    const count = PRIORITY_STARS[form.prioritas] || 2;
-    const cycle = () => {
-      if (!canEdit) return;
-      const next = form.prioritas === 'Tinggi' ? 'Rendah' : form.prioritas === 'Sedang' ? 'Tinggi' : 'Sedang';
-      setForm(f => ({ ...f, prioritas: next }));
-    };
-    return (
-      <button type="button" onClick={cycle} title={`Prioritas: ${form.prioritas}`}
-        style={{ background: 'none', border: 'none', cursor: canEdit ? 'pointer' : 'default', display: 'flex', alignItems: 'center', gap: '1px', padding: 0 }}>
-        {[1, 2, 3].map(i => (
-          <Star key={i} size={18}
-            fill={i <= count ? '#f59e0b' : 'none'}
-            stroke={i <= count ? '#f59e0b' : '#d1d5db'}
-            style={{ transition: 'all 0.1s' }} />
-        ))}
-      </button>
-    );
-  };
-
-  const tabStyle = (t) => ({
-    padding: '0.5rem 1.1rem', fontSize: '0.875rem', fontWeight: activeTab === t ? 600 : 400,
-    color: activeTab === t ? 'var(--primary)' : 'var(--text-secondary)',
-    borderBottom: activeTab === t ? '2px solid var(--primary)' : '2px solid transparent',
-    background: 'none', border: 'none', cursor: 'pointer', transition: 'all 0.15s',
-  });
+  const tabBtn = (id, label) => (
+    <button type="button" onClick={() => setActiveTab(id)}
+      style={{
+        padding: '0.45rem 1rem', fontSize: '0.875rem', fontWeight: activeTab === id ? 600 : 400,
+        color: activeTab === id ? 'var(--primary)' : 'var(--text-secondary)',
+        borderBottom: activeTab === id ? '2px solid var(--primary)' : '2px solid transparent',
+        background: 'none', border: 'none', borderRadius: 0, cursor: 'pointer', transition: 'color 0.15s',
+      }}>
+      {label}
+    </button>
+  );
 
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'flex-start', justifyContent: 'center', padding: '2rem 1rem', overflowY: 'auto' }}
-      onClick={onClose}>
-      <div style={{ width: '100%', maxWidth: 760, background: 'var(--surface-color)', borderRadius: '1rem', boxShadow: '0 20px 60px rgba(0,0,0,0.18)', overflow: 'hidden' }}
-        onClick={e => e.stopPropagation()}>
-
+    <div className="modal-overlay" style={{ alignItems: 'flex-start', paddingTop: '2rem' }} onClick={onClose}>
+      <div className="modal-content" style={{ maxWidth: 740, padding: 0 }} onClick={e => e.stopPropagation()}>
         {loading ? (
           <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Memuat...</div>
         ) : (
           <form onSubmit={handleSave}>
 
-            {/* ── Top section ── */}
-            <div style={{ padding: '1.75rem 1.75rem 1.25rem' }}>
+            {/* ── Header ── */}
+            <div style={{ padding: '1.5rem 1.75rem 1.25rem', borderBottom: '1px solid var(--glass-border)' }}>
 
-              {/* Judul + tutup */}
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1.25rem' }}>
+              {/* Judul + X */}
+              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem', marginBottom: '1.1rem' }}>
                 <input
                   value={form.judul}
                   onChange={e => setForm(f => ({ ...f, judul: e.target.value }))}
                   required disabled={!canEdit}
                   placeholder="Judul task..."
-                  style={{
-                    flex: 1, fontSize: '1.5rem', fontWeight: 700, border: 'none', outline: 'none',
-                    background: 'transparent', color: 'var(--text-primary)', fontFamily: 'inherit',
-                    padding: 0, lineHeight: 1.3,
-                  }}
+                  style={{ flex: 1, fontSize: '1.35rem', fontWeight: 700, border: 'none', outline: 'none', background: 'transparent', color: 'var(--text-primary)', fontFamily: 'inherit', padding: 0, lineHeight: 1.3 }}
                 />
                 <button type="button" onClick={onClose}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.2rem', flexShrink: 0 }}>
@@ -350,29 +344,29 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                 </button>
               </div>
 
-              {/* Metadata grid */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.85rem 2rem' }}>
+              {/* Metadata 2-kolom */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.6rem 2.5rem' }}>
 
-                {/* Kiri: Project, Assignees */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 72 }}>Project</span>
-                    <select
-                      value={form.project_id}
-                      onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
+                {/* Kiri */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                  {/* Project */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 76 }}>Project</span>
+                    <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
                       disabled={!canEdit || projects.length === 0}
-                      style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', cursor: canEdit ? 'pointer' : 'default', outline: 'none' }}>
+                      style={{ ...inpStyle, flex: 1, cursor: canEdit ? 'pointer' : 'default' }}>
                       <option value="">— Tanpa project</option>
                       {projects.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
                     </select>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 72, paddingTop: '0.15rem' }}>Assignees</span>
+                  {/* Assignees */}
+                  <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 76, paddingTop: '0.15rem' }}>Assignees</span>
                     <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', gap: '0.3rem', alignItems: 'center' }}>
                       {assigneeList.map(a => (
                         <span key={a.guru_id}
-                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.25rem', background: 'rgba(79,70,229,0.1)', color: 'var(--primary)', borderRadius: 999, padding: '0.15rem 0.55rem', fontSize: '0.8rem', fontWeight: 600 }}>
+                          style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', background: 'rgba(79,70,229,0.1)', color: 'var(--primary)', borderRadius: 999, padding: '0.15rem 0.5rem', fontSize: '0.78rem', fontWeight: 600 }}>
                           {a.gurus?.nama?.split(' ')[0] || '?'}
                           {canEdit && (
                             <button type="button"
@@ -384,66 +378,68 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                         </span>
                       ))}
                       {canEdit && available.length > 0 && (
-                        <select style={{ border: '1px dashed var(--glass-border)', borderRadius: 999, background: 'transparent', fontSize: '0.75rem', color: 'var(--text-secondary)', padding: '0.1rem 0.4rem', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }}
-                          value="" onChange={e => { if (!e.target.value) return; isNew ? setPendingAssignees(p => [...p, e.target.value]) : addAssignee(e.target.value); }}>
+                        <select value="" onChange={e => { if (!e.target.value) return; isNew ? setPendingAssignees(p => [...p, e.target.value]) : addAssignee(e.target.value); }}
+                          style={{ border: '1px dashed var(--glass-border)', borderRadius: 999, background: 'transparent', fontSize: '0.75rem', color: 'var(--text-secondary)', padding: '0.1rem 0.45rem', cursor: 'pointer', outline: 'none', fontFamily: 'inherit' }}>
                           <option value="">+ Tambah</option>
                           {available.map(g => <option key={g.id} value={g.id}>{g.nama}</option>)}
                         </select>
                       )}
-                      {assigneeList.length === 0 && !canEdit && <span style={{ color: 'var(--text-secondary)', fontSize: '0.8rem' }}>—</span>}
+                      {assigneeList.length === 0 && !canEdit && <span style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>—</span>}
                     </div>
                   </div>
                 </div>
 
-                {/* Kanan: Prioritas (stars), Stage, Label, Deadline */}
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.7rem' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 60 }}>Prioritas</span>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                      <PriorityStars />
-                      <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>{form.prioritas}</span>
-                    </div>
+                {/* Kanan */}
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                  {/* Prioritas */}
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 68 }}>Prioritas</span>
+                    <PriorityStars />
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 60 }}>Status</span>
-                    <select
-                      value={form.stage_id}
-                      onChange={e => setForm(f => ({ ...f, stage_id: e.target.value }))}
+                  {/* Status / Stage */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 68 }}>Status</span>
+                    <select value={form.stage_id} onChange={e => setForm(f => ({ ...f, stage_id: e.target.value }))}
                       required disabled={!canEdit}
                       style={{
-                        border: '1px solid ' + (currentStage?.warna || 'var(--glass-border)'),
-                        borderRadius: 999, padding: '0.2rem 0.75rem', fontSize: '0.8rem', fontWeight: 600,
+                        border: '1.5px solid ' + (currentStage?.warna || 'var(--glass-border)'),
+                        borderRadius: 999, padding: '0.2rem 0.7rem', fontSize: '0.78rem', fontWeight: 700,
                         color: currentStage?.warna || 'var(--text-primary)',
-                        background: currentStage ? currentStage.warna + '15' : 'transparent',
+                        background: currentStage ? currentStage.warna + '18' : 'transparent',
                         cursor: canEdit ? 'pointer' : 'default', outline: 'none', fontFamily: 'inherit',
                       }}>
                       <option value="">— Pilih stage</option>
                       {stages.map(s => <option key={s.id} value={s.id}>{s.nama}</option>)}
                     </select>
                     {isOverdue && (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.72rem', color: '#b91c1c', fontWeight: 700 }}>
-                        <AlertCircle size={12} /> Overdue
+                      <span style={{ display: 'flex', alignItems: 'center', gap: '0.2rem', fontSize: '0.7rem', color: '#ef4444', fontWeight: 700 }}>
+                        <AlertCircle size={11} /> Overdue
                       </span>
+                    )}
+                    {task?.selesai_pada && (
+                      <span style={{ fontSize: '0.7rem', color: '#047857', fontWeight: 600 }}>✓ Selesai</span>
                     )}
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 60 }}>Label</span>
+                  {/* Label */}
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 68 }}>Label</span>
                     <select value={form.label_id} onChange={e => setForm(f => ({ ...f, label_id: e.target.value }))} disabled={!canEdit}
-                      style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', cursor: canEdit ? 'pointer' : 'default', outline: 'none' }}>
+                      style={{ ...inpStyle, flex: 1, cursor: canEdit ? 'pointer' : 'default' }}>
                       <option value="">— Tanpa label</option>
                       {labels.map(l => <option key={l.id} value={l.id}>{l.nama}</option>)}
                     </select>
                   </div>
 
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
-                    <span style={{ fontSize: '0.8rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 60 }}>Deadline</span>
+                  {/* Deadline */}
+                  <div style={{ display: 'flex', alignItems: 'center' }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 68 }}>Deadline</span>
                     {canEdit ? (
                       <input type="datetime-local" value={form.deadline} onChange={e => setForm(f => ({ ...f, deadline: e.target.value }))}
-                        style={{ flex: 1, border: 'none', background: 'transparent', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', outline: 'none' }} />
+                        style={{ ...inpStyle, flex: 1 }} />
                     ) : (
-                      <span style={{ fontSize: '0.875rem', color: isOverdue ? '#b91c1c' : 'var(--text-primary)' }}>
+                      <span style={{ fontSize: '0.875rem', color: isOverdue ? '#ef4444' : 'var(--text-primary)' }}>
                         {form.deadline ? fmtDate(form.deadline) : '—'}
                       </span>
                     )}
@@ -452,49 +448,36 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
               </div>
             </div>
 
-            {/* ── Tabs ── */}
-            <div style={{ borderTop: '1px solid var(--glass-border)', borderBottom: '1px solid var(--glass-border)', display: 'flex', padding: '0 1.25rem' }}>
-              <button type="button" style={tabStyle('deskripsi')} onClick={() => setActiveTab('deskripsi')}>Deskripsi</button>
-              <button type="button" style={tabStyle('checklist')} onClick={() => setActiveTab('checklist')}>
-                Checklist {!isNew && checklists.length > 0 ? `${doneCount}/${checklists.length}` : isNew && pendingChecklists.length > 0 ? `(${pendingChecklists.length})` : ''}
-              </button>
-              {!isNew && (
-                <button type="button" style={tabStyle('komentar')} onClick={() => setActiveTab('komentar')}>
-                  Komentar {comments.length > 0 ? `(${comments.length})` : ''}
-                </button>
-              )}
+            {/* ── Tabs: Deskripsi | Checklist ── */}
+            <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', padding: '0 1.25rem' }}>
+              {tabBtn('deskripsi', 'Deskripsi')}
+              {tabBtn('checklist', `Checklist${!isNew && checklists.length ? ` ${doneCount}/${checklists.length}` : isNew && pendingChecklists.length ? ` (${pendingChecklists.length})` : ''}`)}
             </div>
 
             {/* ── Tab content ── */}
-            <div style={{ padding: '1.25rem 1.75rem', minHeight: 160 }}>
+            <div style={{ padding: '1.25rem 1.75rem', minHeight: 140 }}>
 
               {/* Deskripsi */}
               {activeTab === 'deskripsi' && (
-                <textarea
-                  rows={6}
-                  value={form.deskripsi}
+                <textarea rows={5} value={form.deskripsi}
                   onChange={e => setForm(f => ({ ...f, deskripsi: e.target.value }))}
                   disabled={!canEdit}
                   placeholder="Tambahkan deskripsi task..."
-                  style={{
-                    width: '100%', border: 'none', outline: 'none', resize: 'vertical',
-                    background: 'transparent', fontFamily: 'inherit', fontSize: '0.9rem',
-                    color: 'var(--text-primary)', lineHeight: 1.65, boxSizing: 'border-box',
-                  }}
+                  style={{ width: '100%', border: 'none', outline: 'none', resize: 'vertical', background: 'transparent', fontFamily: 'inherit', fontSize: '0.9rem', color: 'var(--text-primary)', lineHeight: 1.65, boxSizing: 'border-box' }}
                 />
               )}
 
               {/* Checklist */}
               {activeTab === 'checklist' && (
                 <div>
-                  {(isNew ? pendingChecklists : checklists).length > 0 && !isNew && (
-                    <div style={{ marginBottom: '0.75rem', height: 5, background: 'var(--glass-border)', borderRadius: 3 }}>
-                      <div style={{ width: checklists.length ? `${(doneCount / checklists.length) * 100}%` : '0%', height: '100%', background: '#22c55e', borderRadius: 3, transition: 'width 0.3s' }} />
+                  {!isNew && checklists.length > 0 && (
+                    <div style={{ marginBottom: '0.85rem', height: 5, background: 'var(--glass-border)', borderRadius: 3 }}>
+                      <div style={{ width: `${(doneCount / checklists.length) * 100}%`, height: '100%', background: '#22c55e', borderRadius: 3, transition: 'width 0.3s' }} />
                     </div>
                   )}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.4rem', marginBottom: '0.85rem' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.35rem', marginBottom: '0.85rem' }}>
                     {(isNew ? pendingChecklists : checklists).map((item, idx) => (
-                      <div key={isNew ? idx : item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.3rem 0' }}>
+                      <div key={isNew ? idx : item.id} style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', padding: '0.25rem 0' }}>
                         {isNew ? (
                           <Square size={16} style={{ color: 'var(--text-secondary)', flexShrink: 0 }} />
                         ) : (
@@ -542,96 +525,100 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                   )}
                 </div>
               )}
+            </div>
 
-              {/* Komentar */}
-              {activeTab === 'komentar' && !isNew && (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '0.65rem' }}>
-                  {/* List komentar */}
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.6rem', maxHeight: 260, overflowY: 'auto', marginBottom: '0.5rem' }}>
+            {/* ── Komentar — selalu di bawah (hanya task yang ada) ── */}
+            {!isNew && (
+              <div style={{ borderTop: '1px solid var(--glass-border)', padding: '1.25rem 1.75rem', display: 'flex', flexDirection: 'column', gap: '0.6rem' }}>
+                <p style={{ margin: 0, fontSize: '0.75rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.06em', color: 'var(--text-secondary)' }}>
+                  Komentar {comments.length > 0 ? `(${comments.length})` : ''}
+                </p>
+
+                {/* List komentar */}
+                {comments.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: 220, overflowY: 'auto' }}>
                     {comments.map(c => {
                       const commentAtts = attachments.filter(a => a.comment_id === c.id);
                       return (
-                        <div key={c.id} style={{ background: 'rgba(79,70,229,0.04)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+                        <div key={c.id} style={{ background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
                             <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
-                            <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
                           </div>
-                          {c.isi && <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: 1.55 }}>{c.isi}</p>}
+                          {c.isi && <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: 1.55, color: 'var(--text-primary)' }}>{c.isi}</p>}
                           {commentAtts.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.5rem' }}>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.45rem' }}>
                               {commentAtts.map(att => <CommentPhoto key={att.id} att={att} />)}
                             </div>
                           )}
                         </div>
                       );
                     })}
-                    {comments.length === 0 && (
-                      <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem', margin: 0 }}>Belum ada komentar.</p>
-                    )}
                   </div>
+                )}
 
-                  {/* Compose */}
-                  <div style={{ border: '1px solid var(--glass-border)', borderRadius: '0.6rem', overflow: 'hidden', background: 'var(--surface-color)' }}>
-                    {commentPhotoPreview && (
-                      <div style={{ padding: '0.5rem 0.65rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
-                        <div style={{ position: 'relative' }}>
-                          <img src={commentPhotoPreview} alt="preview"
-                            style={{ width: 72, height: 56, objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', display: 'block' }} />
-                          <button type="button" onClick={clearCommentPhoto}
-                            style={{ position: 'absolute', top: -5, right: -5, background: '#ef4444', border: 'none', borderRadius: '50%', width: 17, height: 17, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
-                            <X size={10} color="#fff" />
-                          </button>
-                        </div>
-                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingTop: '0.2rem' }}>{commentPhoto?.name}</span>
-                      </div>
-                    )}
-                    <textarea rows={2}
-                      style={{ width: '100%', padding: '0.65rem 0.75rem', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--text-primary)', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
-                      placeholder="Tulis komentar..."
-                      value={newComment}
-                      onChange={e => setNewComment(e.target.value)}
-                      onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
-                    />
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.4rem 0.65rem', borderTop: '1px solid var(--glass-border)' }}>
-                      <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
-                        <input ref={photoInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleCommentPhotoSelect} style={{ display: 'none' }} />
-                        <button type="button" onClick={() => photoInputRef.current?.click()} title="Lampirkan foto"
-                          style={{ background: commentPhotoPreview ? 'rgba(79,70,229,0.1)' : 'none', border: 'none', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', color: commentPhotoPreview ? 'var(--primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
-                          <Camera size={16} />
+                {/* Compose */}
+                <div style={{ border: '1px solid var(--glass-border)', borderRadius: '0.6rem', overflow: 'hidden', background: 'var(--surface-color)' }}>
+                  {commentPhotoPreview && (
+                    <div style={{ padding: '0.5rem 0.65rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ position: 'relative' }}>
+                        <img src={commentPhotoPreview} alt="preview"
+                          style={{ width: 68, height: 52, objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', display: 'block' }} />
+                        <button type="button" onClick={clearCommentPhoto}
+                          style={{ position: 'absolute', top: -5, right: -5, background: '#ef4444', border: 'none', borderRadius: '50%', width: 16, height: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                          <X size={9} color="#fff" />
                         </button>
                       </div>
-                      <button type="button" onClick={addComment} disabled={sendingComment || (!newComment.trim() && !commentPhoto)}
-                        className="btn btn-primary"
-                        style={{ padding: '0.35rem 0.85rem', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
-                        <Send size={13} />
-                        {sendingComment ? 'Mengirim...' : 'Kirim'}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Lampiran lama backward compat */}
-                  {attachments.filter(a => !a.comment_id && !a.is_expired).length > 0 && (
-                    <div style={{ marginTop: '0.25rem' }}>
-                      <div style={{ fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.4rem' }}>Lampiran</div>
-                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
-                        {attachments.filter(a => !a.comment_id && !a.is_expired).map(att => <CommentPhoto key={att.id} att={att} />)}
-                      </div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingTop: '0.2rem' }}>{commentPhoto?.name}</span>
                     </div>
                   )}
+                  <textarea rows={2}
+                    style={{ width: '100%', padding: '0.6rem 0.75rem', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--text-primary)', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
+                    placeholder="Tulis komentar... (Enter untuk kirim)"
+                    value={newComment}
+                    onChange={e => setNewComment(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
+                  />
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.65rem', borderTop: '1px solid var(--glass-border)' }}>
+                    <div>
+                      <input ref={photoInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleCommentPhotoSelect} style={{ display: 'none' }} />
+                      <button type="button" onClick={() => photoInputRef.current?.click()} title="Lampirkan foto"
+                        style={{ background: commentPhotoPreview ? 'rgba(79,70,229,0.1)' : 'none', border: 'none', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', color: commentPhotoPreview ? 'var(--primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+                        <Camera size={15} />
+                      </button>
+                    </div>
+                    <button type="button" onClick={addComment} disabled={sendingComment || (!newComment.trim() && !commentPhoto)}
+                      className="btn btn-primary"
+                      style={{ padding: '0.3rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                      <Send size={13} />
+                      {sendingComment ? 'Mengirim...' : 'Kirim'}
+                    </button>
+                  </div>
                 </div>
-              )}
-            </div>
 
-            {/* ── Footer: Save + Meta ── */}
-            <div style={{ padding: '1rem 1.75rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-color)' }}>
-              <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)' }}>
+                {/* Lampiran lama (backward compat) */}
+                {attachments.filter(a => !a.comment_id && !a.is_expired).length > 0 && (
+                  <div>
+                    <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lampiran</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {attachments.filter(a => !a.comment_id && !a.is_expired).map(att => <CommentPhoto key={att.id} att={att} />)}
+                    </div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {/* ── Footer ── */}
+            <div style={{ padding: '0.85rem 1.75rem', borderTop: '1px solid var(--glass-border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>
                 {task ? `Dibuat ${fmtDT(task.created_at)}` : 'Task baru'}
-                {task?.selesai_pada && <span style={{ marginLeft: '0.75rem', color: '#047857' }}>✓ Selesai {fmtDate(task.selesai_pada)}</span>}
-                {task?.recurring_rule_id && <span style={{ marginLeft: '0.75rem', background: '#ede9fe', color: '#7c3aed', padding: '0.1rem 0.4rem', borderRadius: 4 }}>↻ Recurring</span>}
+                {task?.recurring_rule_id && (
+                  <span style={{ marginLeft: '0.75rem', background: '#ede9fe', color: '#7c3aed', padding: '0.1rem 0.4rem', borderRadius: 4 }}>↻ Recurring</span>
+                )}
               </span>
               {canEdit && (
                 <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button type="button" className="btn" onClick={onClose} style={{ background: 'var(--surface-color)', fontSize: '0.875rem' }}>Batal</button>
+                  <button type="button" className="btn" onClick={onClose} style={{ fontSize: '0.875rem' }}>Batal</button>
                   <button type="submit" className="btn btn-primary" disabled={saving} style={{ fontSize: '0.875rem' }}>
                     {saving ? 'Menyimpan...' : isNew ? 'Buat Task' : 'Simpan'}
                   </button>
