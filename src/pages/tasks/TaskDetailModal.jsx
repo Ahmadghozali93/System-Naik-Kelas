@@ -98,7 +98,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
 
   useEffect(() => {
     // Gurus: load semua guru aktif tanpa filter unit (agar tidak ada yang terlewat)
-    supabase.from('gurus').select('id, nama, role').eq('status', 'aktif').order('nama')
+    supabase.from('gurus').select('id, nama, role').eq('status', 'Aktif').order('nama')
       .then(({ data }) => setUnitGurus(data || []));
   }, []);
 
