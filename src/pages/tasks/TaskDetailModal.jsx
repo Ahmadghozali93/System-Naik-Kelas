@@ -26,6 +26,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   const [task, setTask]           = useState(null);
   const [stages, setStages]       = useState([]);
   const [labels, setLabels]       = useState([]);
+  const [units, setUnits]         = useState([]);
   const [projects, setProjects]   = useState([]);
   const [unitGurus, setUnitGurus] = useState([]);
   const [assignees, setAssignees] = useState([]);
@@ -71,16 +72,19 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   // ── Load ──
   useEffect(() => {
     const load = async () => {
-      const [stRes, lbRes] = await Promise.all([
+      const [stRes, lbRes, uRes] = await Promise.all([
         supabase.from('task_stages').select('*').order('urutan'),
         supabase.from('task_labels').select('*').order('nama'),
+        supabase.from('units').select('id, nama').eq('aktif', true).order('nama'),
       ]);
       setStages(stRes.data || []);
       setLabels(lbRes.data || []);
+      setUnits(uRes.data || []);
       if (isNew) {
         let uid = defaultUnitId;
         if (!uid && user?.id) {
-          const { data } = await supabase.from('guru_units').select('unit_id').eq('guru_id', user.id).limit(1).single();
+          // Coba dari guru_units dulu
+          const { data } = await supabase.from('guru_units').select('unit_id').eq('guru_id', user.id).limit(1).maybeSingle();
           uid = data?.unit_id || '';
         }
         setUnitId(uid);
@@ -93,11 +97,15 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
   }, [taskId]);
 
   useEffect(() => {
-    if (!unitId) { setProjects([]); setUnitGurus([]); return; }
+    // Gurus: load semua guru aktif tanpa filter unit (agar tidak ada yang terlewat)
+    supabase.from('gurus').select('id, nama, role').eq('status', 'aktif').order('nama')
+      .then(({ data }) => setUnitGurus(data || []));
+  }, []);
+
+  useEffect(() => {
+    if (!unitId) { setProjects([]); return; }
     supabase.from('task_projects').select('id, nama').eq('unit_id', unitId).eq('status', 'aktif').order('nama')
       .then(({ data }) => setProjects(data || []));
-    supabase.from('guru_units').select('guru_id, gurus(id, nama, role)').eq('unit_id', unitId)
-      .then(({ data }) => setUnitGurus((data || []).map(g => g.gurus).filter(Boolean)));
   }, [unitId]);
 
   const loadTask = async () => {
@@ -375,13 +383,28 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
 
                 {/* Kiri */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem' }}>
+                  {/* Unit selector — tampil saat buat task baru */}
+                  {isNew && (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
+                      <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 76 }}>Unit</span>
+                      <select
+                        value={unitId}
+                        onChange={e => { setUnitId(e.target.value); setForm(f => ({ ...f, project_id: '' })); }}
+                        required
+                        style={{ ...inpStyle, flex: 1, cursor: 'pointer', borderBottom: '1px solid var(--glass-border)', paddingBottom: '0.1rem' }}>
+                        <option value="">— Pilih unit</option>
+                        {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                      </select>
+                    </div>
+                  )}
+
                   {/* Project */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: '0' }}>
                     <span style={{ fontSize: '0.78rem', fontWeight: 600, color: 'var(--text-secondary)', minWidth: 76 }}>Project</span>
                     <select value={form.project_id} onChange={e => setForm(f => ({ ...f, project_id: e.target.value }))}
-                      disabled={!canEdit || projects.length === 0}
-                      style={{ ...inpStyle, flex: 1, cursor: canEdit ? 'pointer' : 'default' }}>
-                      <option value="">— Tanpa project</option>
+                      disabled={!canEdit || !unitId}
+                      style={{ ...inpStyle, flex: 1, cursor: (canEdit && unitId) ? 'pointer' : 'default' }}>
+                      <option value="">{isNew && !unitId ? '— Pilih unit dulu' : '— Tanpa project'}</option>
                       {projects.map(p => <option key={p.id} value={p.id}>{p.nama}</option>)}
                     </select>
                   </div>
