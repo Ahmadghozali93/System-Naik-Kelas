@@ -163,8 +163,7 @@ export default function LaporanSppPage() {
   const [search, setSearch]             = useState('');
   const [filterUnit, setFilterUnit]     = useState('');
   const [filterProg, setFilterProg]     = useState('');
-  const [jtDateFrom, setJtDateFrom]     = useState('');
-  const [jtDateTo, setJtDateTo]         = useState('');
+  const [jtFilter, setJtFilter]         = useState(''); // '', 'hari-ini', '1-7', '>7'
   // Filter rekap bulanan — terpisah dari filter Tunggakan/Belum JT
   const [rekapUnit, setRekapUnit]       = useState('');
   const [rekapMetode, setRekapMetode]   = useState('');
@@ -221,10 +220,17 @@ export default function LaporanSppPage() {
     if (search     && !a.nama_siswa?.toLowerCase().includes(q)) return false;
     if (filterUnit && dj.unit         !== filterUnit) return false;
     if (filterProg && dj.nama_program !== filterProg) return false;
-    if (jtDateFrom && a._jt && a._jt < jtDateFrom) return false;
-    if (jtDateTo   && a._jt && a._jt > jtDateTo)   return false;
+    if (jtFilter) {
+      if (!a._jt) return false;
+      const today = new Date(); today.setHours(0,0,0,0);
+      const jt = new Date(a._jt); jt.setHours(0,0,0,0);
+      const selisihHari = Math.round((today - jt) / 86400000); // >0 = sudah lewat
+      if (jtFilter === 'hari-ini' && selisihHari !== 0)              return false;
+      if (jtFilter === '1-7'      && !(selisihHari >= 1 && selisihHari <= 7)) return false;
+      if (jtFilter === '>7'       && !(selisihHari > 7))            return false;
+    }
     return true;
-  }), [enriched, search, filterUnit, filterProg, jtDateFrom, jtDateTo]);
+  }), [enriched, search, filterUnit, filterProg, jtFilter]);
 
   const filteredPembayaran = useMemo(() => pembayarans.filter(p => {
     const tgl = p.tanggal_bayar || p.created_at?.split('T')[0];
@@ -254,8 +260,8 @@ export default function LaporanSppPage() {
   }, [filteredPembayaran]);
 
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem', width:'100%', boxSizing:'border-box' };
-  const hasFilter = search||filterUnit||filterProg||jtDateFrom||jtDateTo;
-  const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setJtDateFrom(''); setJtDateTo(''); setPage1(1); setPage2(1); };
+  const hasFilter = search||filterUnit||filterProg||jtFilter;
+  const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setJtFilter(''); setPage1(1); setPage2(1); };
   const hasRekapFilter = rekapUnit||rekapMetode||rekapDateFrom||rekapDateTo;
   const resetRekapFilter = () => { setRekapUnit(''); setRekapMetode(''); setRekapDateFrom(''); setRekapDateTo(''); setPage3(1); };
 
@@ -359,46 +365,31 @@ export default function LaporanSppPage() {
               <option value="">Semua Program</option>
               {allProgs.map(p=><option key={p} value={p}>{p}</option>)}
             </select>
+            <select style={sel} value={jtFilter} onChange={e=>{setJtFilter(e.target.value);setPage1(1);setPage2(1);}}>
+              <option value="">Semua Jatuh Tempo</option>
+              <option value="hari-ini">Jatuh tempo hari ini</option>
+              <option value="1-7">Terlambat 1–7 hari</option>
+              <option value=">7">Terlambat lebih dari 7 hari</option>
+            </select>
           </div>
 
-          {/* Baris 2: filter range jatuh tempo */}
-          <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem',alignItems:'center'}}>
-            <span style={{fontSize:'0.78rem',fontWeight:600,color:'var(--text-secondary)',whiteSpace:'nowrap'}}>Jatuh Tempo:</span>
-            <div style={{display:'flex',gap:'0.35rem',alignItems:'center',flexWrap:'wrap'}}>
-              <input type="date" style={{...sel,width:'auto',minWidth:140}}
-                value={jtDateFrom}
-                onChange={e=>{setJtDateFrom(e.target.value);setPage1(1);setPage2(1);}}
-                title="Dari tanggal jatuh tempo"/>
-              <span style={{fontSize:'0.82rem',color:'var(--text-secondary)'}}>s/d</span>
-              <input type="date" style={{...sel,width:'auto',minWidth:140}}
-                value={jtDateTo}
-                onChange={e=>{setJtDateTo(e.target.value);setPage1(1);setPage2(1);}}
-                title="Sampai tanggal jatuh tempo"/>
-              {(jtDateFrom||jtDateTo) && (
-                <button onClick={()=>{setJtDateFrom('');setJtDateTo('');setPage1(1);setPage2(1);}}
-                  style={{display:'flex',alignItems:'center',gap:'0.25rem',background:'rgba(79,70,229,0.08)',border:'none',borderRadius:'0.4rem',padding:'0.3rem 0.6rem',cursor:'pointer',fontSize:'0.78rem',color:'var(--primary)'}}>
-                  <X size={12}/> Hapus tanggal
-                </button>
+          {/* Baris 2: reset + info hasil */}
+          {hasFilter && (
+            <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem',alignItems:'center'}}>
+              {jtFilter && (
+                <span style={{fontSize:'0.78rem',color:'var(--text-secondary)',display:'flex',alignItems:'center',gap:'0.4rem'}}>
+                  <span style={{background:'rgba(79,70,229,0.08)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:999,fontWeight:600}}>
+                    {filteredAktivasi.length} siswa
+                  </span>
+                  {jtFilter==='hari-ini' ? 'jatuh tempo hari ini'
+                    : jtFilter==='1-7'   ? 'terlambat 1–7 hari'
+                    : 'terlambat lebih dari 7 hari'}
+                </span>
               )}
-            </div>
-            {hasFilter && (
               <button onClick={resetFilter}
                 style={{display:'flex',alignItems:'center',gap:'0.35rem',background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.4rem 0.7rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)',marginLeft:'auto'}}>
                 <X size={13}/> Reset Semua
               </button>
-            )}
-          </div>
-
-          {/* Info hasil filter jatuh tempo */}
-          {(jtDateFrom||jtDateTo) && (
-            <div style={{fontSize:'0.78rem',color:'var(--text-secondary)',display:'flex',alignItems:'center',gap:'0.5rem'}}>
-              <span style={{background:'rgba(79,70,229,0.08)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:999,fontWeight:600}}>
-                {filteredAktivasi.length} siswa
-              </span>
-              dengan jatuh tempo
-              {jtDateFrom && <strong>{fmt(jtDateFrom)}</strong>}
-              {jtDateFrom && jtDateTo && '—'}
-              {jtDateTo && <strong>{fmt(jtDateTo)}</strong>}
             </div>
           )}
         </div>
