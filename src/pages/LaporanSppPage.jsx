@@ -163,6 +163,8 @@ export default function LaporanSppPage() {
   const [search, setSearch]             = useState('');
   const [filterUnit, setFilterUnit]     = useState('');
   const [filterProg, setFilterProg]     = useState('');
+  const [jtDateFrom, setJtDateFrom]     = useState('');
+  const [jtDateTo, setJtDateTo]         = useState('');
   // Filter rekap bulanan — terpisah dari filter Tunggakan/Belum JT
   const [rekapUnit, setRekapUnit]       = useState('');
   const [rekapMetode, setRekapMetode]   = useState('');
@@ -219,8 +221,10 @@ export default function LaporanSppPage() {
     if (search     && !a.nama_siswa?.toLowerCase().includes(q)) return false;
     if (filterUnit && dj.unit         !== filterUnit) return false;
     if (filterProg && dj.nama_program !== filterProg) return false;
+    if (jtDateFrom && a._jt && a._jt < jtDateFrom) return false;
+    if (jtDateTo   && a._jt && a._jt > jtDateTo)   return false;
     return true;
-  }), [enriched, search, filterUnit, filterProg]);
+  }), [enriched, search, filterUnit, filterProg, jtDateFrom, jtDateTo]);
 
   const filteredPembayaran = useMemo(() => pembayarans.filter(p => {
     const tgl = p.tanggal_bayar || p.created_at?.split('T')[0];
@@ -250,8 +254,8 @@ export default function LaporanSppPage() {
   }, [filteredPembayaran]);
 
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem', width:'100%', boxSizing:'border-box' };
-  const hasFilter = search||filterUnit||filterProg;
-  const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setPage1(1); setPage2(1); };
+  const hasFilter = search||filterUnit||filterProg||jtDateFrom||jtDateTo;
+  const resetFilter = () => { setSearch(''); setFilterUnit(''); setFilterProg(''); setJtDateFrom(''); setJtDateTo(''); setPage1(1); setPage2(1); };
   const hasRekapFilter = rekapUnit||rekapMetode||rekapDateFrom||rekapDateTo;
   const resetRekapFilter = () => { setRekapUnit(''); setRekapMetode(''); setRekapDateFrom(''); setRekapDateTo(''); setPage3(1); };
 
@@ -337,27 +341,68 @@ export default function LaporanSppPage() {
       </div>
 
       {/* FILTERS — hanya untuk Tunggakan & Belum Jatuh Tempo */}
-      {tab !== 'Rekap Bulanan' && <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(180px,1fr))',gap:'0.5rem',marginBottom:'1rem'}}>
-        <div style={{position:'relative'}}>
-          <Search size={14} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)',pointerEvents:'none'}}/>
-          <input style={{...sel,paddingLeft:'2.1rem'}}
-            placeholder="Cari nama siswa..."
-            value={search} onChange={e=>{setSearch(e.target.value);setPage1(1);setPage2(1);}}/>
+      {tab !== 'Rekap Bulanan' && (
+        <div style={{display:'flex',flexDirection:'column',gap:'0.5rem',marginBottom:'1rem'}}>
+          {/* Baris 1: search + unit + program */}
+          <div style={{display:'grid',gridTemplateColumns:isMobile?'1fr':'repeat(auto-fill,minmax(180px,1fr))',gap:'0.5rem',alignItems:'center'}}>
+            <div style={{position:'relative'}}>
+              <Search size={14} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)',pointerEvents:'none'}}/>
+              <input style={{...sel,paddingLeft:'2.1rem'}}
+                placeholder="Cari nama siswa..."
+                value={search} onChange={e=>{setSearch(e.target.value);setPage1(1);setPage2(1);}}/>
+            </div>
+            <select style={sel} value={filterUnit} onChange={e=>{setFilterUnit(e.target.value);setPage1(1);setPage2(1);}}>
+              <option value="">Semua Unit</option>
+              {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
+            </select>
+            <select style={sel} value={filterProg} onChange={e=>{setFilterProg(e.target.value);setPage1(1);setPage2(1);}}>
+              <option value="">Semua Program</option>
+              {allProgs.map(p=><option key={p} value={p}>{p}</option>)}
+            </select>
+          </div>
+
+          {/* Baris 2: filter range jatuh tempo */}
+          <div style={{display:'flex',flexWrap:'wrap',gap:'0.5rem',alignItems:'center'}}>
+            <span style={{fontSize:'0.78rem',fontWeight:600,color:'var(--text-secondary)',whiteSpace:'nowrap'}}>Jatuh Tempo:</span>
+            <div style={{display:'flex',gap:'0.35rem',alignItems:'center',flexWrap:'wrap'}}>
+              <input type="date" style={{...sel,width:'auto',minWidth:140}}
+                value={jtDateFrom}
+                onChange={e=>{setJtDateFrom(e.target.value);setPage1(1);setPage2(1);}}
+                title="Dari tanggal jatuh tempo"/>
+              <span style={{fontSize:'0.82rem',color:'var(--text-secondary)'}}>s/d</span>
+              <input type="date" style={{...sel,width:'auto',minWidth:140}}
+                value={jtDateTo}
+                onChange={e=>{setJtDateTo(e.target.value);setPage1(1);setPage2(1);}}
+                title="Sampai tanggal jatuh tempo"/>
+              {(jtDateFrom||jtDateTo) && (
+                <button onClick={()=>{setJtDateFrom('');setJtDateTo('');setPage1(1);setPage2(1);}}
+                  style={{display:'flex',alignItems:'center',gap:'0.25rem',background:'rgba(79,70,229,0.08)',border:'none',borderRadius:'0.4rem',padding:'0.3rem 0.6rem',cursor:'pointer',fontSize:'0.78rem',color:'var(--primary)'}}>
+                  <X size={12}/> Hapus tanggal
+                </button>
+              )}
+            </div>
+            {hasFilter && (
+              <button onClick={resetFilter}
+                style={{display:'flex',alignItems:'center',gap:'0.35rem',background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.4rem 0.7rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)',marginLeft:'auto'}}>
+                <X size={13}/> Reset Semua
+              </button>
+            )}
+          </div>
+
+          {/* Info hasil filter jatuh tempo */}
+          {(jtDateFrom||jtDateTo) && (
+            <div style={{fontSize:'0.78rem',color:'var(--text-secondary)',display:'flex',alignItems:'center',gap:'0.5rem'}}>
+              <span style={{background:'rgba(79,70,229,0.08)',color:'var(--primary)',padding:'0.15rem 0.6rem',borderRadius:999,fontWeight:600}}>
+                {filteredAktivasi.length} siswa
+              </span>
+              dengan jatuh tempo
+              {jtDateFrom && <strong>{fmt(jtDateFrom)}</strong>}
+              {jtDateFrom && jtDateTo && '—'}
+              {jtDateTo && <strong>{fmt(jtDateTo)}</strong>}
+            </div>
+          )}
         </div>
-        <select style={sel} value={filterUnit} onChange={e=>{setFilterUnit(e.target.value);setPage1(1);setPage2(1);}}>
-          <option value="">Semua Unit</option>
-          {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
-        </select>
-        <select style={sel} value={filterProg} onChange={e=>{setFilterProg(e.target.value);setPage1(1);setPage2(1);}}>
-          <option value="">Semua Program</option>
-          {allProgs.map(p=><option key={p} value={p}>{p}</option>)}
-        </select>
-        {hasFilter && (
-          <button onClick={resetFilter} style={{display:'flex',alignItems:'center',justifyContent:'center',gap:'0.4rem',background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.5rem',padding:'0.5rem 0.75rem',cursor:'pointer',fontSize:'0.82rem',color:'var(--text-secondary)'}}>
-            <X size={14}/> Reset
-          </button>
-        )}
-      </div>}
+      )}
 
       {loading ? <p style={{color:'var(--text-secondary)'}}>Memuat...</p> : (<>
 
