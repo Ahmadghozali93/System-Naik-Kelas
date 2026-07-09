@@ -114,7 +114,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
       supabase.from('tasks').select('*, task_stages(id,nama,warna,is_final), task_labels(id,nama,warna), task_projects(id,nama)').eq('id', taskId).single(),
       supabase.from('task_assignees').select('*, gurus(id, nama, role)').eq('task_id', taskId),
       supabase.from('task_checklists').select('*').eq('task_id', taskId).order('urutan'),
-      supabase.from('task_comments').select('*, gurus(id, nama)').eq('task_id', taskId).order('created_at'),
+      supabase.from('task_comments').select('*, gurus(id, nama)').eq('task_id', taskId).order('created_at', { ascending: false }),
       supabase.from('task_attachments').select('*').eq('task_id', taskId).order('uploaded_at'),
     ]);
     const t = tRes.data;
@@ -255,7 +255,7 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
         if (dErr) throw new Error(dErr.message);
         setAttachments(prev => [...prev, attRec]);
       }
-      setComments(prev => [...prev, commentData]);
+      setComments(prev => [commentData, ...prev]);
       setNewComment(''); clearCommentPhoto();
     } catch (err) { alert('Gagal: ' + err.message); }
     finally { setSendingComment(false); }
@@ -583,29 +583,6 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                   Komentar {comments.length > 0 ? `(${comments.length})` : ''}
                 </p>
 
-                {/* List komentar */}
-                {comments.length > 0 && (
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: 220, overflowY: 'auto' }}>
-                    {comments.map(c => {
-                      const commentAtts = attachments.filter(a => a.comment_id === c.id);
-                      return (
-                        <div key={c.id} style={{ background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
-                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
-                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
-                          </div>
-                          {c.isi && <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: 1.55, color: 'var(--text-primary)' }}>{c.isi}</p>}
-                          {commentAtts.length > 0 && (
-                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.45rem' }}>
-                              {commentAtts.map(att => <CommentPhoto key={att.id} att={att} />)}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
                 {/* Compose */}
                 <div style={{ border: '1px solid var(--glass-border)', borderRadius: '0.6rem', overflow: 'hidden', background: 'var(--surface-color)' }}>
                   {commentPhotoPreview && (
@@ -644,6 +621,29 @@ export default function TaskDetailModal({ taskId, defaultStageId, defaultUnitId,
                     </button>
                   </div>
                 </div>
+
+                {/* List komentar — terbaru di atas */}
+                {comments.length > 0 && (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: 220, overflowY: 'auto' }}>
+                    {comments.map(c => {
+                      const commentAtts = attachments.filter(a => a.comment_id === c.id);
+                      return (
+                        <div key={c.id} style={{ background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
+                          </div>
+                          {c.isi && <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: 1.55, color: 'var(--text-primary)' }}>{c.isi}</p>}
+                          {commentAtts.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.45rem' }}>
+                              {commentAtts.map(att => <CommentPhoto key={att.id} att={att} />)}
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Lampiran lama (backward compat) */}
                 {attachments.filter(a => !a.comment_id && !a.is_expired).length > 0 && (
