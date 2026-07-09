@@ -378,7 +378,8 @@ export default function FakturOdooPage() {
           <select style={inp} value={filterMetode} onChange={e => { setFilterMetode(e.target.value); setPage(1); }}>
             <option value="">Semua Metode</option>
             <option value="Tunai">Tunai</option>
-            <option value="Transfer Bank">Transfer Bank</option>
+            <option value="BNI">BNI</option>
+            <option value="Xendit">Xendit</option>
           </select>
           <select style={inp} value={filterOdoo} onChange={e => { setFilterOdoo(e.target.value); setPage(1); }}>
             <option value="">Status Odoo: Semua</option>
