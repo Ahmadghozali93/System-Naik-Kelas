@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Plus, X, CheckCircle, Send, Edit2, Trash2, Award, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
+import { syncKualitasMengajar } from '../../utils/syncKualitasMengajar';
 
 const BULAN_FULL  = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const BULAN_LABEL = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
@@ -311,6 +312,16 @@ export default function KpiAssessmentPage() {
     setPreviewBonus(null);
     setLoadingScores(true);
     setLiveTm(null);
+
+    // Self-heal: kalau Penilaian Mengajar periode ini sudah Approve, pastikan
+    // Kualitas Mengajar = Sesuai (idempotent; dilewati kalau KPI sudah final).
+    if (assessment.status !== 'Approved') {
+      await syncKualitasMengajar({
+        guruId: assessment.guru_id,
+        bulan:  assessment.periode_bulan,
+        tahun:  assessment.periode_tahun,
+      });
+    }
 
     const { data } = await supabase.from('kpi_scores')
       .select('*, kpi_indicators(*)')

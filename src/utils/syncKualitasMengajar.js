@@ -16,6 +16,18 @@ export const IND_KUALITAS_MENGAJAR = 'a0000000-0000-0000-0000-000000000007';
 export async function syncKualitasMengajar({ guruId, bulan, tahun }) {
   if (!guruId || !bulan || !tahun) return;
 
+  // 0. Pastikan memang ada Penilaian Mengajar ber-status Approve untuk periode ini.
+  //    (Idempotent: aman dipanggil dari mana saja — approve, buka KPI, refresh.)
+  const { data: teaching } = await supabase
+    .from('teaching_assessments')
+    .select('id')
+    .eq('assignee_id', guruId)
+    .eq('tahun', Number(tahun))
+    .eq('bulan', Number(bulan))
+    .eq('status', 'Approve')
+    .limit(1);
+  if (!teaching?.length) return;          // tidak ada yang Approve → jangan ubah apa pun
+
   // 1. Cari penilaian KPI guru untuk periode tsb
   const { data: ass } = await supabase
     .from('kpi_assessments')
