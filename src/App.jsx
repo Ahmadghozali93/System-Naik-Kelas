@@ -56,6 +56,7 @@ import TaskProjectPage from './pages/tasks/TaskProjectPage';
 import TaskSettingsPage from './pages/tasks/TaskSettingsPage';
 import TaskRecurringPage from './pages/tasks/TaskRecurringPage';
 import PosPage from './pages/PosPage';
+import PenilaianListPage from './pages/penilaian/PenilaianListPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -189,6 +190,9 @@ function App() {
             <Route path="/tugas/project"    element={<TaskProjectPage />} />
             <Route path="/tugas/pengaturan" element={<TaskSettingsPage />} />
             <Route path="/tugas/rutin"      element={<TaskRecurringPage />} />
+
+            {/* PENILAIAN MENGAJAR */}
+            <Route path="/penilaian" element={<PenilaianListPage />} />
 
             {/* POS */}
             <Route path="/pos" element={<PosPage />} />

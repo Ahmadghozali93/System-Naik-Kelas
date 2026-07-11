@@ -55,6 +55,8 @@ const AVAILABLE_MENUS = [
     { path: '/tugas/project',     label: 'Tugas - Kelola Project' },
     { path: '/tugas/rutin',        label: 'Tugas - Tugas Rutin' },
     { path: '/tugas/pengaturan',  label: 'Tugas - Pengaturan Stage & Label' },
+    // ── Penilaian Mengajar ────────────────────────────
+    { path: '/penilaian',        label: 'Penilaian Mengajar' },
     // ── POS ───────────────────────────────────────────
     { path: '/pos',              label: 'POS - Point of Sale' },
     // ── Pengaturan ───────────────────────────────────
