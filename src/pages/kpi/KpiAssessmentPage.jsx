@@ -263,11 +263,29 @@ export default function KpiAssessmentPage() {
       izin:          auto.izin,
     };
 
+    // Prefill Kualitas Mengajar: jika Penilaian Mengajar periode ini sudah Approve → Sesuai (1)
+    const { data: approvedTeaching } = await supabase.from('teaching_assessments')
+      .select('id')
+      .eq('assignee_id', formCreate.guru_id)
+      .eq('tahun', tahun).eq('bulan', bulan)
+      .eq('status', 'Approve').limit(1);
+    const kualitasTerpenuhi = (approvedTeaching?.length || 0) > 0;
+
     // Buat 7 baris skor
     if (indicators.length > 0) {
       const scoreRows = indicators.map(ind => {
         const isAuto = IND_AUTO_IDS.has(ind.id);
         const rule = scoringRules[ind.id];
+        // Kualitas Mengajar auto-terisi "Sesuai" bila Penilaian Mengajar sudah Approve
+        if (ind.id === IND_KUALITAS && kualitasTerpenuhi) {
+          return {
+            kpi_assessment_id: newAss.id,
+            kpi_indicator_id:  ind.id,
+            nilai_aktual:      1,
+            nilai_skor:        applyRule(1, rule),
+            tipe:              ind.tipe,
+          };
+        }
         const nilai = isAuto ? (autoMap[ind.source_field] ?? 0) : null;
         return {
           kpi_assessment_id: newAss.id,

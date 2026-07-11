@@ -3,6 +3,7 @@ import { Plus, Search, SlidersHorizontal, X, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import PenilaianDetailModal from './PenilaianDetailModal';
+import { syncKualitasMengajar } from '../../utils/syncKualitasMengajar';
 
 const BULAN_LABEL = ['', 'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
 const BULAN_FULL  = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -83,6 +84,10 @@ export default function PenilaianKanbanPage() {
     setRows(prev => prev.map(r => r.id === id ? { ...r, status: newStatus } : r));
     const { error } = await supabase.from('teaching_assessments').update(payload).eq('id', id);
     if (error) { alert('Gagal pindah status: ' + error.message); loadAll(); }
+    // Sambung ke KPI saat pindah ke Approve
+    else if (newStatus === 'Approve') {
+      await syncKualitasMengajar({ guruId: row.assignee_id, bulan: row.bulan, tahun: row.tahun });
+    }
     dragRowId.current = null;
     dragOverCol.current = null;
   };

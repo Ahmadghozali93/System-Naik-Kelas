@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { X, Send, Lock, RotateCcw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
+import { syncKualitasMengajar } from '../../utils/syncKualitasMengajar';
 
 const BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const THIS_YEAR  = new Date().getFullYear();
@@ -153,6 +154,10 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
       saved = data;
     }
     setSaving(false);
+    // Sambung ke KPI: jika hasil akhir Approve, tandai Kualitas Mengajar "Sesuai"
+    if (saved?.status === 'Approve') {
+      await syncKualitasMengajar({ guruId: saved.assignee_id, bulan: saved.bulan, tahun: saved.tahun });
+    }
     onSaved?.(saved);
     if (isNew) onClose();
     else await loadRow();
@@ -169,6 +174,10 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
     if (error) return alert('Gagal ganti status: ' + error.message);
     setForm(f => ({ ...f, status: newStatus }));
     setRow(r => ({ ...r, status: newStatus }));
+    // Sambung ke KPI saat Approve
+    if (newStatus === 'Approve') {
+      await syncKualitasMengajar({ guruId: form.assignee_id, bulan: form.bulan, tahun: form.tahun });
+    }
     onSaved?.();
   };
 
