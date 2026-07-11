@@ -593,14 +593,19 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {hasPermission('/penilaian') && (
-                    <NavLink
-                        to="/penilaian"
-                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
-                        onClick={() => setIsOpen && setIsOpen(false)}
+                    <SidebarGroup
+                        title="Penilaian Mengajar"
+                        icon={Star}
+                        isOpen={activeGroup === 'penilaian'}
+                        onToggle={() => toggleGroup('penilaian')}
                     >
-                        <Star className="w-5 h-5" />
-                        <span style={{ fontWeight: 500 }}>Penilaian Mengajar</span>
-                    </NavLink>
+                        <NavLink to="/penilaian" end className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                            <List className="w-4 h-4" /><span>Daftar Penilaian</span>
+                        </NavLink>
+                        <NavLink to="/penilaian/papan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                            <LayoutGrid className="w-4 h-4" /><span>Papan Penilaian</span>
+                        </NavLink>
+                    </SidebarGroup>
                 )}
 
                 {hasPermission('/pos') && (

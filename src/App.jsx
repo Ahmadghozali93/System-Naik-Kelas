@@ -57,6 +57,7 @@ import TaskSettingsPage from './pages/tasks/TaskSettingsPage';
 import TaskRecurringPage from './pages/tasks/TaskRecurringPage';
 import PosPage from './pages/PosPage';
 import PenilaianListPage from './pages/penilaian/PenilaianListPage';
+import PenilaianKanbanPage from './pages/penilaian/PenilaianKanbanPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -193,6 +194,7 @@ function App() {
 
             {/* PENILAIAN MENGAJAR */}
             <Route path="/penilaian" element={<PenilaianListPage />} />
+            <Route path="/penilaian/papan" element={<PenilaianKanbanPage />} />
 
             {/* POS */}
             <Route path="/pos" element={<PosPage />} />
