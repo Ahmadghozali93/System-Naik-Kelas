@@ -19,6 +19,7 @@ const IND_AUTO_IDS = new Set([
   'a0000000-0000-0000-0000-000000000002',
   'a0000000-0000-0000-0000-000000000003',
   'a0000000-0000-0000-0000-000000000004',
+  'a0000000-0000-0000-0000-000000000007', // Kualitas Mengajar (dari Penilaian Mengajar)
 ]);
 
 const inp = {
@@ -88,7 +89,7 @@ async function calcAutoValues(guruId, tahun, bulan) {
   const lastDay = new Date(tahun, bulan, 0).getDate();
   const akhir   = `${tahun}-${String(bulan).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
 
-  const [attRes, izinRes, komplainRes, tmRes] = await Promise.all([
+  const [attRes, izinRes, komplainRes, tmRes, teachingRes] = await Promise.all([
     supabase.from('attendances').select('status, seragam')
       .eq('guru_id', guruId).gte('tanggal', mulai).lte('tanggal', akhir),
     supabase.from('leave_requests').select('id')
@@ -101,6 +102,10 @@ async function calcAutoValues(guruId, tahun, bulan) {
       .eq('guru_id', guruId)
       .gte('timestamp', mulai + 'T00:00:00')
       .lte('timestamp', akhir + 'T23:59:59'),
+    // Kualitas Mengajar: 1 (Sesuai) bila ada Penilaian Mengajar ber-status Approve
+    supabase.from('teaching_assessments').select('id')
+      .eq('assignee_id', guruId).eq('tahun', tahun).eq('bulan', bulan)
+      .eq('status', 'Approve').limit(1),
   ]);
 
   const atts = attRes.data || [];
@@ -110,6 +115,7 @@ async function calcAutoValues(guruId, tahun, bulan) {
     seragam:       atts.filter(a => a.seragam === 'Tidak Sesuai').length,
     izin:          (izinRes.data || []).length,
     jumlahTm:      tmRes.count || 0,
+    kualitas:      (teachingRes.data || []).length > 0 ? 1 : 0,
   };
 }
 
@@ -257,37 +263,20 @@ export default function KpiAssessmentPage() {
       return alert('Gagal: ' + errAss.message);
     }
 
-    // Source field → nilai aktual map
+    // Source field → nilai aktual map (Kualitas Mengajar kini otomatis dari Penilaian Mengajar)
     const autoMap = {
-      komplain:      auto.komplain,
-      keterlambatan: auto.keterlambatan,
-      seragam:       auto.seragam,
-      izin:          auto.izin,
+      komplain:          auto.komplain,
+      keterlambatan:     auto.keterlambatan,
+      seragam:           auto.seragam,
+      izin:              auto.izin,
+      kualitas_mengajar: auto.kualitas,
     };
-
-    // Prefill Kualitas Mengajar: jika Penilaian Mengajar periode ini sudah Approve → Sesuai (1)
-    const { data: approvedTeaching } = await supabase.from('teaching_assessments')
-      .select('id')
-      .eq('assignee_id', formCreate.guru_id)
-      .eq('tahun', tahun).eq('bulan', bulan)
-      .eq('status', 'Approve').limit(1);
-    const kualitasTerpenuhi = (approvedTeaching?.length || 0) > 0;
 
     // Buat 7 baris skor
     if (indicators.length > 0) {
       const scoreRows = indicators.map(ind => {
         const isAuto = IND_AUTO_IDS.has(ind.id);
         const rule = scoringRules[ind.id];
-        // Kualitas Mengajar auto-terisi "Sesuai" bila Penilaian Mengajar sudah Approve
-        if (ind.id === IND_KUALITAS && kualitasTerpenuhi) {
-          return {
-            kpi_assessment_id: newAss.id,
-            kpi_indicator_id:  ind.id,
-            nilai_aktual:      1,
-            nilai_skor:        applyRule(1, rule),
-            tipe:              ind.tipe,
-          };
-        }
         const nilai = isAuto ? (autoMap[ind.source_field] ?? 0) : null;
         return {
           kpi_assessment_id: newAss.id,
@@ -361,6 +350,7 @@ export default function KpiAssessmentPage() {
     const autoMap = {
       komplain: auto.komplain, keterlambatan: auto.keterlambatan,
       seragam: auto.seragam, izin: auto.izin,
+      kualitas_mengajar: auto.kualitas,
     };
     setLocalScores(prev => prev.map(s => {
       const isAuto = IND_AUTO_IDS.has(s.kpi_indicator_id);
