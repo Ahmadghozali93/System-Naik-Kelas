@@ -46,6 +46,7 @@ import {
     List,
     FolderOpen,
     RotateCcw,
+    Store,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -588,6 +589,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                             </NavLink>
                         )}
                     </SidebarGroup>
+                )}
+
+                {hasPermission('/pos') && (
+                    <NavLink
+                        to="/pos"
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen && setIsOpen(false)}
+                    >
+                        <Store className="w-5 h-5" />
+                        <span style={{ fontWeight: 500 }}>POS</span>
+                    </NavLink>
                 )}
 
                 {pengaturanLinks.length > 0 && (
