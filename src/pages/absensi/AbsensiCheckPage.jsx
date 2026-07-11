@@ -181,7 +181,11 @@ export default function AbsensiCheckPage() {
         .eq('tanggal', today),
     ]);
 
-    setMyShifts(ssRes.data || []);
+    // Urutkan shift berdasarkan jam mulai (pagi di atas, malam di bawah)
+    const sortedShifts = (ssRes.data || []).slice().sort((a, b) =>
+      (a.shifts?.jam_mulai || '').localeCompare(b.shifts?.jam_mulai || '')
+    );
+    setMyShifts(sortedShifts);
     setAttendances(attRes.data || []);
     setHariLibur((hlRes.data || []).length > 0 ? hlRes.data[0] : null);
     setLoading(false);
