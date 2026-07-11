@@ -146,6 +146,7 @@ export default function KpiAssessmentPage() {
   const [editAssessment, setEditAssessment] = useState(null);
   const [editGuru,       setEditGuru]       = useState(null);
   const [localScores,    setLocalScores]    = useState([]);
+  const [kualitasFromTeaching, setKualitasFromTeaching] = useState(false);
   const [loadingScores,  setLoadingScores]  = useState(false);
   const [liveTm,         setLiveTm]        = useState(null);
   const [loadingTm,      setLoadingTm]     = useState(false);
@@ -312,6 +313,15 @@ export default function KpiAssessmentPage() {
     setPreviewBonus(null);
     setLoadingScores(true);
     setLiveTm(null);
+
+    // Cek apakah ada Penilaian Mengajar Approve untuk periode ini (untuk penanda)
+    const { data: teachingApproved } = await supabase.from('teaching_assessments')
+      .select('id')
+      .eq('assignee_id', assessment.guru_id)
+      .eq('tahun', assessment.periode_tahun)
+      .eq('bulan', assessment.periode_bulan)
+      .eq('status', 'Approve').limit(1);
+    setKualitasFromTeaching((teachingApproved?.length || 0) > 0);
 
     // Self-heal: kalau Penilaian Mengajar periode ini sudah Approve, pastikan
     // Kualitas Mengajar = Sesuai (idempotent; dilewati kalau KPI sudah final).
@@ -743,6 +753,12 @@ export default function KpiAssessmentPage() {
                           <td style={{ padding: '0.65rem 0.75rem', color: 'var(--text-secondary)', fontWeight: 600 }}>{i + 1}</td>
                           <td style={{ padding: '0.65rem 0.75rem', fontWeight: 600 }}>
                             {s.kpi_indicators?.nama}
+                            {isKual && kualitasFromTeaching && (
+                              <span title="Otomatis terisi dari Penilaian Mengajar yang sudah di-Approve"
+                                style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', marginLeft: '0.4rem', background: 'rgba(5,150,105,0.1)', color: '#059669', padding: '0.1rem 0.4rem', borderRadius: 999, fontSize: '0.66rem', fontWeight: 700, verticalAlign: 'middle', whiteSpace: 'nowrap' }}>
+                                ✓ dari Penilaian Mengajar
+                              </span>
+                            )}
                           </td>
                           <td style={{ padding: '0.65rem 0.75rem' }}>
                             <span style={{
