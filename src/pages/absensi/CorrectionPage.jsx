@@ -89,25 +89,44 @@ export default function CorrectionPage() {
       const newCI = corr.check_in_koreksi;
       const newCO = corr.check_out_koreksi;
 
+      if (!newCI && !newCO) {
+        return alert('Koreksi ini tidak berisi jam check-in maupun check-out, jadi tidak ada yang bisa diterapkan ke absen.');
+      }
+
+      // Pesan bila update/insert ditolak aturan akses (RLS) — tidak memunculkan error,
+      // hanya 0 baris terpengaruh, jadi harus dicek manual.
+      const RLS_MSG = 'Gagal: absen tidak berubah karena ditolak aturan akses (RLS).\n\n'
+        + 'Jalankan file fix_attendances_rls_koreksi.sql di Supabase SQL Editor, '
+        + 'atau pastikan unit absen tersebut termasuk unit Anda.';
+
       if (corr.attendance_id) {
         // Ada record absen — update termasuk hitung ulang status & durasi
         const { data: att } = await supabase
           .from('attendances')
           .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
           .eq('id', corr.attendance_id)
-          .single();
+          .maybeSingle();
 
-        const shift   = att?.shift_schedules?.shifts;
-        const status  = newCI ? calcStatus(newCI, shift) : 'Alpha';
-        const durasi  = calcDurasi(newCI, newCO, shift?.lintas_hari);
+        if (!att) {
+          return alert('Gagal: data absen yang dikoreksi tidak ditemukan atau tidak bisa diakses (cek hak akses unit).');
+        }
+
+        const shift = att.shift_schedules?.shifts;
+        // Pakai jam final: koreksi kalau ada, kalau tidak pakai yang lama
+        const ciFinal = newCI || att.check_in;
+        const coFinal = newCO || att.check_out;
+        const status  = ciFinal ? calcStatus(ciFinal, shift) : 'Alpha';
+        const durasi  = calcDurasi(ciFinal, coFinal, shift?.lintas_hari);
 
         const updates = { status };
         if (newCI) updates.check_in = newCI;
         if (newCO) updates.check_out = newCO;
         if (durasi !== null) updates.durasi_menit = durasi;
 
-        const { error: updErr } = await supabase.from('attendances').update(updates).eq('id', corr.attendance_id);
+        const { data: updated, error: updErr } = await supabase
+          .from('attendances').update(updates).eq('id', corr.attendance_id).select('id');
         if (updErr) return alert('Gagal update absen: ' + updErr.message);
+        if (!updated || updated.length === 0) return alert(RLS_MSG);
 
       } else if (newCI) {
         // Belum ada record absen — buat baru
@@ -122,7 +141,7 @@ export default function CorrectionPage() {
         const status = calcStatus(newCI, shift);
         const durasi = calcDurasi(newCI, newCO, shift?.lintas_hari);
 
-        const { error: insErr } = await supabase.from('attendances').insert({
+        const { data: inserted, error: insErr } = await supabase.from('attendances').insert({
           guru_id:          corr.guru_id,
           unit_id:          corr.unit_id,
           shift_schedule_id: ss?.id || null,
@@ -131,8 +150,13 @@ export default function CorrectionPage() {
           check_out:        newCO || null,
           durasi_menit:     durasi,
           status,
-        });
+        }).select('id');
         if (insErr) return alert('Gagal buat absen: ' + insErr.message);
+        if (!inserted || inserted.length === 0) return alert(RLS_MSG);
+
+      } else {
+        return alert('Koreksi ini hanya berisi jam check-out, tapi belum ada data absen yang dikoreksi.\n\n'
+          + 'Minta pengaju memilih absen yang dikoreksi, atau isi juga jam check-in.');
       }
     }
 
