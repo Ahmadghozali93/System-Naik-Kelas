@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle2, XCircle, Edit } from 'lucide-react';
+import { Plus, X, CheckCircle2, XCircle, Edit, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
@@ -82,82 +82,104 @@ export default function CorrectionPage() {
     return Math.max(0, Math.round(d));
   };
 
+  // Pesan bila update/insert ditolak aturan akses (RLS) — tidak memunculkan error,
+  // hanya 0 baris terpengaruh, jadi harus dicek manual.
+  const RLS_MSG = 'Absen tidak berubah karena ditolak aturan akses (RLS).\n\n'
+    + 'Jalankan file fix_attendances_rls_koreksi.sql di Supabase SQL Editor, '
+    + 'atau pastikan unit absen tersebut termasuk unit Anda.';
+
+  // Terapkan isi koreksi ke data absen. Dipakai saat Approve & Terapkan Ulang.
+  // Return: { ok: boolean, msg: string }
+  const applyCorrection = async (corr) => {
+    const newCI = corr.check_in_koreksi;
+    const newCO = corr.check_out_koreksi;
+
+    if (!newCI && !newCO) {
+      return { ok: false, msg: 'Koreksi ini tidak berisi jam check-in maupun check-out, jadi tidak ada yang bisa diterapkan.' };
+    }
+
+    // Cari absen target. Jangan hanya andalkan attendance_id (kolomnya opsional
+    // saat pengajuan) — cari juga berdasarkan guru + tanggal.
+    let att = null;
+
+    if (corr.attendance_id) {
+      const { data } = await supabase
+        .from('attendances')
+        .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
+        .eq('id', corr.attendance_id)
+        .maybeSingle();
+      att = data || null;
+    }
+    if (!att) {
+      const { data } = await supabase
+        .from('attendances')
+        .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
+        .eq('guru_id', corr.guru_id)
+        .eq('tanggal', corr.tanggal)
+        .order('check_in', { ascending: true })
+        .limit(1);
+      att = data?.[0] || null;
+    }
+
+    // ── Absen sudah ada → UPDATE ──
+    if (att) {
+      const shift   = att.shift_schedules?.shifts;
+      const ciFinal = newCI || att.check_in;
+      const coFinal = newCO || att.check_out;
+      const status  = ciFinal ? calcStatus(ciFinal, shift) : 'Alpha';
+      const durasi  = calcDurasi(ciFinal, coFinal, shift?.lintas_hari);
+
+      const updates = { status };
+      if (newCI) updates.check_in = newCI;
+      if (newCO) updates.check_out = newCO;
+      if (durasi !== null) updates.durasi_menit = durasi;
+
+      const { data: updated, error } = await supabase
+        .from('attendances').update(updates).eq('id', att.id).select('id');
+      if (error) return { ok: false, msg: 'Gagal update absen: ' + error.message };
+      if (!updated?.length) return { ok: false, msg: RLS_MSG };
+      return { ok: true, msg: 'Absen berhasil diperbarui.' };
+    }
+
+    // ── Belum ada absen → INSERT (butuh jam check-in) ──
+    if (!newCI) {
+      return { ok: false, msg: 'Koreksi ini hanya berisi jam check-out, tapi belum ada data absen untuk tanggal tersebut.\n\n'
+        + 'Isi juga jam check-in agar absen bisa dibuat.' };
+    }
+
+    const { data: ss } = await supabase
+      .from('shift_schedules')
+      .select('*, shifts(*)')
+      .eq('guru_id', corr.guru_id)
+      .eq('tanggal', corr.tanggal)
+      .maybeSingle();
+
+    const shift  = ss?.shifts;
+    const status = calcStatus(newCI, shift);
+    const durasi = calcDurasi(newCI, newCO, shift?.lintas_hari);
+
+    const { data: inserted, error } = await supabase.from('attendances').insert({
+      guru_id:           corr.guru_id,
+      unit_id:           corr.unit_id,
+      shift_schedule_id: ss?.id || null,
+      tanggal:           corr.tanggal,
+      check_in:          newCI,
+      check_out:         newCO || null,
+      durasi_menit:      durasi,
+      status,
+    }).select('id');
+    if (error) return { ok: false, msg: 'Gagal buat absen: ' + error.message };
+    if (!inserted?.length) return { ok: false, msg: RLS_MSG };
+    return { ok: true, msg: 'Absen baru berhasil dibuat.' };
+  };
+
   const handleApprove = async (id, action) => {
     const corr = corrections.find(c => c.id === id);
 
     if (action === 'Approved' && corr) {
-      const newCI = corr.check_in_koreksi;
-      const newCO = corr.check_out_koreksi;
-
-      if (!newCI && !newCO) {
-        return alert('Koreksi ini tidak berisi jam check-in maupun check-out, jadi tidak ada yang bisa diterapkan ke absen.');
-      }
-
-      // Pesan bila update/insert ditolak aturan akses (RLS) — tidak memunculkan error,
-      // hanya 0 baris terpengaruh, jadi harus dicek manual.
-      const RLS_MSG = 'Gagal: absen tidak berubah karena ditolak aturan akses (RLS).\n\n'
-        + 'Jalankan file fix_attendances_rls_koreksi.sql di Supabase SQL Editor, '
-        + 'atau pastikan unit absen tersebut termasuk unit Anda.';
-
-      if (corr.attendance_id) {
-        // Ada record absen — update termasuk hitung ulang status & durasi
-        const { data: att } = await supabase
-          .from('attendances')
-          .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
-          .eq('id', corr.attendance_id)
-          .maybeSingle();
-
-        if (!att) {
-          return alert('Gagal: data absen yang dikoreksi tidak ditemukan atau tidak bisa diakses (cek hak akses unit).');
-        }
-
-        const shift = att.shift_schedules?.shifts;
-        // Pakai jam final: koreksi kalau ada, kalau tidak pakai yang lama
-        const ciFinal = newCI || att.check_in;
-        const coFinal = newCO || att.check_out;
-        const status  = ciFinal ? calcStatus(ciFinal, shift) : 'Alpha';
-        const durasi  = calcDurasi(ciFinal, coFinal, shift?.lintas_hari);
-
-        const updates = { status };
-        if (newCI) updates.check_in = newCI;
-        if (newCO) updates.check_out = newCO;
-        if (durasi !== null) updates.durasi_menit = durasi;
-
-        const { data: updated, error: updErr } = await supabase
-          .from('attendances').update(updates).eq('id', corr.attendance_id).select('id');
-        if (updErr) return alert('Gagal update absen: ' + updErr.message);
-        if (!updated || updated.length === 0) return alert(RLS_MSG);
-
-      } else if (newCI) {
-        // Belum ada record absen — buat baru
-        const { data: ss } = await supabase
-          .from('shift_schedules')
-          .select('*, shifts(*)')
-          .eq('guru_id', corr.guru_id)
-          .eq('tanggal', corr.tanggal)
-          .maybeSingle();
-
-        const shift  = ss?.shifts;
-        const status = calcStatus(newCI, shift);
-        const durasi = calcDurasi(newCI, newCO, shift?.lintas_hari);
-
-        const { data: inserted, error: insErr } = await supabase.from('attendances').insert({
-          guru_id:          corr.guru_id,
-          unit_id:          corr.unit_id,
-          shift_schedule_id: ss?.id || null,
-          tanggal:          corr.tanggal,
-          check_in:         newCI,
-          check_out:        newCO || null,
-          durasi_menit:     durasi,
-          status,
-        }).select('id');
-        if (insErr) return alert('Gagal buat absen: ' + insErr.message);
-        if (!inserted || inserted.length === 0) return alert(RLS_MSG);
-
-      } else {
-        return alert('Koreksi ini hanya berisi jam check-out, tapi belum ada data absen yang dikoreksi.\n\n'
-          + 'Minta pengaju memilih absen yang dikoreksi, atau isi juga jam check-in.');
-      }
+      const res = await applyCorrection(corr);
+      // Jangan tandai Approved kalau absennya gagal diterapkan
+      if (!res.ok) return alert('Gagal: ' + res.msg);
     }
 
     const { error } = await supabase.from('attendance_corrections').update({
@@ -165,6 +187,14 @@ export default function CorrectionPage() {
     }).eq('id', id);
     if (error) return alert('Gagal: ' + error.message);
     setApproveModal(null); fetchAll();
+  };
+
+  // Terapkan ulang koreksi yang sudah Approved tapi absennya belum berubah
+  const handleReapply = async (corr) => {
+    if (!window.confirm('Terapkan ulang koreksi ini ke data absen?')) return;
+    const res = await applyCorrection(corr);
+    alert(res.ok ? '✅ ' + res.msg : '❌ Gagal: ' + res.msg);
+    if (res.ok) fetchAll();
   };
 
   const filtered = filterStatus ? corrections.filter(c => c.status === filterStatus) : corrections;
@@ -222,6 +252,13 @@ export default function CorrectionPage() {
                           <button onClick={()=>setApproveModal({id:c.id,action:'Approved'})} style={{ background:'#d1fae5',border:'none',borderRadius:'0.35rem',padding:'0.3rem 0.55rem',cursor:'pointer',color:'#047857',display:'flex',alignItems:'center',gap:3 }}><CheckCircle2 size={13}/>Setuju</button>
                           <button onClick={()=>setApproveModal({id:c.id,action:'Rejected'})} style={{ background:'#fee2e2',border:'none',borderRadius:'0.35rem',padding:'0.3rem 0.55rem',cursor:'pointer',color:'#b91c1c',display:'flex',alignItems:'center',gap:3 }}><XCircle size={13}/>Tolak</button>
                         </div>
+                      )}
+                      {isAdmin && c.status === 'Approved' && (
+                        <button onClick={()=>handleReapply(c)}
+                          title="Terapkan ulang koreksi ini ke data absen (kalau absen belum berubah)"
+                          style={{ background:'rgba(79,70,229,0.1)',border:'none',borderRadius:'0.35rem',padding:'0.3rem 0.55rem',cursor:'pointer',color:'var(--primary)',display:'flex',alignItems:'center',gap:3,whiteSpace:'nowrap',fontSize:'0.78rem',fontFamily:'inherit',fontWeight:600 }}>
+                          <RefreshCw size={12}/> Terapkan Ulang
+                        </button>
                       )}
                     </td>
                   </tr>
