@@ -54,9 +54,13 @@ export default function CorrectionPage() {
       return new Date(`${tgl}T${timeStr}:00+07:00`).toISOString();
     };
 
+    // Tautkan absen otomatis dari tanggal (jangan andalkan pilihan manual —
+    // ini yang dulu bikin attendance_id kosong padahal absennya ada)
+    const linkedAtt = myAtt.find(a => a.tanggal === form.tanggal);
+
     const { error } = await supabase.from('attendance_corrections').insert({
       guru_id: user.id,
-      attendance_id: form.attendance_id || null,
+      attendance_id: linkedAtt?.id || form.attendance_id || null,
       unit_id: form.unit_id,
       tanggal: form.tanggal,
       check_in_koreksi:  wibToISO(form.tanggal, form.check_in_koreksi)  || null,
@@ -199,6 +203,8 @@ export default function CorrectionPage() {
 
   const filtered = filterStatus ? corrections.filter(c => c.status === filterStatus) : corrections;
   const unitName = (id) => units.find(u=>u.id===id)?.nama || id;
+  // Absen milik pengaju pada tanggal yang dipilih (ditautkan otomatis)
+  const matchedAtt = myAtt.find(a => a.tanggal === form.tanggal) || null;
 
   return (
     <div>
@@ -278,17 +284,39 @@ export default function CorrectionPage() {
               <button onClick={()=>setModal(false)} style={{ background:'none',border:'none',cursor:'pointer' }}><X size={20}/></button>
             </div>
             <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:'0.85rem' }}>
-              <div>
-                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Absen yang Dikoreksi (opsional)</label>
-                <select value={form.attendance_id} onChange={e=>{ const a=myAtt.find(x=>x.id===e.target.value); setForm(f=>({...f,attendance_id:e.target.value,tanggal:a?.tanggal||f.tanggal,unit_id:a?.unit_id||f.unit_id})); }} style={inp}>
-                  <option value="">-- Pilih absen (opsional, bisa kosong) --</option>
-                  {myAtt.map(a=><option key={a.id} value={a.id}>{fmtTgl(a.tanggal)} · CI:{fmtTime(a.check_in)} CO:{fmtTime(a.check_out)}</option>)}
-                </select>
+              {/* Absen ditautkan OTOMATIS dari tanggal — tidak lagi dipilih manual,
+                  supaya attendance_id tidak pernah kosong saat absennya sebenarnya ada. */}
+              <div style={{
+                background: matchedAtt ? 'rgba(4,120,87,0.06)' : '#fef3c7',
+                border: `1px solid ${matchedAtt ? 'rgba(4,120,87,0.25)' : '#fcd34d'}`,
+                borderRadius:'0.5rem', padding:'0.7rem 0.85rem', fontSize:'0.8rem',
+                color: matchedAtt ? '#047857' : '#92400e', lineHeight:1.5,
+              }}>
+                {matchedAtt ? (
+                  <>
+                    <strong>Absen ditemukan untuk {fmtTgl(form.tanggal)}</strong><br/>
+                    Saat ini: Check-in <strong>{fmtTime(matchedAtt.check_in)}</strong> · Check-out <strong>{fmtTime(matchedAtt.check_out)}</strong>.<br/>
+                    Absen ini yang akan <strong>diperbarui</strong> saat koreksi disetujui.
+                  </>
+                ) : (
+                  <>
+                    <strong>Belum ada absen di tanggal {fmtTgl(form.tanggal) || '—'}</strong><br/>
+                    Absen <strong>baru akan dibuat</strong> saat koreksi disetujui. Pastikan jam check-in diisi.
+                  </>
+                )}
               </div>
+
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Tanggal *</label>
-                  <input type="date" required value={form.tanggal} onChange={e=>setForm(f=>({...f,tanggal:e.target.value}))} style={inp}/>
+                  <input type="date" required value={form.tanggal}
+                    onChange={e=>{
+                      const tgl = e.target.value;
+                      const a = myAtt.find(x => x.tanggal === tgl);
+                      // Tautkan absen + unit otomatis berdasarkan tanggal
+                      setForm(f=>({ ...f, tanggal: tgl, attendance_id: a?.id || '', unit_id: a?.unit_id || f.unit_id }));
+                    }}
+                    style={inp}/>
                 </div>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Unit *</label>
