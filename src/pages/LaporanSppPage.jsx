@@ -226,9 +226,9 @@ export default function LaporanSppPage() {
       const jt = new Date(a._jt); jt.setHours(0,0,0,0);
       const selisihHari = Math.round((today - jt) / 86400000); // >0 = sudah lewat
       if (jtFilter === 'hari-ini' && selisihHari !== 0)              return false;
-      if (jtFilter === '1-7'      && !(selisihHari >= 1 && selisihHari <= 7)) return false;
-      if (jtFilter === '>7'       && !(selisihHari > 7))            return false;
-      if (jtFilter === '>30'      && !(selisihHari > 30))           return false;
+      if (jtFilter === '1-7'      && !(selisihHari >= 1 && selisihHari <= 7))  return false;
+      if (jtFilter === '7-30'     && !(selisihHari >= 7 && selisihHari <= 30)) return false;
+      if (jtFilter === '>30'      && !(selisihHari > 30))            return false;
     }
     return true;
   }), [enriched, search, filterUnit, filterProg, jtFilter]);
@@ -370,7 +370,7 @@ export default function LaporanSppPage() {
               <option value="">Semua Jatuh Tempo</option>
               <option value="hari-ini">Jatuh tempo hari ini</option>
               <option value="1-7">Terlambat 1–7 hari</option>
-              <option value=">7">Terlambat lebih dari 7 hari</option>
+              <option value="7-30">Terlambat 7–30 hari</option>
               <option value=">30">Terlambat lebih dari 30 hari</option>
             </select>
           </div>
@@ -385,7 +385,7 @@ export default function LaporanSppPage() {
                   </span>
                   {jtFilter==='hari-ini' ? 'jatuh tempo hari ini'
                     : jtFilter==='1-7'   ? 'terlambat 1–7 hari'
-                    : jtFilter==='>7'    ? 'terlambat lebih dari 7 hari'
+                    : jtFilter==='7-30'  ? 'terlambat 7–30 hari'
                     : 'terlambat lebih dari 30 hari'}
                 </span>
               )}
