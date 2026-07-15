@@ -71,110 +71,20 @@ export default function CorrectionPage() {
     setModal(false); fetchAll();
   };
 
-  const calcStatus = (checkInISO, shift) => {
-    if (!checkInISO || !shift) return 'Hadir';
-    const ci = new Date(checkInISO);
-    const [h, m] = (shift.jam_mulai || '00:00').split(':').map(Number);
-    const base = new Date(ci); base.setHours(h, m, 0, 0);
-    return (ci - base) / 60000 <= (shift.toleransi_menit || 0) ? 'Hadir' : 'Telat';
-  };
-
-  const calcDurasi = (ci, co, lintas) => {
-    if (!ci || !co) return null;
-    let d = (new Date(co) - new Date(ci)) / 60000;
-    if (lintas && d < 0) d += 1440;
-    return Math.max(0, Math.round(d));
-  };
-
-  // Pesan bila update/insert ditolak aturan akses (RLS) — tidak memunculkan error,
-  // hanya 0 baris terpengaruh, jadi harus dicek manual.
-  const RLS_MSG = 'Absen tidak berubah karena ditolak aturan akses (RLS).\n\n'
-    + 'Jalankan file fix_attendances_rls_koreksi.sql di Supabase SQL Editor, '
-    + 'atau pastikan unit absen tersebut termasuk unit Anda.';
-
-  // Terapkan isi koreksi ke data absen. Dipakai saat Approve & Terapkan Ulang.
+  // Terapkan isi koreksi ke data absen lewat fungsi server (RPC) yang berjalan
+  // dengan hak penuh (bypass RLS, tapi tetap cek admin). Ini menghindari
+  // kegagalan senyap saat RLS attendances memblokir dari sisi browser.
   // Return: { ok: boolean, msg: string }
   const applyCorrection = async (corr) => {
-    const newCI = corr.check_in_koreksi;
-    const newCO = corr.check_out_koreksi;
-
-    if (!newCI && !newCO) {
-      return { ok: false, msg: 'Koreksi ini tidak berisi jam check-in maupun check-out, jadi tidak ada yang bisa diterapkan.' };
+    const { data, error } = await supabase.rpc('apply_attendance_correction', { p_correction_id: corr.id });
+    if (error) {
+      // Fungsi belum dipasang di database
+      if (/apply_attendance_correction|function|does not exist|schema cache/i.test(error.message)) {
+        return { ok: false, msg: 'Fungsi server belum terpasang. Jalankan fix_apply_correction_rpc.sql di Supabase SQL Editor.' };
+      }
+      return { ok: false, msg: error.message };
     }
-
-    // Cari absen target. Jangan hanya andalkan attendance_id (kolomnya opsional
-    // saat pengajuan) — cari juga berdasarkan guru + tanggal.
-    let att = null;
-
-    if (corr.attendance_id) {
-      const { data } = await supabase
-        .from('attendances')
-        .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
-        .eq('id', corr.attendance_id)
-        .maybeSingle();
-      att = data || null;
-    }
-    if (!att) {
-      const { data } = await supabase
-        .from('attendances')
-        .select('*, shift_schedules!shift_schedule_id(*, shifts(*))')
-        .eq('guru_id', corr.guru_id)
-        .eq('tanggal', corr.tanggal)
-        .order('check_in', { ascending: true })
-        .limit(1);
-      att = data?.[0] || null;
-    }
-
-    // ── Absen sudah ada → UPDATE ──
-    if (att) {
-      const shift   = att.shift_schedules?.shifts;
-      const ciFinal = newCI || att.check_in;
-      const coFinal = newCO || att.check_out;
-      const status  = ciFinal ? calcStatus(ciFinal, shift) : 'Alpha';
-      const durasi  = calcDurasi(ciFinal, coFinal, shift?.lintas_hari);
-
-      const updates = { status };
-      if (newCI) updates.check_in = newCI;
-      if (newCO) updates.check_out = newCO;
-      if (durasi !== null) updates.durasi_menit = durasi;
-
-      const { data: updated, error } = await supabase
-        .from('attendances').update(updates).eq('id', att.id).select('id');
-      if (error) return { ok: false, msg: 'Gagal update absen: ' + error.message };
-      if (!updated?.length) return { ok: false, msg: RLS_MSG };
-      return { ok: true, msg: 'Absen berhasil diperbarui.' };
-    }
-
-    // ── Belum ada absen → INSERT (butuh jam check-in) ──
-    if (!newCI) {
-      return { ok: false, msg: 'Koreksi ini hanya berisi jam check-out, tapi belum ada data absen untuk tanggal tersebut.\n\n'
-        + 'Isi juga jam check-in agar absen bisa dibuat.' };
-    }
-
-    const { data: ss } = await supabase
-      .from('shift_schedules')
-      .select('*, shifts(*)')
-      .eq('guru_id', corr.guru_id)
-      .eq('tanggal', corr.tanggal)
-      .maybeSingle();
-
-    const shift  = ss?.shifts;
-    const status = calcStatus(newCI, shift);
-    const durasi = calcDurasi(newCI, newCO, shift?.lintas_hari);
-
-    const { data: inserted, error } = await supabase.from('attendances').insert({
-      guru_id:           corr.guru_id,
-      unit_id:           corr.unit_id,
-      shift_schedule_id: ss?.id || null,
-      tanggal:           corr.tanggal,
-      check_in:          newCI,
-      check_out:         newCO || null,
-      durasi_menit:      durasi,
-      status,
-    }).select('id');
-    if (error) return { ok: false, msg: 'Gagal buat absen: ' + error.message };
-    if (!inserted?.length) return { ok: false, msg: RLS_MSG };
-    return { ok: true, msg: 'Absen baru berhasil dibuat.' };
+    return { ok: true, msg: data === 'inserted' ? 'Absen baru berhasil dibuat.' : 'Absen berhasil diperbarui.' };
   };
 
   const handleApprove = async (id, action) => {
