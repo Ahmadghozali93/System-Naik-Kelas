@@ -44,15 +44,21 @@ BEGIN
     RAISE EXCEPTION 'Data koreksi tidak ditemukan.';
   END IF;
 
-  -- 3. Cari absen target: lewat attendance_id, lalu lewat guru + tanggal
+  -- 3. Cari absen target.
+  --    attendance_id HANYA dipercaya bila cocok dengan guru + tanggal koreksi
+  --    (menghindari tautan basi/salah yang menunjuk baris absen orang/hari lain).
   IF corr.attendance_id IS NOT NULL THEN
-    SELECT * INTO att FROM attendances WHERE id = corr.attendance_id;
+    SELECT * INTO att FROM attendances
+    WHERE id = corr.attendance_id
+      AND guru_id = corr.guru_id
+      AND tanggal = corr.tanggal;
     v_found := FOUND;
   END IF;
+  -- Kalau tautan tidak cocok/tidak ada, pakai absen asli guru di tanggal itu
   IF NOT v_found THEN
     SELECT * INTO att FROM attendances
     WHERE guru_id = corr.guru_id AND tanggal = corr.tanggal
-    ORDER BY check_in NULLS LAST
+    ORDER BY created_at DESC
     LIMIT 1;
     v_found := FOUND;
   END IF;
