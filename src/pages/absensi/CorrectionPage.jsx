@@ -34,7 +34,9 @@ export default function CorrectionPage() {
     const [cRes, uRes, aRes] = await Promise.all([
       supabase.from('attendance_corrections').select('*, gurus!guru_id(nama)').order('created_at',{ascending:false}),
       supabase.from('units').select('*').eq('aktif',true).order('nama'),
-      supabase.from('attendances').select('*').eq('guru_id', user?.id || '').order('tanggal',{ascending:false}).limit(60),
+      supabase.from('attendances')
+        .select('*, shift_schedules!shift_schedule_id(shifts(nama, jam_mulai, jam_selesai))')
+        .eq('guru_id', user?.id || '').order('tanggal',{ascending:false}).limit(60),
     ]);
     setCorrections(cRes.data || []);
     setUnits(uRes.data       || []);
@@ -49,18 +51,22 @@ export default function CorrectionPage() {
     if (!form.alasan.trim()) return alert('Alasan wajib diisi.');
     if (!form.unit_id) return alert('Pilih unit.');
 
+    // Wajib pilih absen kalau di tanggal itu ADA absen (cegah nyasar ke shift lain)
+    const attList = myAtt.filter(a => a.tanggal === form.tanggal);
+    if (attList.length > 0 && !form.attendance_id) {
+      return alert(attList.length > 1
+        ? `Tanggal ini punya ${attList.length} shift. Pilih dulu absen/shift mana yang mau dikoreksi.`
+        : 'Pilih dulu absen yang mau dikoreksi.');
+    }
+
     const wibToISO = (tgl, timeStr) => {
       if (!timeStr) return null;
       return new Date(`${tgl}T${timeStr}:00+07:00`).toISOString();
     };
 
-    // Tautkan absen otomatis dari tanggal (jangan andalkan pilihan manual —
-    // ini yang dulu bikin attendance_id kosong padahal absennya ada)
-    const linkedAtt = myAtt.find(a => a.tanggal === form.tanggal);
-
     const { error } = await supabase.from('attendance_corrections').insert({
       guru_id: user.id,
-      attendance_id: linkedAtt?.id || form.attendance_id || null,
+      attendance_id: form.attendance_id || null,   // absen yang DIPILIH pengaju
       unit_id: form.unit_id,
       tanggal: form.tanggal,
       check_in_koreksi:  wibToISO(form.tanggal, form.check_in_koreksi)  || null,
@@ -113,8 +119,11 @@ export default function CorrectionPage() {
 
   const filtered = filterStatus ? corrections.filter(c => c.status === filterStatus) : corrections;
   const unitName = (id) => units.find(u=>u.id===id)?.nama || id;
-  // Absen milik pengaju pada tanggal yang dipilih (ditautkan otomatis)
-  const matchedAtt = myAtt.find(a => a.tanggal === form.tanggal) || null;
+  const shiftLabel = (a) => a?.shift_schedules?.shifts?.nama || 'Tanpa shift';
+  // Daftar absen pengaju pada tanggal terpilih (bisa >1 kalau banyak shift)
+  const attForDate = myAtt.filter(a => a.tanggal === form.tanggal);
+  // Absen yang dipilih untuk dikoreksi
+  const selectedAtt = myAtt.find(a => a.id === form.attendance_id) || null;
 
   return (
     <div>
@@ -196,35 +205,16 @@ export default function CorrectionPage() {
             <form onSubmit={handleSubmit} style={{ display:'flex', flexDirection:'column', gap:'0.85rem' }}>
               {/* Absen ditautkan OTOMATIS dari tanggal — tidak lagi dipilih manual,
                   supaya attendance_id tidak pernah kosong saat absennya sebenarnya ada. */}
-              <div style={{
-                background: matchedAtt ? 'rgba(4,120,87,0.06)' : '#fef3c7',
-                border: `1px solid ${matchedAtt ? 'rgba(4,120,87,0.25)' : '#fcd34d'}`,
-                borderRadius:'0.5rem', padding:'0.7rem 0.85rem', fontSize:'0.8rem',
-                color: matchedAtt ? '#047857' : '#92400e', lineHeight:1.5,
-              }}>
-                {matchedAtt ? (
-                  <>
-                    <strong>Absen ditemukan untuk {fmtTgl(form.tanggal)}</strong><br/>
-                    Saat ini: Check-in <strong>{fmtTime(matchedAtt.check_in)}</strong> · Check-out <strong>{fmtTime(matchedAtt.check_out)}</strong>.<br/>
-                    Absen ini yang akan <strong>diperbarui</strong> saat koreksi disetujui.
-                  </>
-                ) : (
-                  <>
-                    <strong>Belum ada absen di tanggal {fmtTgl(form.tanggal) || '—'}</strong><br/>
-                    Absen <strong>baru akan dibuat</strong> saat koreksi disetujui. Pastikan jam check-in diisi.
-                  </>
-                )}
-              </div>
-
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Tanggal *</label>
                   <input type="date" required value={form.tanggal}
                     onChange={e=>{
                       const tgl = e.target.value;
-                      const a = myAtt.find(x => x.tanggal === tgl);
-                      // Tautkan absen + unit otomatis berdasarkan tanggal
-                      setForm(f=>({ ...f, tanggal: tgl, attendance_id: a?.id || '', unit_id: a?.unit_id || f.unit_id }));
+                      const list = myAtt.filter(x => x.tanggal === tgl);
+                      // Reset pilihan absen; kalau cuma 1 absen, langsung pilih otomatis
+                      const only = list.length === 1 ? list[0] : null;
+                      setForm(f=>({ ...f, tanggal: tgl, attendance_id: only?.id || '', unit_id: only?.unit_id || f.unit_id }));
                     }}
                     style={inp}/>
                 </div>
@@ -236,6 +226,58 @@ export default function CorrectionPage() {
                   </select>
                 </div>
               </div>
+
+              {/* Pilih ABSEN/SHIFT yang mau dikoreksi — wajib bila ada absen di tanggal itu.
+                  Ini mencegah pengajuan "nyasar" ke shift yang salah pada hari multi-shift. */}
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>
+                  Absen / Shift yang Dikoreksi {attForDate.length > 0 ? '*' : ''}
+                </label>
+                {attForDate.length === 0 ? (
+                  <div style={{ background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.5rem', padding:'0.7rem 0.85rem', fontSize:'0.8rem', color:'#92400e', lineHeight:1.5 }}>
+                    Belum ada absen di tanggal {fmtTgl(form.tanggal) || '—'}. Absen <strong>baru akan dibuat</strong> saat koreksi disetujui — pastikan jam check-in diisi.
+                  </div>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+                    {attForDate.map(a => {
+                      const dipilih = form.attendance_id === a.id;
+                      return (
+                        <button key={a.id} type="button"
+                          onClick={()=>setForm(f=>({ ...f, attendance_id: a.id, unit_id: a.unit_id || f.unit_id }))}
+                          style={{
+                            textAlign:'left', cursor:'pointer', fontFamily:'inherit',
+                            display:'flex', alignItems:'center', gap:'0.6rem',
+                            border:`1.5px solid ${dipilih ? 'var(--primary)' : 'var(--glass-border)'}`,
+                            background: dipilih ? 'rgba(79,70,229,0.06)' : 'var(--surface-color)',
+                            borderRadius:'0.5rem', padding:'0.6rem 0.75rem',
+                          }}>
+                          <span style={{ width:16, height:16, borderRadius:'50%', flexShrink:0,
+                            border:`4px solid ${dipilih ? 'var(--primary)' : 'var(--glass-border)'}`,
+                            background: dipilih ? 'var(--primary)' : 'transparent' }} />
+                          <span style={{ flex:1 }}>
+                            <span style={{ fontWeight:700, fontSize:'0.86rem' }}>{shiftLabel(a)}</span>
+                            <span style={{ display:'block', fontSize:'0.78rem', color:'var(--text-secondary)', marginTop:'0.1rem' }}>
+                              Check-in {fmtTime(a.check_in)} · Check-out {fmtTime(a.check_out)} · <span style={{ fontWeight:600 }}>{a.status}</span>
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                    {attForDate.length > 1 && !form.attendance_id && (
+                      <span style={{ fontSize:'0.75rem', color:'#b45309' }}>
+                        ⚠️ Hari ini punya {attForDate.length} shift — pilih dulu absen mana yang dikoreksi.
+                      </span>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              {selectedAtt && (
+                <div style={{ background:'rgba(4,120,87,0.06)', border:'1px solid rgba(4,120,87,0.25)', borderRadius:'0.5rem', padding:'0.6rem 0.85rem', fontSize:'0.8rem', color:'#047857', lineHeight:1.5 }}>
+                  Absen <strong>{shiftLabel(selectedAtt)}</strong> ini yang akan <strong>diperbarui</strong> saat koreksi disetujui.
+                </div>
+              )}
+
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Check-in yang Benar (WIB)</label>
