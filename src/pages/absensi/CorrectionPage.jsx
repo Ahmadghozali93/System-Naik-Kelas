@@ -51,9 +51,13 @@ export default function CorrectionPage() {
     if (!form.alasan.trim()) return alert('Alasan wajib diisi.');
     if (!form.unit_id) return alert('Pilih unit.');
 
-    // Wajib pilih absen kalau di tanggal itu ADA absen (cegah nyasar ke shift lain)
     const attList = myAtt.filter(a => a.tanggal === form.tanggal);
-    if (attList.length > 0 && !form.attendance_id) {
+    // Tidak ada absen di tanggal itu → tidak ada yang bisa dikoreksi
+    if (attList.length === 0) {
+      return alert('Tidak ada absen yang bisa dikoreksi di tanggal ini.');
+    }
+    // Wajib pilih absen/shift (cegah nyasar ke shift lain di hari multi-shift)
+    if (!form.attendance_id) {
       return alert(attList.length > 1
         ? `Tanggal ini punya ${attList.length} shift. Pilih dulu absen/shift mana yang mau dikoreksi.`
         : 'Pilih dulu absen yang mau dikoreksi.');
@@ -124,6 +128,8 @@ export default function CorrectionPage() {
   const attForDate = myAtt.filter(a => a.tanggal === form.tanggal);
   // Absen yang dipilih untuk dikoreksi
   const selectedAtt = myAtt.find(a => a.id === form.attendance_id) || null;
+  // Tidak ada absen di tanggal terpilih → form dikunci (tidak bisa mengajukan)
+  const noAtt = attForDate.length === 0;
 
   return (
     <div>
@@ -234,8 +240,8 @@ export default function CorrectionPage() {
                   Absen / Shift yang Dikoreksi {attForDate.length > 0 ? '*' : ''}
                 </label>
                 {attForDate.length === 0 ? (
-                  <div style={{ background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.5rem', padding:'0.7rem 0.85rem', fontSize:'0.8rem', color:'#92400e', lineHeight:1.5 }}>
-                    Belum ada absen di tanggal {fmtTgl(form.tanggal) || '—'}. Absen <strong>baru akan dibuat</strong> saat koreksi disetujui — pastikan jam check-in diisi.
+                  <div style={{ background:'#fee2e2', border:'1px solid #fca5a5', borderRadius:'0.5rem', padding:'0.7rem 0.85rem', fontSize:'0.8rem', color:'#b91c1c', lineHeight:1.5 }}>
+                    Tidak ada absen yang bisa dikoreksi di tanggal {fmtTgl(form.tanggal) || '—'}.
                   </div>
                 ) : (
                   <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
@@ -278,23 +284,26 @@ export default function CorrectionPage() {
                 </div>
               )}
 
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem', opacity: noAtt ? 0.5 : 1 }}>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Check-in yang Benar (WIB)</label>
-                  <input type="time" value={form.check_in_koreksi} onChange={e=>setForm(f=>({...f,check_in_koreksi:e.target.value}))} style={inp}/>
+                  <input type="time" disabled={noAtt} value={form.check_in_koreksi} onChange={e=>setForm(f=>({...f,check_in_koreksi:e.target.value}))} style={inp}/>
                 </div>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Check-out yang Benar (WIB)</label>
-                  <input type="time" value={form.check_out_koreksi} onChange={e=>setForm(f=>({...f,check_out_koreksi:e.target.value}))} style={inp}/>
+                  <input type="time" disabled={noAtt} value={form.check_out_koreksi} onChange={e=>setForm(f=>({...f,check_out_koreksi:e.target.value}))} style={inp}/>
                 </div>
               </div>
-              <div>
+              <div style={{ opacity: noAtt ? 0.5 : 1 }}>
                 <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Alasan Koreksi *</label>
-                <textarea required rows={3} value={form.alasan} onChange={e=>setForm(f=>({...f,alasan:e.target.value}))} placeholder="Jelaskan kenapa perlu dikoreksi..." style={{ ...inp, resize:'vertical' }}/>
+                <textarea required={!noAtt} disabled={noAtt} rows={3} value={form.alasan} onChange={e=>setForm(f=>({...f,alasan:e.target.value}))} placeholder="Jelaskan kenapa perlu dikoreksi..." style={{ ...inp, resize:'vertical' }}/>
               </div>
               <div style={{ display:'flex', gap:'0.65rem', justifyContent:'flex-end' }}>
                 <button type="button" className="btn" onClick={()=>setModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Kirim Koreksi</button>
+                <button type="submit" className="btn btn-primary" disabled={noAtt}
+                  style={ noAtt ? { opacity:0.5, cursor:'not-allowed' } : undefined }>
+                  Kirim Koreksi
+                </button>
               </div>
             </form>
           </div>
