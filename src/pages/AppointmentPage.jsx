@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { CalendarPlus, X, Search, CheckCircle2, XCircle, Flag } from 'lucide-react';
+import { CalendarPlus, X, Search, CheckCircle2, XCircle, Flag, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
 
@@ -26,6 +26,10 @@ const StatusBadge = ({ s }) => {
 };
 
 const inp = { padding: '0.55rem 0.75rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit', fontSize: '0.88rem', width: '100%', boxSizing: 'border-box' };
+
+// Appointment yang tanggalnya sudah lewat tapi belum ditindaklanjuti.
+// Slotnya sendiri sudah bebas — ini hanya penanda agar admin menutup statusnya.
+const isTerlewat = (a) => a.status === 'dijadwalkan' && a.tanggal < todayWIB();
 
 // Jadwal cocok dengan tanggal bila nama harinya termasuk, atau jadwal harian (hari kosong)
 const jadwalCocokTanggal = (jadwal, tanggal) => {
@@ -124,8 +128,12 @@ export default function AppointmentPage() {
     fetchAll();
   };
 
+  const terlewatCount = appointments.filter(isTerlewat).length;
+
   const filtered = appointments.filter(a => {
-    if (filterStatus && a.status !== filterStatus) return false;
+    if (filterStatus === 'terlewat') {
+      if (!isTerlewat(a)) return false;
+    } else if (filterStatus && a.status !== filterStatus) return false;
     if (search) {
       const q = search.toLowerCase();
       if (!a.siswa?.nama?.toLowerCase().includes(q)
@@ -164,9 +172,24 @@ export default function AppointmentPage() {
         </div>
         <select style={{ ...inp, width: 'auto' }} value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
           <option value="">Semua Status</option>
+          <option value="terlewat">Perlu Ditindaklanjuti{terlewatCount ? ` (${terlewatCount})` : ''}</option>
           {Object.entries(STATUS_CFG).map(([k, v]) => <option key={k} value={k}>{v.label}</option>)}
         </select>
       </div>
+
+      {/* Pengingat: ada appointment yang tanggalnya lewat tapi statusnya belum ditutup */}
+      {terlewatCount > 0 && filterStatus !== 'terlewat' && (
+        <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', flexWrap: 'wrap', background: '#fef3c7', border: '1px solid #fcd34d', borderRadius: '0.5rem', padding: '0.7rem 0.9rem', marginBottom: '1rem', fontSize: '0.83rem', color: '#92400e' }}>
+          <AlertTriangle size={16} style={{ flexShrink: 0 }} />
+          <span style={{ flex: 1 }}>
+            Ada <strong>{terlewatCount}</strong> appointment yang tanggalnya sudah lewat tapi masih berstatus <strong>Dijadwalkan</strong>. Tandai <em>Hadir</em>, <em>Selesai</em>, atau <em>Batal</em>. (Slotnya sendiri sudah bebas.)
+          </span>
+          <button onClick={() => setFilterStatus('terlewat')}
+            style={{ background: '#fff', border: '1px solid #fcd34d', borderRadius: '0.4rem', padding: '0.3rem 0.7rem', cursor: 'pointer', color: '#92400e', fontWeight: 600, fontSize: '0.78rem', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+            Lihat
+          </button>
+        </div>
+      )}
 
       {/* Daftar */}
       <div className="glass-card" style={{ padding: '1.5rem' }}>
@@ -204,7 +227,17 @@ export default function AppointmentPage() {
                     </td>
                     <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-secondary)' }}>{a.unit || '-'}</td>
                     <td style={{ padding: '0.7rem 0.75rem', textTransform: 'capitalize' }}>{a.jenis}</td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge s={a.status} /></td>
+                    <td style={{ padding: '0.7rem 0.75rem' }}>
+                      <StatusBadge s={a.status} />
+                      {isTerlewat(a) && (
+                        <div style={{ marginTop: '0.25rem' }}>
+                          <span title="Tanggalnya sudah lewat tapi status belum ditutup"
+                            style={{ display: 'inline-flex', alignItems: 'center', gap: '0.2rem', background: '#fef3c7', color: '#92400e', padding: '0.12rem 0.5rem', borderRadius: 999, fontSize: '0.7rem', fontWeight: 700, whiteSpace: 'nowrap' }}>
+                            <AlertTriangle size={10} /> Terlewat
+                          </span>
+                        </div>
+                      )}
+                    </td>
                     <td style={{ padding: '0.7rem 0.75rem' }}>
                       <div style={{ display: 'flex', gap: '0.3rem', flexWrap: 'wrap' }}>
                         {a.status !== 'hadir' && a.status !== 'batal' && (
