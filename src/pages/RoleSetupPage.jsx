@@ -16,6 +16,7 @@ const AVAILABLE_MENUS = [
     { path: '/kanban',           label: 'Jadwal (10 Hari)' },
     { path: '/booking',          label: 'Booking' },
     { path: '/jadwal-kosong',    label: 'Jadwal Kosong' },
+    { path: '/appointment',      label: 'Appointment (Trial Class)' },
     { path: '/reschedule',       label: 'Reschedule' },
     // ── Aktivasi ─────────────────────────────────────
     { path: '/aktivasi-rutin',   label: 'Aktivasi Siswa - Jadwal Rutin' },

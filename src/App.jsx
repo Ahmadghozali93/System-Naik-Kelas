@@ -19,6 +19,7 @@ import AktivasiHarianPage from './pages/AktivasiHarianPage';
 import KanbanBoard from './pages/KanbanBoard';
 import BookingPage from './pages/BookingPage';
 import JadwalKosongPage from './pages/JadwalKosongPage';
+import AppointmentPage from './pages/AppointmentPage';
 import ReschedulePage from './pages/ReschedulePage';
 import LoginPage from './pages/LoginPage';
 import RoleSetupPage from './pages/RoleSetupPage';
@@ -151,6 +152,7 @@ function App() {
             <Route path="/kanban" element={<KanbanBoard />} />
             <Route path="/booking" element={<BookingPage />} />
             <Route path="/jadwal-kosong" element={<JadwalKosongPage />} />
+            <Route path="/appointment" element={<AppointmentPage />} />
             <Route path="/reschedule" element={<ReschedulePage />} />
             <Route path="/role-setup" element={<RoleSetupPage />} />
             <Route path="/pengaturan" element={<SettingsPage />} />

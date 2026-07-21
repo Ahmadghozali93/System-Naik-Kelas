@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 export default function JadwalKosongPage() {
     const [jadwals, setJadwals] = useState([]);
     const [aktivasis, setAktivasis] = useState([]);
+    const [appointments, setAppointments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterUnit, setFilterUnit] = useState('');
@@ -14,16 +15,24 @@ export default function JadwalKosongPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [jadwalRes, aktivasiRes] = await Promise.all([
+            const [jadwalRes, aktivasiRes, apptRes] = await Promise.all([
                 supabase.from('jadwal_master').select('*').order('created_at', { ascending: false }),
-                supabase.from('aktivasi_siswa').select('jadwal_id, status')
+                supabase.from('aktivasi_siswa').select('jadwal_id, status'),
+                // Appointment aktif — untuk menandai slot "Terisi" (diturunkan, tidak disimpan)
+                supabase.from('appointment')
+                    .select('jadwal_id, tanggal, status, siswa:siswa_id(nama)')
+                    .neq('status', 'batal')
+                    .gte('tanggal', new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' }))
             ]);
 
             if (jadwalRes.error) throw jadwalRes.error;
             if (aktivasiRes.error) throw aktivasiRes.error;
+            // Tabel appointment mungkin belum dibuat — jangan gagalkan halaman
+            if (apptRes.error) console.warn('appointment:', apptRes.error.message);
 
             setJadwals(jadwalRes.data || []);
             setAktivasis(aktivasiRes.data || []);
+            setAppointments(apptRes.data || []);
         } catch (error) {
             console.error('Error fetching data:', error.message);
         } finally {
@@ -40,6 +49,12 @@ export default function JadwalKosongPage() {
         const activeCount = aktivasis.filter(a => a.jadwal_id === jadwalId && a.status === 'Aktif').length;
         return (kuota || 0) - activeCount;
     };
+
+    // Status slot DITURUNKAN dari appointment aktif (tidak disimpan sebagai kolom)
+    const getAppointments = (jadwalId) =>
+        appointments
+            .filter(a => a.jadwal_id === jadwalId)
+            .sort((a, b) => (a.tanggal || '').localeCompare(b.tanggal || ''));
 
     // Show all jadwals with remaining quota > 0
     const jadwalsWithQuota = jadwals
@@ -129,24 +144,26 @@ export default function JadwalKosongPage() {
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Kuota</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Terisi</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Sisa</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status Slot</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Memuat data...
                                     </td>
                                 </tr>
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Tidak ada jadwal kosong yang cocok.
                                     </td>
                                 </tr>
                             ) : (
                                 filtered.map((j, idx) => {
                                     const terisi = (j.kuota || 0) - j.sisaKuota;
+                                    const appts = getAppointments(j.id);
                                     return (
                                         <tr key={j.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }}
                                             onMouseOver={(e) => e.currentTarget.style.backgroundColor = 'rgba(79,70,229,0.02)'}
@@ -170,6 +187,23 @@ export default function JadwalKosongPage() {
                                                 <span className="badge" style={{ background: '#d1fae5', color: '#047857', fontWeight: 700 }}>
                                                     {j.sisaKuota}
                                                 </span>
+                                            </td>
+                                            <td style={{ padding: '1rem' }}>
+                                                {appts.length === 0 ? (
+                                                    <span className="badge" style={{ background: '#d1fae5', color: '#047857', fontWeight: 700 }}>Kosong</span>
+                                                ) : (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.3rem' }}>
+                                                        <span className="badge" style={{ background: '#fee2e2', color: '#b91c1c', fontWeight: 700, width: 'fit-content' }}>
+                                                            Terisi ({appts.length})
+                                                        </span>
+                                                        {appts.map((a, i) => (
+                                                            <span key={i} style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                                                {a.siswa?.nama || '-'}
+                                                                {a.tanggal && ` · ${new Date(a.tanggal + 'T12:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short' })}`}
+                                                            </span>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </td>
                                         </tr>
                                     );

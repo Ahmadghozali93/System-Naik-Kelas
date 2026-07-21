@@ -48,6 +48,7 @@ import {
     RotateCcw,
     Store,
     Star,
+    CalendarPlus,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -230,6 +231,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
         { to: '/kanban', icon: Trello, label: 'Jadwal 10 Hari' },
         { to: '/booking', icon: CalendarCheck, label: 'Booking' },
         { to: '/jadwal-kosong', icon: CalendarX2, label: 'Jadwal Kosong' },
+        { to: '/appointment', icon: CalendarPlus, label: 'Appointment' },
         { to: '/reschedule', icon: RefreshCw, label: 'Reschedule' },
     ].filter(link => hasPermission(link.to));
 
