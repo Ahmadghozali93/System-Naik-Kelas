@@ -5,6 +5,7 @@ import { supabase } from '../lib/supabase';
 
 export default function BookingPage() {
     const [siswas, setSiswas] = useState([]);
+    const [appointments, setAppointments] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const [search, setSearch] = useState('');
     const [filterUnit, setFilterUnit] = useState('');
@@ -13,14 +14,23 @@ export default function BookingPage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const { data, error } = await supabase
-                .from('siswa')
-                .select('*')
-                .eq('status', 'Booking')
-                .order('created_at', { ascending: false });
+            const [siswaRes, apptRes] = await Promise.all([
+                supabase.from('siswa').select('*')
+                    .eq('status', 'Booking')
+                    .order('created_at', { ascending: false }),
+                // Appointment yang belum dibatalkan — untuk menandai booking yang sudah dijadwalkan
+                supabase.from('appointment')
+                    .select('siswa_id, tanggal, jenis, status, jadwal:jadwal_id(hari, jam, nama_program, nama_guru)')
+                    .neq('status', 'batal')
+                    .order('tanggal', { ascending: false }),
+            ]);
 
-            if (error) throw error;
-            setSiswas(data || []);
+            if (siswaRes.error) throw siswaRes.error;
+            // Tabel appointment mungkin belum dibuat — jangan gagalkan halaman
+            if (apptRes.error) console.warn('appointment:', apptRes.error.message);
+
+            setSiswas(siswaRes.data || []);
+            setAppointments(apptRes.data || []);
         } catch (error) {
             console.error('Error fetching booking siswa:', error.message);
         } finally {
@@ -45,19 +55,25 @@ export default function BookingPage() {
     });
 
     const exportExcel = () => {
-        const rows = filtered.map((s, i) => ({
-            'NO': i + 1,
-            'ID SISWA': s.siswa_id || '-',
-            'NAMA': s.nama || '-',
-            'UNIT': s.unit || '-',
-            'PROGRAM': s.booking_program || '-',
-            'JAM': s.booking_jam || '-',
-            'NO WA': s.nowa || '-',
-            'CATATAN': s.catatan || '-',
-            'STATUS': s.status || '-',
-        }));
+        const rows = filtered.map((s, i) => {
+            const appt = appointments.find(a => a.siswa_id === s.id);
+            return {
+                'NO': i + 1,
+                'ID SISWA': s.siswa_id || '-',
+                'NAMA': s.nama || '-',
+                'UNIT': s.unit || '-',
+                'PROGRAM': s.booking_program || '-',
+                'JAM': s.booking_jam || '-',
+                'NO WA': s.nowa || '-',
+                'CATATAN': s.catatan || '-',
+                'APPOINTMENT': appt
+                    ? `${new Date(appt.tanggal + 'T12:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' })}${appt.jadwal?.jam ? ' ' + appt.jadwal.jam : ''} (${appt.jenis}, ${appt.status})`
+                    : 'Belum dijadwalkan',
+                'STATUS': s.status || '-',
+            };
+        });
         const ws = XLSX.utils.json_to_sheet(rows);
-        ws['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 28 }, { wch: 12 }];
+        ws['!cols'] = [{ wch: 5 }, { wch: 14 }, { wch: 28 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 28 }, { wch: 34 }, { wch: 12 }];
         const wb = XLSX.utils.book_new();
         XLSX.utils.book_append_sheet(wb, ws, 'Siswa Booking');
         const now = new Date();
@@ -130,19 +146,20 @@ export default function BookingPage() {
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Jam</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>No. WA</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Catatan</th>
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Appointment</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Memuat data...
                                     </td>
                                 </tr>
                             ) : filtered.length === 0 ? (
                                 <tr>
-                                    <td colSpan="9" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
                                         Tidak ada data siswa booking yang cocok.
                                     </td>
                                 </tr>
@@ -172,6 +189,28 @@ export default function BookingPage() {
                                             ) : '-'}
                                         </td>
                                         <td style={{ padding: '1rem', color: 'var(--text-secondary)', fontSize: '0.8rem' }}>{s.catatan || '-'}</td>
+                                        <td style={{ padding: '1rem' }}>
+                                            {(() => {
+                                                const appt = appointments.find(a => a.siswa_id === s.id);
+                                                if (!appt) {
+                                                    return <span className="badge" style={{ background: '#f3f4f6', color: '#6b7280', fontWeight: 600, whiteSpace: 'nowrap' }}>Belum dijadwalkan</span>;
+                                                }
+                                                return (
+                                                    <div style={{ display: 'flex', flexDirection: 'column', gap: '0.25rem' }}>
+                                                        <span className="badge" style={{ background: '#dbeafe', color: '#1d4ed8', fontWeight: 700, width: 'fit-content', whiteSpace: 'nowrap' }}>
+                                                            Sudah dijadwalkan
+                                                        </span>
+                                                        <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>
+                                                            {new Date(appt.tanggal + 'T12:00:00').toLocaleDateString('id-ID', { weekday: 'short', day: '2-digit', month: 'short' })}
+                                                            {appt.jadwal?.jam ? ` · ${appt.jadwal.jam}` : ''}
+                                                        </span>
+                                                        <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', textTransform: 'capitalize' }}>
+                                                            {appt.jenis} · {appt.status}
+                                                        </span>
+                                                    </div>
+                                                );
+                                            })()}
+                                        </td>
                                         <td style={{ padding: '1rem' }}>
                                             <span className="badge" style={{ background: '#fef3c7', color: '#92400e' }}>
                                                 {s.status}
