@@ -143,18 +143,26 @@ WHERE s.periode_payroll_id = '99999999-9999-9999-9999-999999999999';
 -- ── HASIL 4: rincian jurnal — mana dibayar, mana tidak & alasannya ──
 SELECT tanggal, program, siswa_id, dibayar, tarif, alasan
 FROM rincian_jurnal_fee('GURU-UJI1','2026-06-01','2026-06-30',
-  (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
-ORDER BY tanggal, siswa_id;
--- HARAPAN: 7 baris — 4 DIBAYAR, 3 TIDAK, dengan alasan berbeda-beda:
---   06-01 SIS-UJI1  dibayar
---   06-01 SIS-UJI2  dibayar
---   06-01 SIS-UJI1  TIDAK — "Duplikat, tidak dibayar"
---   06-02 SIS-UJI1  dibayar
---   06-02 SIS-UJI2  dibayar
---   06-02 SIS-UJI3  TIDAK — "Melebihi batas 2 jurnal/hari — perlu ditinjau"
---   06-03 SIS-UJI1  TIDAK — "Tarif tidak ditemukan untuk program Program Uji B..."
--- Ketiga alasan HARUS muncul. Kalau "Melebihi batas" tidak muncul,
--- berarti pembatas harian tidak bekerja.
+  (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'));
+-- Sengaja TANPA ORDER BY tambahan: fungsi sudah mengurutkan menurut waktu
+-- mengajar. Kalau diurutkan ulang di sini, ketidakberesan urutan (mis. yang
+-- lebih awal justru ditolak) jadi tidak kelihatan.
+-- HARAPAN: 7 baris, URUT menurut waktu mengajar, 4 DIBAYAR & 3 TIDAK:
+--   06-01 SIS-UJI1 (03:00)  DIBAYAR
+--   06-01 SIS-UJI2 (04:00)  DIBAYAR
+--   06-01 SIS-UJI1 (05:00)  TIDAK — "Duplikat, tidak dibayar"
+--   06-02 SIS-UJI1 (03:00)  DIBAYAR
+--   06-02 SIS-UJI2 (04:00)  DIBAYAR
+--   06-02 SIS-UJI3 (06:00)  TIDAK — "Melebihi batas 2 jurnal/hari"
+--   06-03 SIS-UJI1 (03:00)  TIDAK — "Tarif tidak ditemukan ... Program Uji B"
+--
+-- PERIKSA URUTANNYA, bukan cuma jumlahnya:
+--   • Pada 06-01, yang ditandai duplikat harus yang PALING AKHIR (05:00),
+--     bukan yang 03:00.
+--   • Pada 06-02, yang ditolak karena batas harian harus SIS-UJI3 (06:00),
+--     yaitu yang datang PALING AKHIR — bukan SIS-UJI2.
+-- Kalau yang ditolak justru yang lebih awal, berarti urutan tidak stabil
+-- dan hasil perhitungan bisa berubah-ubah tiap kali dihitung ulang.
 
 -- ── SKENARIO 7: opsi "wajib_terverifikasi" harus DITOLAK ──
 DO $$

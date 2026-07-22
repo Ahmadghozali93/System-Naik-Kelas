@@ -101,25 +101,31 @@ tarif_map AS (
   JOIN programs pr ON pr.id = (m->>'program_id')
 ),
 j AS (
+  -- PENTING: urutan memakai `timestamp` (waktu MENGAJAR), bukan created_at
+  -- (waktu baris tercatat). Beberapa jurnal yang diinput sekaligus punya
+  -- created_at identik, sehingga urutannya jatuh ke UUID acak — akibatnya
+  -- hasil perhitungan bisa BERUBAH-UBAH tiap kali dihitung ulang.
   SELECT je.id, (je.timestamp AT TIME ZONE 'Asia/Jakarta')::date AS tgl,
-         je.program, je.siswa_id, je.created_at
+         je.program, je.siswa_id, je.timestamp AS waktu
   FROM jurnal_entries je
   WHERE je.guru_id = p_guru_id
     AND (je.timestamp AT TIME ZONE 'Asia/Jakarta')::date BETWEEN p_awal AND p_akhir
 ),
--- Jurnal ganda (siswa + tanggal + program sama) hanya dihitung SEKALI
+-- Jurnal ganda (siswa + tanggal + program sama) hanya dihitung SEKALI.
+-- Yang dipertahankan = yang waktunya paling awal.
 tandai_dup AS (
   SELECT j.*,
          ROW_NUMBER() OVER (PARTITION BY j.siswa_id, j.tgl, j.program
-                            ORDER BY j.created_at, j.id) AS urut_dup
+                            ORDER BY j.waktu, j.id) AS urut_dup
   FROM j
 ),
--- Setelah duplikat disingkirkan, hitung urutan per hari untuk batas harian
+-- Setelah duplikat disingkirkan, hitung urutan per hari untuk batas harian.
+-- Yang lebih awal diprioritaskan dibayar.
 tandai_harian AS (
   SELECT t.*,
          CASE WHEN t.urut_dup = 1
               THEN ROW_NUMBER() OVER (PARTITION BY t.tgl
-                                      ORDER BY (t.urut_dup <> 1), t.created_at, t.id)
+                                      ORDER BY (t.urut_dup <> 1), t.waktu, t.id)
          END AS urut_hari
   FROM tandai_dup t
 )
@@ -140,7 +146,7 @@ SELECT
 FROM tandai_harian th
 CROSS JOIN batas b
 LEFT JOIN tarif_map tm ON tm.nama_program = th.program
-ORDER BY th.tgl, th.created_at;
+ORDER BY th.tgl, th.waktu, th.id;
 $$;
 
 
