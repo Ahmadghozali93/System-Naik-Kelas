@@ -48,13 +48,25 @@ SET LOCAL request.jwt.claims = '{"sub":"00000000-0000-0000-0000-000000000000","r
 
 -- UJI 2: Berapa slip yang bisa dia lihat?
 --   HARAPAN: hanya slip MILIKNYA yang berstatus 'dibayar'.
+--
+--   PENTING: UJI 2 & 3 hanya bermakna kalau di database SUDAH ADA data slip
+--   (yaitu setelah Fase 2 dijalankan). Selama tabel slip masih kosong,
+--   hasil "0" itu WAJAR dan BUKAN bukti keamanan. Kolom `catatan_validitas`
+--   di bawah memberi tahu apakah tes ini bisa dipercaya atau belum.
 SELECT
   COUNT(*)                                                    AS slip_terlihat,
   COUNT(*) FILTER (WHERE guru_id <> public.absensi_guru_id()) AS slip_orang_lain,
   COUNT(*) FILTER (WHERE status <> 'dibayar')                 AS slip_belum_dibayar,
   CASE WHEN COUNT(*) FILTER (WHERE guru_id <> public.absensi_guru_id()) = 0
         AND COUNT(*) FILTER (WHERE status <> 'dibayar') = 0
-       THEN 'AMAN' ELSE 'BOCOR — PERIKSA POLICY!' END         AS hasil
+       THEN 'AMAN' ELSE 'BOCOR — PERIKSA POLICY!' END         AS hasil,
+  CASE
+    WHEN public.absensi_guru_id() IS NULL
+      THEN 'TIDAK VALID — UUID di request.jwt.claims belum diganti'
+    WHEN (SELECT COUNT(*) FROM public.slip_gaji) = 0
+      THEN 'BELUM BERMAKNA — belum ada data slip (jalankan lagi setelah Fase 2)'
+    ELSE 'VALID — hasil bisa dipercaya'
+  END                                                          AS catatan_validitas
 FROM public.slip_gaji;
 
 -- UJI 3: Rincian slip orang lain juga harus tidak terlihat.
@@ -74,18 +86,39 @@ WHERE NOT EXISTS (
 -- UJI 4: Karyawan mencoba mengangkat dirinya jadi pengelola payroll.
 --   HARAPAN: GAGAL dengan pesan "Hanya Owner yang boleh mengubah izin kelola payroll."
 DO $$
+DECLARE v_rows INT; v_guru TEXT;
 BEGIN
+  v_guru := public.absensi_guru_id();
+  IF v_guru IS NULL THEN
+    RAISE NOTICE 'TES DILEWATI — UUID di request.jwt.claims belum diganti dengan auth_user_id karyawan asli. Hasil tes tidak bermakna.';
+    RETURN;
+  END IF;
+
   UPDATE public.gurus
      SET boleh_kelola_payroll = true
    WHERE auth_user_id = auth.uid();
-  RAISE WARNING 'BAHAYA: karyawan BERHASIL mengubah flag payroll — policy bocor!';
+  GET DIAGNOSTICS v_rows = ROW_COUNT;
+
+  IF v_rows > 0 THEN
+    RAISE WARNING 'BAHAYA: karyawan BERHASIL mengubah flag payroll (% baris) — policy bocor!', v_rows;
+  ELSE
+    RAISE NOTICE 'AMAN: tidak ada baris yang berubah (ditolak policy).';
+  END IF;
 EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'AMAN: percobaan ditolak (%).', SQLERRM;
+  RAISE NOTICE 'AMAN: percobaan ditolak oleh pengaman (%).', SQLERRM;
 END $$;
 
 ROLLBACK;   -- tidak ada perubahan yang tersimpan
 
 -- ============================================================
--- Kalau UJI 1 semua 'AMAN', UJI 2 'AMAN', UJI 3 = 0, dan UJI 4
--- menampilkan 'AMAN: percobaan ditolak', maka keamanan payroll lulus.
+-- CARA MEMBACA HASIL
+--
+-- Sekarang (tabel slip masih kosong, Fase 2 belum jalan):
+--   • UJI 1 = satu-satunya yang BERMAKNA. Harus 7 baris 'AMAN'.
+--   • UJI 2 & 3 akan menunjukkan 0 — itu WAJAR, bukan bukti apa-apa.
+--   • UJI 4 bermakna HANYA kalau UUID sudah diganti (lihat kolom catatan).
+--
+-- Nanti (setelah Fase 2 & sudah ada slip):
+--   Jalankan ulang script ini. Baru UJI 2 & 3 bisa dipercaya,
+--   ditandai catatan_validitas = 'VALID'.
 -- ============================================================
