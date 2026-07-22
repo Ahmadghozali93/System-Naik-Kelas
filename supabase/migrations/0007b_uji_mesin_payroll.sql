@@ -1,199 +1,225 @@
 -- ============================================================
--- 0007b — UJI SKENARIO MESIN PAYROLL
+-- 0007b — UJI MESIN PAYROLL (rapor otomatis LULUS / GAGAL)
 --
--- Script ini MEMBUAT data contoh, menjalankan perhitungan, menampilkan
--- hasilnya, lalu MEMBATALKAN semuanya (ROLLBACK).
--- Tidak ada satu pun data yang tersimpan di database Anda.
+-- CARA PAKAI:
+--   1. Buka Supabase → SQL Editor → + New query
+--   2. Salin SELURUH isi file ini, tempel, klik Run
+--   3. Lihat tabel hasil: kolom STATUS harus "LULUS" semua
 --
--- Cara pakai: salin SELURUH isi file ini ke Supabase SQL Editor, klik Run.
--- Perhatikan tab "Results" (angka) dan panel "Messages" (catatan/peringatan).
---
--- Skenario yang diuji:
---   1. Gaji pokok (nominal tetap)
---   2. Fee tatap muka: normal, DUPLIKAT, program tanpa tarif, lewat batas harian
---   3. Bonus kehadiran: guru alpa 1x  → hangus
---   4. Bonus kehadiran: guru telat 3x → hangus karena lewat batas telat
---   5. Bonus KPI: skor kosong         → 0 + peringatan
---   6. Karyawan masuk tengah bulan    → komponen belum berlaku, tidak dihitung
---   7. Opsi "wajib_terverifikasi"     → perhitungan DITOLAK dengan pesan jelas
+-- Script membuat data contoh, menghitung, menilai sendiri hasilnya,
+-- lalu MEMBATALKAN semuanya (ROLLBACK). Data Anda tidak tersentuh.
+-- Tidak perlu membaca panel "Messages" — semua penilaian ada di tabel.
 -- ============================================================
 
 BEGIN;
 
+CREATE TEMP TABLE _rapor (
+  no INT, pemeriksaan TEXT, diharapkan TEXT, hasil_nyata TEXT, status TEXT
+) ON COMMIT DROP;
+
 -- ── Data contoh ──
-INSERT INTO units (id, nama, aktif) VALUES ('UNIT-UJI', 'Unit Uji Payroll', true)
+INSERT INTO units (id, nama, aktif) VALUES ('UNIT-UJI','Unit Uji Payroll',true)
   ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO programs (id, nama, jenis, status)
-VALUES ('PROG-UJI-A', 'Program Uji A', 'Rutin', 'Aktif'),
-       ('PROG-UJI-B', 'Program Uji B', 'Rutin', 'Aktif')
+VALUES ('PROG-UJI-A','Program Uji A','Rutin','Aktif'),
+       ('PROG-UJI-B','Program Uji B','Rutin','Aktif')
   ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO gurus (id, email, nama, role, status)
-VALUES ('GURU-UJI1', 'uji1@contoh.test', 'Guru Uji Satu', 'Tutor', 'Aktif'),
-       ('GURU-UJI2', 'uji2@contoh.test', 'Guru Uji Dua', 'Tutor', 'Aktif')
+VALUES ('GURU-UJI1','uji1@contoh.test','Guru Uji Satu','Tutor','Aktif'),
+       ('GURU-UJI2','uji2@contoh.test','Guru Uji Dua','Tutor','Aktif')
   ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO guru_units (guru_id, unit_id)
-VALUES ('GURU-UJI1', 'UNIT-UJI'), ('GURU-UJI2', 'UNIT-UJI')
-  ON CONFLICT DO NOTHING;
+VALUES ('GURU-UJI1','UNIT-UJI'), ('GURU-UJI2','UNIT-UJI') ON CONFLICT DO NOTHING;
 
 INSERT INTO siswa (id, nama, unit, status)
-VALUES ('SIS-UJI1', 'Siswa Uji 1', 'Unit Uji Payroll', 'Aktif'),
-       ('SIS-UJI2', 'Siswa Uji 2', 'Unit Uji Payroll', 'Aktif'),
-       ('SIS-UJI3', 'Siswa Uji 3', 'Unit Uji Payroll', 'Aktif')
+VALUES ('SIS-UJI1','Siswa Uji 1','Unit Uji Payroll','Aktif'),
+       ('SIS-UJI2','Siswa Uji 2','Unit Uji Payroll','Aktif'),
+       ('SIS-UJI3','Siswa Uji 3','Unit Uji Payroll','Aktif')
   ON CONFLICT (id) DO NOTHING;
 
--- ── Komponen gaji (angka HANYA untuk uji, tidak tersimpan) ──
+-- ── Komponen (angka HANYA untuk uji, dibatalkan di akhir) ──
 INSERT INTO komponen_gaji (id, unit_id, kode, nama, kategori, tipe_perhitungan, konfigurasi, urutan_tampil, aktif) VALUES
  ('11111111-1111-1111-1111-111111111111','UNIT-UJI','UJI_POKOK','Uji Gaji Pokok','pendapatan','nominal_tetap',
   '{"nominal": 1500000}'::jsonb, 10, true),
-
  ('22222222-2222-2222-2222-222222222222','UNIT-UJI','UJI_FEE','Uji Fee Tatap Muka','pendapatan','per_unit',
-  jsonb_build_object('sumber_unit','jurnal_mengajar','wajib_terverifikasi',false,
-    'batas_jurnal_per_hari',2,
+  jsonb_build_object('sumber_unit','jurnal_mengajar','wajib_terverifikasi',false,'batas_jurnal_per_hari',2,
     'matriks_tarif', jsonb_build_array(jsonb_build_object('program_id','PROG-UJI-A','tarif',25000))), 20, true),
-
  ('33333333-3333-3333-3333-333333333333','UNIT-UJI','UJI_HADIR','Uji Bonus Kehadiran','pendapatan','bersyarat',
   '{"status_absensi_menghanguskan":["Alpha"],"batas_telat":2,"cara_hangus":"total","nominal":300000}'::jsonb, 30, true),
-
  ('44444444-4444-4444-4444-444444444444','UNIT-UJI','UJI_KPI','Uji Bonus KPI','pendapatan','bertingkat',
   '{"jika_data_kosong":"nol_dengan_peringatan","tangga":[{"min":90,"nominal":500000},{"min":80,"nominal":300000}]}'::jsonb, 40, true);
 
--- GURU-UJI1: semua komponen berlaku sejak lama
 INSERT INTO karyawan_komponen (guru_id, komponen_gaji_id, berlaku_mulai) VALUES
  ('GURU-UJI1','11111111-1111-1111-1111-111111111111','2020-01-01'),
  ('GURU-UJI1','22222222-2222-2222-2222-222222222222','2020-01-01'),
  ('GURU-UJI1','33333333-3333-3333-3333-333333333333','2020-01-01'),
- ('GURU-UJI1','44444444-4444-4444-4444-444444444444','2020-01-01');
-
--- GURU-UJI2: SKENARIO 6 — masuk tengah bulan (20 Juni), gaji pokok saja
-INSERT INTO karyawan_komponen (guru_id, komponen_gaji_id, berlaku_mulai) VALUES
+ ('GURU-UJI1','44444444-4444-4444-4444-444444444444','2020-01-01'),
+ -- GURU-UJI2 baru masuk 20 Juni: hanya gaji pokok
  ('GURU-UJI2','11111111-1111-1111-1111-111111111111','2026-06-20');
 
--- ── Periode uji: Juni 2026 ──
 INSERT INTO periode_payroll (id, unit_id, tahun, bulan, status)
 VALUES ('99999999-9999-9999-9999-999999999999','UNIT-UJI',2026,6,'draft');
 
--- ── Jurnal GURU-UJI1 (Juni 2026) ──
--- 1 Juni : 2 jurnal sah (siswa 1 & 2)                  → DIBAYAR
---          + 1 jurnal DUPLIKAT (siswa 1 diulang)       → tidak dibayar
--- 2 Juni : 3 jurnal BERBEDA (siswa 1, 2, 3)            → batas 2/hari,
---          yang ke-3 tidak dibayar & slip perlu ditinjau
--- 3 Juni : 1 jurnal Program B (tak ada di matriks)     → tidak dibayar
---
--- CATATAN: agar batas harian benar-benar teruji, jurnal ke-3 pada 2 Juni
--- harus SISWA BERBEDA. Kalau siswanya sama, dia terhitung duplikat lebih
--- dulu dan skenario batas harian tidak pernah tercapai.
+-- Jurnal: 2 sah + 1 duplikat (1 Jun); 3 berbeda → batas 2/hari (2 Jun);
+--         1 program tanpa tarif (3 Jun)
 INSERT INTO jurnal_entries (guru_id, siswa_id, program, unit, timestamp) VALUES
  ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-01T03:00:00Z'),
  ('GURU-UJI1','SIS-UJI2','Program Uji A','Unit Uji Payroll','2026-06-01T04:00:00Z'),
- ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-01T05:00:00Z'), -- duplikat
+ ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-01T05:00:00Z'),
  ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-02T03:00:00Z'),
  ('GURU-UJI1','SIS-UJI2','Program Uji A','Unit Uji Payroll','2026-06-02T04:00:00Z'),
- ('GURU-UJI1','SIS-UJI3','Program Uji A','Unit Uji Payroll','2026-06-02T06:00:00Z'), -- ke-3, lewat batas
- ('GURU-UJI1','SIS-UJI1','Program Uji B','Unit Uji Payroll','2026-06-03T03:00:00Z'); -- tanpa tarif
+ ('GURU-UJI1','SIS-UJI3','Program Uji A','Unit Uji Payroll','2026-06-02T06:00:00Z'),
+ ('GURU-UJI1','SIS-UJI1','Program Uji B','Unit Uji Payroll','2026-06-03T03:00:00Z');
 
--- ── Absensi GURU-UJI1: SKENARIO 3 (alpa 1x) + telat 3x ──
 INSERT INTO attendances (guru_id, unit_id, tanggal, status) VALUES
  ('GURU-UJI1','UNIT-UJI','2026-06-01','Hadir'),
  ('GURU-UJI1','UNIT-UJI','2026-06-02','Telat'),
  ('GURU-UJI1','UNIT-UJI','2026-06-03','Telat'),
  ('GURU-UJI1','UNIT-UJI','2026-06-04','Telat'),
- ('GURU-UJI1','UNIT-UJI','2026-06-05','Alpha');   -- menghanguskan bonus
+ ('GURU-UJI1','UNIT-UJI','2026-06-05','Alpha');
+-- Skor KPI sengaja dikosongkan
 
--- Skor KPI sengaja TIDAK diisi → SKENARIO 5
+-- ── Hitung ──
+DO $$ BEGIN PERFORM hitung_periode('99999999-9999-9999-9999-999999999999'); END $$;
 
 -- ============================================================
--- JALANKAN PERHITUNGAN
+-- PENILAIAN
 -- ============================================================
-SELECT * FROM hitung_periode('99999999-9999-9999-9999-999999999999');
+INSERT INTO _rapor
+-- 1. Gaji pokok + fee
+SELECT 1, 'Gaji bersih Guru Uji Satu', 'Rp 1.600.000',
+       'Rp ' || to_char(s.gaji_bersih,'FM999G999G999'),
+       CASE WHEN s.gaji_bersih = 1600000 THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji s WHERE s.guru_id='GURU-UJI1'
+  AND s.periode_payroll_id='99999999-9999-9999-9999-999999999999';
 
--- ── HASIL 1: ringkasan slip ──
-SELECT s.guru_id, g.nama,
-       s.total_pendapatan, s.total_potongan, s.gaji_bersih, s.butuh_ditinjau
-FROM slip_gaji s JOIN gurus g ON g.id = s.guru_id
-WHERE s.periode_payroll_id = '99999999-9999-9999-9999-999999999999'
-ORDER BY s.guru_id;
--- HARAPAN:
---   GURU-UJI1 : pokok 1.500.000 + fee (4 x 25.000 = 100.000) + hadir 0 + kpi 0
---               = 1.600.000, butuh_ditinjau = true
---   GURU-UJI2 : 1.500.000 (gaji pokok saja, komponen lain belum dipasang)
+INSERT INTO _rapor
+-- 2. Masuk tengah bulan → komponen lain belum berlaku
+SELECT 2, 'Gaji Guru Uji Dua (masuk 20 Juni)', 'Rp 1.500.000',
+       'Rp ' || to_char(s.gaji_bersih,'FM999G999G999'),
+       CASE WHEN s.gaji_bersih = 1500000 THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji s WHERE s.guru_id='GURU-UJI2'
+  AND s.periode_payroll_id='99999999-9999-9999-9999-999999999999';
 
--- ── HASIL 2: rincian per komponen ──
-SELECT g.nama, d.nama_komponen, d.jumlah_unit, d.nominal,
-       d.keterangan_hitung, d.data_mentah
-FROM slip_gaji_detail d
-JOIN slip_gaji s ON s.id = d.slip_gaji_id
-JOIN gurus g ON g.id = s.guru_id
-WHERE s.periode_payroll_id = '99999999-9999-9999-9999-999999999999'
-ORDER BY g.nama, d.urutan_tampil;
--- HARAPAN GURU-UJI1:
---   Uji Fee Tatap Muka   → jumlah_unit = 4, nominal = 100.000
---   Uji Bonus Kehadiran  → 0, keterangan "Hangus (pelanggaran: 1, telat: 3)"
---   Uji Bonus KPI        → 0, keterangan "Skor KPI 0"
+INSERT INTO _rapor
+-- 3. Jumlah tatap muka yang dibayar
+SELECT 3, 'Tatap muka dibayar', '4 unit = Rp 100.000',
+       COALESCE(d.jumlah_unit::text,'-') || ' unit = Rp ' || to_char(d.nominal,'FM999G999G999'),
+       CASE WHEN d.jumlah_unit = 4 AND d.nominal = 100000 THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji_detail d JOIN slip_gaji s ON s.id=d.slip_gaji_id
+WHERE s.guru_id='GURU-UJI1' AND d.nama_komponen='Uji Fee Tatap Muka';
 
--- ── HASIL 3: peringatan yang tercatat ──
-SELECT g.nama, jsonb_pretty(s.peringatan) AS peringatan
-FROM slip_gaji s JOIN gurus g ON g.id = s.guru_id
-WHERE s.periode_payroll_id = '99999999-9999-9999-9999-999999999999';
--- HARAPAN GURU-UJI1: 3 peringatan (jurnal tanpa tarif, lewat batas harian,
---                    duplikat) + 1 peringatan skor KPI kosong
+INSERT INTO _rapor
+-- 4. Bonus kehadiran hangus (ada 1 Alpha)
+SELECT 4, 'Bonus kehadiran (ada 1 alpa)', 'Rp 0 — hangus',
+       'Rp ' || to_char(d.nominal,'FM999G999G999') || ' — ' || COALESCE(d.keterangan_hitung,''),
+       CASE WHEN d.nominal = 0 THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji_detail d JOIN slip_gaji s ON s.id=d.slip_gaji_id
+WHERE s.guru_id='GURU-UJI1' AND d.nama_komponen='Uji Bonus Kehadiran';
 
--- ── HASIL 4: rincian jurnal — mana dibayar, mana tidak & alasannya ──
-SELECT tanggal, program, siswa_id, dibayar, tarif, alasan
+INSERT INTO _rapor
+-- 5. Bonus KPI 0 karena skor belum diinput
+SELECT 5, 'Bonus KPI (skor belum diinput)', 'Rp 0 + peringatan',
+       'Rp ' || to_char(d.nominal,'FM999G999G999'),
+       CASE WHEN d.nominal = 0 THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji_detail d JOIN slip_gaji s ON s.id=d.slip_gaji_id
+WHERE s.guru_id='GURU-UJI1' AND d.nama_komponen='Uji Bonus KPI';
+
+INSERT INTO _rapor
+-- 6. Slip ditandai perlu ditinjau
+SELECT 6, 'Slip ditandai "perlu ditinjau"', 'ya',
+       CASE WHEN s.butuh_ditinjau THEN 'ya' ELSE 'tidak' END,
+       CASE WHEN s.butuh_ditinjau THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji s WHERE s.guru_id='GURU-UJI1'
+  AND s.periode_payroll_id='99999999-9999-9999-9999-999999999999';
+
+INSERT INTO _rapor
+-- 7. Peringatan tercatat (tidak gagal diam-diam)
+SELECT 7, 'Peringatan tercatat di slip', 'minimal 3',
+       jsonb_array_length(COALESCE(s.peringatan,'[]'::jsonb))::text,
+       CASE WHEN jsonb_array_length(COALESCE(s.peringatan,'[]'::jsonb)) >= 3
+            THEN 'LULUS' ELSE 'GAGAL' END
+FROM slip_gaji s WHERE s.guru_id='GURU-UJI1'
+  AND s.periode_payroll_id='99999999-9999-9999-9999-999999999999';
+
+-- 8–11: rincian jurnal
+INSERT INTO _rapor
+SELECT 8, 'Jurnal duplikat ditolak', '1 jurnal',
+       COUNT(*)::text || ' jurnal',
+       CASE WHEN COUNT(*)=1 THEN 'LULUS' ELSE 'GAGAL' END
 FROM rincian_jurnal_fee('GURU-UJI1','2026-06-01','2026-06-30',
-  (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'));
--- Sengaja TANPA ORDER BY tambahan: fungsi sudah mengurutkan menurut waktu
--- mengajar. Kalau diurutkan ulang di sini, ketidakberesan urutan (mis. yang
--- lebih awal justru ditolak) jadi tidak kelihatan.
--- HARAPAN: 7 baris, URUT menurut waktu mengajar, 4 DIBAYAR & 3 TIDAK:
---   06-01 SIS-UJI1 (03:00)  DIBAYAR
---   06-01 SIS-UJI2 (04:00)  DIBAYAR
---   06-01 SIS-UJI1 (05:00)  TIDAK — "Duplikat, tidak dibayar"
---   06-02 SIS-UJI1 (03:00)  DIBAYAR
---   06-02 SIS-UJI2 (04:00)  DIBAYAR
---   06-02 SIS-UJI3 (06:00)  TIDAK — "Melebihi batas 2 jurnal/hari"
---   06-03 SIS-UJI1 (03:00)  TIDAK — "Tarif tidak ditemukan ... Program Uji B"
---
--- PERIKSA URUTANNYA, bukan cuma jumlahnya:
---   • Pada 06-01, yang ditandai duplikat harus yang PALING AKHIR (05:00),
---     bukan yang 03:00.
---   • Pada 06-02, yang ditolak karena batas harian harus SIS-UJI3 (06:00),
---     yaitu yang datang PALING AKHIR — bukan SIS-UJI2.
--- Kalau yang ditolak justru yang lebih awal, berarti urutan tidak stabil
--- dan hasil perhitungan bisa berubah-ubah tiap kali dihitung ulang.
+       (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
+WHERE alasan LIKE 'Duplikat%';
 
--- ── SKENARIO 7: opsi "wajib_terverifikasi" harus DITOLAK ──
+INSERT INTO _rapor
+SELECT 9, 'Jurnal lewat batas harian ditolak', '1 jurnal, siswa SIS-UJI3',
+       COUNT(*)::text || ' jurnal, siswa ' || COALESCE(MAX(siswa_id),'-'),
+       CASE WHEN COUNT(*)=1 AND MAX(siswa_id)='SIS-UJI3' THEN 'LULUS' ELSE 'GAGAL' END
+FROM rincian_jurnal_fee('GURU-UJI1','2026-06-01','2026-06-30',
+       (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
+WHERE alasan LIKE 'Melebihi batas%';
+
+INSERT INTO _rapor
+SELECT 10, 'Program tanpa tarif tidak dibayar diam-diam', '1 jurnal, program disebut',
+       COUNT(*)::text || ' jurnal, program ' || COALESCE(MAX(program),'-'),
+       CASE WHEN COUNT(*)=1 AND MAX(program)='Program Uji B' THEN 'LULUS' ELSE 'GAGAL' END
+FROM rincian_jurnal_fee('GURU-UJI1','2026-06-01','2026-06-30',
+       (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
+WHERE alasan LIKE 'Tarif tidak%';
+
+INSERT INTO _rapor
+SELECT 11, 'Urutan stabil (yang ditolak = paling akhir)', 'SIS-UJI3 di posisi terakhir 2 Juni',
+       COALESCE((SELECT siswa_id FROM rincian_jurnal_fee('GURU-UJI1','2026-06-02','2026-06-02',
+                 (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
+                 OFFSET 2 LIMIT 1),'-'),
+       CASE WHEN (SELECT siswa_id FROM rincian_jurnal_fee('GURU-UJI1','2026-06-02','2026-06-02',
+                  (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
+                  OFFSET 2 LIMIT 1) = 'SIS-UJI3'
+            THEN 'LULUS' ELSE 'GAGAL' END;
+
+-- 12. Opsi "wajib_terverifikasi" harus DITOLAK
 DO $$
 BEGIN
-  UPDATE komponen_gaji
-     SET konfigurasi = konfigurasi || '{"wajib_terverifikasi": true}'::jsonb
-   WHERE kode = 'UJI_FEE';
-
+  UPDATE komponen_gaji SET konfigurasi = konfigurasi || '{"wajib_terverifikasi": true}'::jsonb
+   WHERE kode='UJI_FEE';
   PERFORM hitung_slip_gaji('99999999-9999-9999-9999-999999999999','GURU-UJI1');
-  RAISE WARNING 'MASALAH: seharusnya ditolak, tapi perhitungan malah jalan!';
+  INSERT INTO _rapor VALUES (12,'Opsi verifikasi jurnal (belum didukung)','ditolak','malah diproses','GAGAL');
 EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'BENAR — perhitungan ditolak: %', SQLERRM;
+  INSERT INTO _rapor VALUES (12,'Opsi verifikasi jurnal (belum didukung)','ditolak','ditolak dengan pesan jelas','LULUS');
 END $$;
 
--- ── SKENARIO 8: periode terkunci harus menolak perhitungan ulang ──
+-- 13. Periode terkunci harus menolak perhitungan ulang
 DO $$
 BEGIN
-  UPDATE periode_payroll SET status = 'terkunci'
-   WHERE id = '99999999-9999-9999-9999-999999999999';
-
+  UPDATE periode_payroll SET status='terkunci'
+   WHERE id='99999999-9999-9999-9999-999999999999';
   PERFORM hitung_slip_gaji('99999999-9999-9999-9999-999999999999','GURU-UJI2');
-  RAISE WARNING 'MASALAH: periode terkunci masih bisa dihitung ulang!';
+  INSERT INTO _rapor VALUES (13,'Periode terkunci','menolak perhitungan ulang','masih bisa dihitung','GAGAL');
 EXCEPTION WHEN OTHERS THEN
-  RAISE NOTICE 'BENAR — periode terkunci menolak: %', SQLERRM;
+  INSERT INTO _rapor VALUES (13,'Periode terkunci','menolak perhitungan ulang','ditolak','LULUS');
 END $$;
-
-ROLLBACK;   -- semua data contoh dibuang, database kembali seperti semula
 
 -- ============================================================
--- CARA MEMBACA:
---   • Tab "Results"  → angka slip & rinciannya (HASIL 1–4)
---   • Panel "Messages" → harus ada 2 baris "BENAR — ..." (skenario 7 & 8).
---     Kalau muncul "MASALAH: ...", berarti ada pengaman yang tidak bekerja.
+-- RAPOR AKHIR — ini satu-satunya tabel yang perlu Anda lihat
+-- ============================================================
+SELECT no, pemeriksaan, diharapkan, hasil_nyata, status FROM _rapor
+UNION ALL
+SELECT 99, '=== KESIMPULAN ===',
+       COUNT(*)::text || ' pemeriksaan',
+       COUNT(*) FILTER (WHERE status='LULUS')::text || ' lulus, ' ||
+       COUNT(*) FILTER (WHERE status='GAGAL')::text || ' gagal',
+       CASE WHEN COUNT(*) FILTER (WHERE status='GAGAL') = 0
+            THEN 'SEMUA LULUS' ELSE 'ADA YANG GAGAL' END
+FROM _rapor
+ORDER BY no;
+
+ROLLBACK;   -- semua data contoh dibuang
+
+-- ============================================================
+-- Baris terakhir (no 99) adalah kesimpulannya.
+-- Kalau tertulis "SEMUA LULUS" → mesin payroll bekerja benar.
+-- Kalau "ADA YANG GAGAL" → lihat baris mana yang status-nya GAGAL.
 -- ============================================================
