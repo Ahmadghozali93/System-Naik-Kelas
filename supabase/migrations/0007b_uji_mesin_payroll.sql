@@ -40,7 +40,8 @@ VALUES ('GURU-UJI1', 'UNIT-UJI'), ('GURU-UJI2', 'UNIT-UJI')
 
 INSERT INTO siswa (id, nama, unit, status)
 VALUES ('SIS-UJI1', 'Siswa Uji 1', 'Unit Uji Payroll', 'Aktif'),
-       ('SIS-UJI2', 'Siswa Uji 2', 'Unit Uji Payroll', 'Aktif')
+       ('SIS-UJI2', 'Siswa Uji 2', 'Unit Uji Payroll', 'Aktif'),
+       ('SIS-UJI3', 'Siswa Uji 3', 'Unit Uji Payroll', 'Aktif')
   ON CONFLICT (id) DO NOTHING;
 
 -- ── Komponen gaji (angka HANYA untuk uji, tidak tersimpan) ──
@@ -75,17 +76,22 @@ INSERT INTO periode_payroll (id, unit_id, tahun, bulan, status)
 VALUES ('99999999-9999-9999-9999-999999999999','UNIT-UJI',2026,6,'draft');
 
 -- ── Jurnal GURU-UJI1 (Juni 2026) ──
--- 1 Juni: 2 jurnal sah (2 siswa) = dibayar
--- 1 Juni: 1 jurnal DUPLIKAT (siswa+tanggal+program sama) = tidak dibayar
--- 2 Juni: 3 jurnal → batas 2/hari, yang ke-3 tidak dibayar (perlu ditinjau)
--- 3 Juni: 1 jurnal program B → tidak ada di matriks tarif = tidak dibayar
+-- 1 Juni : 2 jurnal sah (siswa 1 & 2)                  → DIBAYAR
+--          + 1 jurnal DUPLIKAT (siswa 1 diulang)       → tidak dibayar
+-- 2 Juni : 3 jurnal BERBEDA (siswa 1, 2, 3)            → batas 2/hari,
+--          yang ke-3 tidak dibayar & slip perlu ditinjau
+-- 3 Juni : 1 jurnal Program B (tak ada di matriks)     → tidak dibayar
+--
+-- CATATAN: agar batas harian benar-benar teruji, jurnal ke-3 pada 2 Juni
+-- harus SISWA BERBEDA. Kalau siswanya sama, dia terhitung duplikat lebih
+-- dulu dan skenario batas harian tidak pernah tercapai.
 INSERT INTO jurnal_entries (guru_id, siswa_id, program, unit, timestamp) VALUES
  ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-01T03:00:00Z'),
  ('GURU-UJI1','SIS-UJI2','Program Uji A','Unit Uji Payroll','2026-06-01T04:00:00Z'),
  ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-01T05:00:00Z'), -- duplikat
  ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-02T03:00:00Z'),
  ('GURU-UJI1','SIS-UJI2','Program Uji A','Unit Uji Payroll','2026-06-02T04:00:00Z'),
- ('GURU-UJI1','SIS-UJI1','Program Uji A','Unit Uji Payroll','2026-06-02T06:00:00Z'), -- ke-3, lewat batas
+ ('GURU-UJI1','SIS-UJI3','Program Uji A','Unit Uji Payroll','2026-06-02T06:00:00Z'), -- ke-3, lewat batas
  ('GURU-UJI1','SIS-UJI1','Program Uji B','Unit Uji Payroll','2026-06-03T03:00:00Z'); -- tanpa tarif
 
 -- ── Absensi GURU-UJI1: SKENARIO 3 (alpa 1x) + telat 3x ──
@@ -139,7 +145,16 @@ SELECT tanggal, program, siswa_id, dibayar, tarif, alasan
 FROM rincian_jurnal_fee('GURU-UJI1','2026-06-01','2026-06-30',
   (SELECT konfigurasi FROM komponen_gaji WHERE kode='UJI_FEE'))
 ORDER BY tanggal, siswa_id;
--- HARAPAN: 7 baris — 4 dibayar, 3 tidak (duplikat / lewat batas / tanpa tarif)
+-- HARAPAN: 7 baris — 4 DIBAYAR, 3 TIDAK, dengan alasan berbeda-beda:
+--   06-01 SIS-UJI1  dibayar
+--   06-01 SIS-UJI2  dibayar
+--   06-01 SIS-UJI1  TIDAK — "Duplikat, tidak dibayar"
+--   06-02 SIS-UJI1  dibayar
+--   06-02 SIS-UJI2  dibayar
+--   06-02 SIS-UJI3  TIDAK — "Melebihi batas 2 jurnal/hari — perlu ditinjau"
+--   06-03 SIS-UJI1  TIDAK — "Tarif tidak ditemukan untuk program Program Uji B..."
+-- Ketiga alasan HARUS muncul. Kalau "Melebihi batas" tidak muncul,
+-- berarti pembatas harian tidak bekerja.
 
 -- ── SKENARIO 7: opsi "wajib_terverifikasi" harus DITOLAK ──
 DO $$
