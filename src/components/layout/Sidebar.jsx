@@ -49,6 +49,8 @@ import {
     Store,
     Star,
     CalendarPlus,
+    Banknote,
+    Coins,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -589,6 +591,37 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/tugas/pengaturan') && (
                             <NavLink to="/tugas/pengaturan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <Settings className="w-4 h-4" /><span>Stage & Label</span>
+                            </NavLink>
+                        )}
+                    </SidebarGroup>
+                )}
+
+                {/* GAJI (PAYROLL FLEKSIBEL) */}
+                {['/gaji/komponen','/gaji/paket','/gaji/karyawan','/gaji/periode'].some(p => hasPermission(p)) && (
+                    <SidebarGroup
+                        title="Gaji"
+                        icon={Banknote}
+                        isOpen={activeGroup === 'gaji'}
+                        onToggle={() => toggleGroup('gaji')}
+                    >
+                        {hasPermission('/gaji/periode') && (
+                            <NavLink to="/gaji/periode" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Coins className="w-4 h-4" /><span>Periode Penggajian</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/gaji/karyawan') && (
+                            <NavLink to="/gaji/karyawan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <UserCog className="w-4 h-4" /><span>Gaji per Karyawan</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/gaji/paket') && (
+                            <NavLink to="/gaji/paket" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Layers className="w-4 h-4" /><span>Paket Gaji</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/gaji/komponen') && (
+                            <NavLink to="/gaji/komponen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Wallet className="w-4 h-4" /><span>Komponen Gaji</span>
                             </NavLink>
                         )}
                     </SidebarGroup>

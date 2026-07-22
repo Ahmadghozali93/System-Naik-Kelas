@@ -50,6 +50,10 @@ import SalaryComponentPage from './pages/payroll/SalaryComponentPage';
 import EmployeeSalaryPage from './pages/payroll/EmployeeSalaryPage';
 import PayrollPage from './pages/payroll/PayrollPage';
 import LoanPage from './pages/payroll/LoanPage';
+import KomponenGajiPage from './pages/gaji/KomponenGajiPage';
+import PaketGajiPage from './pages/gaji/PaketGajiPage';
+import KaryawanKomponenPage from './pages/gaji/KaryawanKomponenPage';
+import PeriodePayrollPage from './pages/gaji/PeriodePayrollPage';
 import TugasSayaPage from './pages/tasks/TugasSayaPage';
 import TaskKanbanPage from './pages/tasks/TaskKanbanPage';
 import TaskListPage from './pages/tasks/TaskListPage';
@@ -185,6 +189,12 @@ function App() {
             <Route path="/payroll/struktur"  element={<EmployeeSalaryPage />} />
             <Route path="/payroll/proses"    element={<PayrollPage />} />
             <Route path="/payroll/kasbon"    element={<LoanPage />} />
+
+            {/* PAYROLL FLEKSIBEL */}
+            <Route path="/gaji/komponen" element={<KomponenGajiPage />} />
+            <Route path="/gaji/paket"    element={<PaketGajiPage />} />
+            <Route path="/gaji/karyawan" element={<KaryawanKomponenPage />} />
+            <Route path="/gaji/periode"  element={<PeriodePayrollPage />} />
 
             {/* TUGAS */}
             <Route path="/tugas/saya"       element={<TugasSayaPage />} />

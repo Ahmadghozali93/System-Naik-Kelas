@@ -43,6 +43,11 @@ const AVAILABLE_MENUS = [
     { path: '/payroll/struktur', label: 'Payroll - Struktur Gaji' },
     { path: '/payroll/proses',   label: 'Payroll - Proses Payroll' },
     { path: '/payroll/kasbon',   label: 'Payroll - Kasbon' },
+    // ── Payroll Fleksibel ─────────────────────────────
+    { path: '/gaji/komponen',    label: 'Gaji - Komponen Gaji' },
+    { path: '/gaji/paket',       label: 'Gaji - Paket Gaji' },
+    { path: '/gaji/karyawan',    label: 'Gaji - Gaji per Karyawan' },
+    { path: '/gaji/periode',     label: 'Gaji - Periode Penggajian' },
     // ── KPI Karyawan ─────────────────────────────────
     { path: '/kpi/indikator',    label: 'KPI - Master Indikator' },
     { path: '/kpi/penilaian',    label: 'KPI - Penilaian' },
