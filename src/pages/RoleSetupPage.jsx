@@ -65,6 +65,8 @@ const AVAILABLE_MENUS = [
     { path: '/tugas/pengaturan',  label: 'Tugas - Pengaturan Stage & Label' },
     // ── Penilaian Mengajar ────────────────────────────
     { path: '/penilaian',        label: 'Penilaian Mengajar' },
+    // ── Lisensi ───────────────────────────────────────
+    { path: '/lisensi',          label: 'Lisensi - Data & Pengingat Relisensi' },
     // ── POS ───────────────────────────────────────────
     { path: '/pos',              label: 'POS - Point of Sale' },
     // ── Pengaturan ───────────────────────────────────

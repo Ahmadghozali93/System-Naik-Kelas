@@ -51,6 +51,7 @@ import {
     CalendarPlus,
     Banknote,
     Coins,
+    FileKey,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -651,6 +652,17 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                             <LayoutGrid className="w-4 h-4" /><span>Papan Penilaian</span>
                         </NavLink>
                     </SidebarGroup>
+                )}
+
+                {hasPermission('/lisensi') && (
+                    <NavLink
+                        to="/lisensi"
+                        className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                        onClick={() => setIsOpen && setIsOpen(false)}
+                    >
+                        <FileKey className="w-5 h-5" />
+                        <span style={{ fontWeight: 500 }}>Lisensi</span>
+                    </NavLink>
                 )}
 
                 {hasPermission('/pos') && (

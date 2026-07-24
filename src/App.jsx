@@ -65,6 +65,9 @@ import TaskRecurringPage from './pages/tasks/TaskRecurringPage';
 import PosPage from './pages/PosPage';
 import PenilaianListPage from './pages/penilaian/PenilaianListPage';
 import PenilaianKanbanPage from './pages/penilaian/PenilaianKanbanPage';
+import LisensiListPage from './pages/lisensi/LisensiListPage';
+import LisensiFormPage from './pages/lisensi/LisensiFormPage';
+import LisensiDetailPage from './pages/lisensi/LisensiDetailPage';
 
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/layout/ProtectedRoute';
@@ -211,6 +214,11 @@ function App() {
             {/* PENILAIAN MENGAJAR */}
             <Route path="/penilaian" element={<PenilaianListPage />} />
             <Route path="/penilaian/papan" element={<PenilaianKanbanPage />} />
+
+            {/* LISENSI */}
+            <Route path="/lisensi"        element={<LisensiListPage />} />
+            <Route path="/lisensi/tambah" element={<LisensiFormPage />} />
+            <Route path="/lisensi/:id"    element={<LisensiDetailPage />} />
 
             {/* POS */}
             <Route path="/pos" element={<PosPage />} />
