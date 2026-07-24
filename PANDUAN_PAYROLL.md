@@ -139,7 +139,8 @@ Ini yang paling banyak pengaturannya. Sumber datanya adalah **menu Jurnal Mengaj
 2. **Cara Menghitung**: **Bersyarat**
 3. Di bagian Pengaturan:
    - **Nominal Bonus** — misal `300000`
-   - **Status Absensi yang Menghanguskan Bonus** — centang misalnya `Alpha`
+   - **Status Absensi yang Menghanguskan Bonus** — untuk aturan "tidak pernah mangkir **atau** izin tanpa pengganti", centang **`Alpha`** dan **`Izin Tanpa Pengganti`**.
+     > Izin yang **ada penggantinya** (tukar shift / ganti hari) statusnya `Izin` biasa — jangan dicentang, supaya bonus **tetap cair**.
    - **Batas Toleransi Telat** — misal `2` (artinya telat 3× ke atas → bonus hangus). Kosongkan = tidak ada toleransi sama sekali
    - **Kalau Melanggar** — pilih *Hangus total* atau *Dipotong proporsional*
 4. Centang **Aktifkan** → **Simpan**
@@ -148,9 +149,30 @@ Ini yang paling banyak pengaturannya. Sumber datanya adalah **menu Jurnal Mengaj
 
 ### Langkah 3.4 — Bonus KPI
 
+Ada **dua cara**. Pilih salah satu sesuai kebutuhan.
+
+#### Cara A — Ambil dari Bonus KPI *(disarankan)*
+
+Nominal bonus **ditarik langsung** dari modul KPI (menu **KPI → Tier Bonus**),
+yang sudah menghitung bonus dari *role guru + jumlah TM* dan menandai
+*LAYAK / TIDAK LAYAK*. Payroll tidak menghitung ulang — satu sumber angka.
+
 1. **Tambah Komponen** → Kode `BONUS_KPI`, Nama `Bonus Target KPI`, Kategori **Pendapatan**
-2. **Cara Menghitung**: **Bertingkat**
-3. Di bagian Pengaturan → klik **+ Tambah tangga** beberapa kali:
+2. **Cara Menghitung**: **Ambil dari Bonus KPI**
+3. Di bagian Pengaturan:
+   - **Hanya bayar bila status kelayakan LAYAK** — centang kalau bonus harus hangus saat TIDAK LAYAK
+   - **Kalau Penilaian KPI Belum Diinput** — *Anggap nol, beri peringatan* (disarankan) / *Lewati* / *Blokir*
+4. Centang **Aktifkan** → **Simpan**
+
+   > Mau ubah besaran bonus? Buka **KPI → Tier Bonus**, bukan komponen ini.
+
+#### Cara B — Bertingkat (tangga skor, diatur di payroll)
+
+Dipakai kalau bonus ingin dihitung dari **skor KPI (0–100)** dengan tangga
+yang Anda tetapkan sendiri di payroll (terpisah dari Tier Bonus).
+
+1. **Cara Menghitung**: **Bertingkat**
+2. Pengaturan → **+ Tambah tangga**:
 
    | Skor ≥ | Dapat Rp |
    |---|---|
@@ -160,11 +182,10 @@ Ini yang paling banyak pengaturannya. Sumber datanya adalah **menu Jurnal Mengaj
 
    > Yang dipakai adalah **tangga tertinggi yang tercapai**. Skor 85 → dapat 300.000.
 
-4. **Kalau Skor KPI Belum Diinput** — pilih salah satu:
-   - *Anggap nol, beri peringatan* ← disarankan
-   - *Lewati komponen ini*
-   - *Blokir — periode tidak bisa dihitung*
-5. Centang **Aktifkan** → **Simpan**
+3. **Kalau Skor KPI Belum Diinput** — *Anggap nol* / *Lewati* / *Blokir*
+4. Centang **Aktifkan** → **Simpan**
+
+> ⚠️ Jangan pakai Cara A dan Cara B sekaligus untuk bonus yang sama — nanti dobel bayar.
 
 ---
 

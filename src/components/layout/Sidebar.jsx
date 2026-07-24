@@ -39,7 +39,6 @@ import {
     TrendingUp,
     Layers,
     UserCog,
-    CreditCard,
     Award,
     CheckSquare2,
     LayoutGrid,
@@ -50,7 +49,6 @@ import {
     Store,
     Star,
     CalendarPlus,
-    Banknote,
     Coins,
     FileKey,
 } from 'lucide-react';
@@ -500,36 +498,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     </SidebarGroup>
                 )}
 
-                {/* PAYROLL GROUP */}
-                {['/payroll/komponen', '/payroll/struktur', '/payroll/proses', '/payroll/kasbon'].some(p => hasPermission(p)) && (
-                    <SidebarGroup
-                        title="Payroll"
-                        icon={Wallet}
-                        isOpen={activeGroup === 'payroll'}
-                        onToggle={() => toggleGroup('payroll')}
-                    >
-                        {hasPermission('/payroll/komponen') && (
-                            <NavLink to="/payroll/komponen" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                                <Layers className="w-4 h-4" /><span>Komponen Gaji</span>
-                            </NavLink>
-                        )}
-                        {hasPermission('/payroll/struktur') && (
-                            <NavLink to="/payroll/struktur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                                <UserCog className="w-4 h-4" /><span>Struktur Gaji</span>
-                            </NavLink>
-                        )}
-                        {hasPermission('/payroll/proses') && (
-                            <NavLink to="/payroll/proses" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                                <FileText className="w-4 h-4" /><span>Proses Payroll</span>
-                            </NavLink>
-                        )}
-                        {hasPermission('/payroll/kasbon') && (
-                            <NavLink to="/payroll/kasbon" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                                <CreditCard className="w-4 h-4" /><span>Kasbon</span>
-                            </NavLink>
-                        )}
-                    </SidebarGroup>
-                )}
+                {/* PAYROLL LAMA (kaku) — dipensiunkan dari sidebar; route /payroll/* masih ada untuk melihat data lama */}
 
                 {/* KPI GROUP */}
                 {['/kpi/indikator', '/kpi/penilaian', '/kpi/dashboard', '/kpi/komplain', '/kpi/bonus-tier'].some(p => hasPermission(p)) && (
@@ -613,13 +582,13 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     </SidebarGroup>
                 )}
 
-                {/* GAJI (PAYROLL FLEKSIBEL) */}
+                {/* PAYROLL (mesin fleksibel) — route tetap /gaji/* */}
                 {['/gaji/komponen','/gaji/paket','/gaji/karyawan','/gaji/periode'].some(p => hasPermission(p)) && (
                     <SidebarGroup
-                        title="Gaji"
-                        icon={Banknote}
-                        isOpen={activeGroup === 'gaji'}
-                        onToggle={() => toggleGroup('gaji')}
+                        title="Payroll"
+                        icon={Wallet}
+                        isOpen={activeGroup === 'payroll'}
+                        onToggle={() => toggleGroup('payroll')}
                     >
                         {hasPermission('/gaji/periode') && (
                             <NavLink to="/gaji/periode" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>

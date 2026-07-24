@@ -8,7 +8,8 @@ const TIPE = [
   { value: 'nominal_tetap', label: 'Nominal Tetap',  desc: 'Angka pasti tiap bulan. Contoh: gaji pokok, tunjangan.' },
   { value: 'per_unit',      label: 'Per Unit',       desc: 'Jumlah tatap muka × tarif. Diambil dari Jurnal Mengajar.' },
   { value: 'bersyarat',     label: 'Bersyarat',      desc: 'Cair penuh bila syarat terpenuhi. Contoh: bonus kehadiran.' },
-  { value: 'bertingkat',    label: 'Bertingkat',     desc: 'Tangga pencapaian. Contoh: bonus sesuai skor KPI.' },
+  { value: 'bertingkat',    label: 'Bertingkat',     desc: 'Tangga pencapaian dari skor KPI (diatur di sini).' },
+  { value: 'ambil_kpi',     label: 'Ambil dari Bonus KPI', desc: 'Menarik nominal bonus yang sudah dihitung modul KPI (Tier Bonus). Tidak perlu atur tangga lagi.' },
 ];
 const KATEGORI = [
   { value: 'pendapatan', label: 'Pendapatan (menambah gaji)' },
@@ -483,6 +484,37 @@ export default function KomponenGajiPage() {
                     </div>
                     <div>
                       <label style={lbl}>Kalau Skor KPI Belum Diinput</label>
+                      <select value={form.konfigurasi.jika_data_kosong || 'nol_dengan_peringatan'}
+                        onChange={e=>setCfg({ jika_data_kosong: e.target.value })} style={inp}>
+                        <option value="nol_dengan_peringatan">Anggap nol, beri peringatan</option>
+                        <option value="lewati">Lewati komponen ini</option>
+                        <option value="blokir">Blokir — periode tidak bisa dihitung</option>
+                      </select>
+                    </div>
+                  </div>
+                )}
+
+                {form.tipe_perhitungan === 'ambil_kpi' && (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.85rem' }}>
+                    <div style={{ background:'#eff6ff', border:'1px solid #bfdbfe', borderRadius:'0.5rem', padding:'0.6rem 0.8rem', fontSize:'0.78rem', color:'#1e40af' }}>
+                      Nominal bonus diambil <strong>langsung dari modul KPI</strong> (hasil Tier Bonus: role guru + jumlah TM).
+                      Ubah besarannya di menu <strong>KPI → Tier Bonus</strong>, bukan di sini.
+                    </div>
+
+                    <label style={{ display:'flex', alignItems:'flex-start', gap:'0.5rem', fontSize:'0.82rem', cursor:'pointer' }}>
+                      <input type="checkbox" checked={form.konfigurasi.hanya_jika_layak ?? true}
+                        onChange={e=>setCfg({ hanya_jika_layak: e.target.checked })}
+                        style={{ accentColor:'var(--primary)', marginTop:'0.15rem' }} />
+                      <span>
+                        Hanya bayar bila status kelayakan <strong>LAYAK</strong>
+                        <span style={{ display:'block', color:'var(--text-secondary)', fontSize:'0.75rem', marginTop:'0.15rem' }}>
+                          Kalau penilaian KPI menandai TIDAK LAYAK, bonus dihitung 0.
+                        </span>
+                      </span>
+                    </label>
+
+                    <div>
+                      <label style={lbl}>Kalau Penilaian KPI Belum Diinput</label>
                       <select value={form.konfigurasi.jika_data_kosong || 'nol_dengan_peringatan'}
                         onChange={e=>setCfg({ jika_data_kosong: e.target.value })} style={inp}>
                         <option value="nol_dengan_peringatan">Anggap nol, beri peringatan</option>
