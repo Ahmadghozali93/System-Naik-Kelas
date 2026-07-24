@@ -46,6 +46,7 @@ import {
     List,
     FolderOpen,
     RotateCcw,
+    BellRing,
     Store,
     Star,
     CalendarPlus,
@@ -597,6 +598,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/tugas/rutin') && (
                             <NavLink to="/tugas/rutin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <RotateCcw className="w-4 h-4" /><span>Tugas Rutin</span>
+                            </NavLink>
+                        )}
+                        {user?.role === 'Owner' && (
+                            <NavLink to="/tugas/pengingat" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <BellRing className="w-4 h-4" /><span>Pengingat</span>
                             </NavLink>
                         )}
                         {hasPermission('/tugas/pengaturan') && (

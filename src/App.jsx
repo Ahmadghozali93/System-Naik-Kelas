@@ -62,6 +62,7 @@ import TaskListPage from './pages/tasks/TaskListPage';
 import TaskProjectPage from './pages/tasks/TaskProjectPage';
 import TaskSettingsPage from './pages/tasks/TaskSettingsPage';
 import TaskRecurringPage from './pages/tasks/TaskRecurringPage';
+import TaskReminderPage from './pages/tasks/TaskReminderPage';
 import PosPage from './pages/PosPage';
 import PenilaianListPage from './pages/penilaian/PenilaianListPage';
 import PenilaianKanbanPage from './pages/penilaian/PenilaianKanbanPage';
@@ -210,6 +211,7 @@ function App() {
             <Route path="/tugas/project"    element={<TaskProjectPage />} />
             <Route path="/tugas/pengaturan" element={<TaskSettingsPage />} />
             <Route path="/tugas/rutin"      element={<TaskRecurringPage />} />
+            <Route path="/tugas/pengingat"  element={<TaskReminderPage />} />
 
             {/* PENILAIAN MENGAJAR */}
             <Route path="/penilaian" element={<PenilaianListPage />} />
