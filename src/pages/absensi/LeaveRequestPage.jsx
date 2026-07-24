@@ -21,6 +21,8 @@ const BADGE = {
   Pending:  ['#fef3c7','#92400e'],
   Approved: ['#d1fae5','#047857'],
   Rejected: ['#fee2e2','#b91c1c'],
+  'Menunggu Penyesuaian Shift': ['#e0e7ff','#4338ca'],
+  Kedaluwarsa: ['#f3f4f6','#6b7280'],
 };
 const SBadge = ({s}) => { const [bg,c]=BADGE[s]||['#f3f4f6','#374151']; return <span style={{background:bg,color:c,padding:'0.18rem 0.65rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{s}</span>; };
 
@@ -48,6 +50,10 @@ export default function LeaveRequestPage() {
   const [baris, setBaris]           = useState([]);
   const [cekBentrok, setCekBentrok] = useState({});   // { indexBaris: 'pesan' }
   const [kirim, setKirim]           = useState(false);
+
+  // Minta SPV menata ulang shift (untuk shift yang terlalu besar)
+  const [pyModal, setPyModal] = useState(false);
+  const [pyForm, setPyForm]   = useState({ shift_schedule_id:'', keterangan:'' });
 
   const fetchAll = async () => {
     setLoading(true);
@@ -107,6 +113,20 @@ export default function LeaveRequestPage() {
     }
     setCekBentrok(c => ({ ...c, [i]: pesan }));
     return pesan;
+  };
+
+  const kirimPenyesuaian = async () => {
+    if (!pyForm.shift_schedule_id) return alert('Pilih shift yang mau ditata ulang.');
+    if (!pyForm.keterangan.trim()) return alert('Jelaskan apa yang Anda inginkan (mis. "izin pagi saja").');
+    const asal = myShifts.find(x => x.id === pyForm.shift_schedule_id);
+    const { error } = await supabase.from('penyesuaian_shift').insert({
+      guru_id: user.id, unit_id: asal?.shifts?.unit_id || null,
+      shift_schedule_id: pyForm.shift_schedule_id, tanggal: asal?.tanggal,
+      keterangan: pyForm.keterangan.trim(),
+    });
+    if (error) return alert('Gagal: ' + error.message);
+    alert('Permintaan terkirim. SPV akan menata ulang jadwalnya. Setelah selesai, ajukan izin lagi dengan shift yang sudah dipecah.');
+    setPyModal(false); setPyForm({ shift_schedule_id:'', keterangan:'' });
   };
 
   const handleSubmit = async (e) => {
@@ -392,12 +412,19 @@ export default function LeaveRequestPage() {
                     })}
                   </div>
 
-                  <button type="button" onClick={()=>setBaris(b=>[...b, {...BARIS_KOSONG}])}
-                    style={{ marginTop:'0.5rem', background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem',
-                      padding:'0.45rem 0.8rem', cursor:'pointer', color:'var(--primary)', fontWeight:600,
-                      fontSize:'0.82rem', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'0.3rem' }}>
-                    <Plus size={14}/> Tambah Shift
-                  </button>
+                  <div style={{ display:'flex', gap:'0.75rem', flexWrap:'wrap', alignItems:'center', marginTop:'0.5rem' }}>
+                    <button type="button" onClick={()=>setBaris(b=>[...b, {...BARIS_KOSONG}])}
+                      style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem',
+                        padding:'0.45rem 0.8rem', cursor:'pointer', color:'var(--primary)', fontWeight:600,
+                        fontSize:'0.82rem', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'0.3rem' }}>
+                      <Plus size={14}/> Tambah Shift
+                    </button>
+                    <button type="button" onClick={()=>setPyModal(true)}
+                      style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-secondary)',
+                        fontSize:'0.78rem', fontFamily:'inherit', textDecoration:'underline' }}>
+                      Shift terlalu besar? Minta SPV pecah/atur ulang
+                    </button>
+                  </div>
                 </div>
               )}
 
@@ -443,6 +470,44 @@ export default function LeaveRequestPage() {
                 onClick={()=>handleApprove(approveModal.id, approveModal.action)}>
                 Konfirmasi {approveModal.action==='Approved'?'Setuju':'Tolak'}
               </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Modal minta penyesuaian shift ke SPV */}
+      {pyModal && (
+        <div className="modal-overlay">
+          <div className="modal-content" style={{ maxWidth:460 }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.85rem' }}>
+              <h2 style={{ fontWeight:700, fontSize:'1.05rem', margin:0 }}>Minta Atur Ulang Shift</h2>
+              <button onClick={()=>setPyModal(false)} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={20}/></button>
+            </div>
+            <p style={{ fontSize:'0.82rem', color:'var(--text-secondary)', marginTop:0 }}>
+              Untuk shift yang terlalu besar (mis. "Pagi-Siang") padahal Anda mau izin sebagiannya saja. SPV akan memecah/mengganti jadwalnya khusus di tanggal itu.
+            </p>
+            <div style={{ display:'flex', flexDirection:'column', gap:'0.85rem' }}>
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Shift yang mau ditata ulang *</label>
+                <select value={pyForm.shift_schedule_id} onChange={e=>setPyForm(f=>({...f,shift_schedule_id:e.target.value}))} style={inp}>
+                  <option value="">— Pilih shift Anda —</option>
+                  {myShifts.map(x=>(
+                    <option key={x.id} value={x.id}>
+                      {fmt(x.tanggal)} · {x.shifts?.nama} ({String(x.shifts?.jam_mulai).slice(0,5)}–{String(x.shifts?.jam_selesai).slice(0,5)})
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Apa yang Anda inginkan? *</label>
+                <textarea rows={3} value={pyForm.keterangan} onChange={e=>setPyForm(f=>({...f,keterangan:e.target.value}))}
+                  placeholder='Contoh: "Izin bagian pagi saja, siang tetap mengajar."'
+                  style={{...inp, resize:'vertical'}} />
+              </div>
+              <div style={{ display:'flex', gap:'0.65rem', justifyContent:'flex-end' }}>
+                <button type="button" className="btn" onClick={()=>setPyModal(false)}>Batal</button>
+                <button type="button" className="btn btn-primary" onClick={kirimPenyesuaian}>Kirim ke SPV</button>
+              </div>
             </div>
           </div>
         </div>

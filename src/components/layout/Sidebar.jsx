@@ -485,6 +485,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                                 <BarChart2 className="w-4 h-4" /><span>Laporan Izin</span>
                             </NavLink>
                         )}
+                        {hasPermission('/absensi/penyesuaian-shift') && (
+                            <NavLink to="/absensi/penyesuaian-shift" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Wrench className="w-4 h-4" /><span>Penyesuaian Shift</span>
+                            </NavLink>
+                        )}
                         {hasPermission('/absensi/hari-libur') && (
                             <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>
