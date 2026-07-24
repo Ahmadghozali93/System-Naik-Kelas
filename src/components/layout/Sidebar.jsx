@@ -584,7 +584,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {/* PAYROLL (mesin fleksibel) — route tetap /gaji/* */}
-                {['/gaji/komponen','/gaji/paket','/gaji/karyawan','/gaji/periode'].some(p => hasPermission(p)) && (
+                {['/gaji/komponen','/gaji/paket','/gaji/karyawan','/gaji/periode','/gaji/rekap'].some(p => hasPermission(p)) && (
                     <SidebarGroup
                         title="Payroll"
                         icon={Wallet}
@@ -594,6 +594,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/gaji/periode') && (
                             <NavLink to="/gaji/periode" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <Coins className="w-4 h-4" /><span>Periode Penggajian</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/gaji/rekap') && (
+                            <NavLink to="/gaji/rekap" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <FileSpreadsheet className="w-4 h-4" /><span>Rekap Gaji</span>
                             </NavLink>
                         )}
                         {hasPermission('/gaji/karyawan') && (

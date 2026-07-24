@@ -57,6 +57,7 @@ import PaketGajiPage from './pages/gaji/PaketGajiPage';
 import KaryawanKomponenPage from './pages/gaji/KaryawanKomponenPage';
 import PeriodePayrollPage from './pages/gaji/PeriodePayrollPage';
 import SlipSayaPage from './pages/gaji/SlipSayaPage';
+import RekapGajiPage from './pages/gaji/RekapGajiPage';
 import TugasSayaPage from './pages/tasks/TugasSayaPage';
 import TaskKanbanPage from './pages/tasks/TaskKanbanPage';
 import TaskListPage from './pages/tasks/TaskListPage';
@@ -205,6 +206,7 @@ function App() {
             <Route path="/gaji/karyawan" element={<KaryawanKomponenPage />} />
             <Route path="/gaji/periode"  element={<PeriodePayrollPage />} />
             <Route path="/gaji/slip-saya" element={<SlipSayaPage />} />
+            <Route path="/gaji/rekap"     element={<RekapGajiPage />} />
 
             {/* TUGAS */}
             <Route path="/tugas/saya"       element={<TugasSayaPage />} />

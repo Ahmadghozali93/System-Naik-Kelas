@@ -45,6 +45,7 @@ const AVAILABLE_MENUS = [
     { path: '/gaji/paket',       label: 'Payroll - Paket Gaji' },
     { path: '/gaji/karyawan',    label: 'Payroll - Gaji per Karyawan' },
     { path: '/gaji/periode',     label: 'Payroll - Periode Penggajian' },
+    { path: '/gaji/rekap',       label: 'Payroll - Rekap Gaji' },
     // ── KPI Karyawan ─────────────────────────────────
     { path: '/kpi/indikator',    label: 'KPI - Master Indikator' },
     { path: '/kpi/penilaian',    label: 'KPI - Penilaian' },
