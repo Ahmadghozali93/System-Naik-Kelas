@@ -493,10 +493,21 @@ body {
    PRINT
    ================================================================ */
 @media print {
+  @page { size: A4; margin: 14mm; }
+  body { background: #fff; color: #000; }
+
+  /* Cetak hanya area slip: sembunyikan semua, tampilkan slip saja */
+  body * { visibility: hidden !important; }
+  .slip-print-area, .slip-print-area * { visibility: visible !important; }
+  .slip-print-area {
+    position: absolute; left: 0; top: 0; width: 100%;
+    max-width: none !important; margin: 0 !important; padding: 0 !important;
+    border: none !important; border-radius: 0 !important; box-shadow: none !important;
+  }
+  .no-print { display: none !important; }
+
+  /* Fallback lama untuk halaman tanpa slip */
   .sidebar, nav, .btn { display: none !important; }
-  .main-content { padding: 0; }
-  .glass-card { box-shadow: none; border: 1px solid #e2e8f0; }
-  body { background: #fff; font-size: 11pt; color: #000; }
 }
 
 /* ================================================================

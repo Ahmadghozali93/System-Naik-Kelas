@@ -29,6 +29,13 @@ export default function ProtectedRoute({ children }) {
         return children;
     }
 
+    // Halaman "swalayan" — setiap user login boleh membuka miliknya sendiri.
+    // Datanya sudah dibatasi RLS (mis. slip gaji hanya milik sendiri & sudah dibayar).
+    const SELF_SERVICE = ['/gaji/slip-saya'];
+    if (SELF_SERVICE.includes(location.pathname)) {
+        return children;
+    }
+
     // Jika permissions kosong
     if (!permissions || permissions.length === 0) {
         return (

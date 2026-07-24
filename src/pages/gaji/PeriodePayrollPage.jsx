@@ -3,6 +3,8 @@ import { Plus, X, Calculator, Lock, BadgeCheck, AlertTriangle, FileText, Printer
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import { formatRupiah } from '../../utils/formatRupiah';
+import SlipGajiPrintable from '../../components/gaji/SlipGajiPrintable';
+import { dariSlipTersimpan } from '../../utils/slipModel';
 
 const BULAN = ['', 'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
 const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)',
@@ -298,59 +300,25 @@ export default function PeriodePayrollPage() {
                     </div>
                   </div>
 
-                  <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.85rem' }}>
-                    <tbody>
-                      {detail.map(d => (
-                        <tr key={d.id} style={{ borderBottom:'1px solid var(--glass-border)' }}>
-                          <td style={{ padding:'0.6rem 0' }}>
-                            <div style={{ fontWeight:600 }}>
-                              {d.nama_komponen}
-                              {d.sumber === 'manual' && (
-                                <span style={{ marginLeft:'0.4rem', background:'#ede9fe', color:'#7c3aed', padding:'0.05rem 0.4rem', borderRadius:999, fontSize:'0.68rem', fontWeight:700 }}>manual</span>
-                              )}
-                            </div>
-                            {d.keterangan_hitung && (
-                              <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>{d.keterangan_hitung}</div>
-                            )}
-                            {d.alasan && (
-                              <div style={{ fontSize:'0.75rem', color:'#7c3aed' }}>Alasan: {d.alasan}</div>
-                            )}
-                            {d.komponen_gaji_id && d.jumlah_unit != null && (
-                              <button onClick={()=>lihatRincianJurnal(d)}
-                                style={{ background:'none', border:'none', padding:'0.15rem 0', cursor:'pointer', color:'var(--primary)', fontSize:'0.75rem', fontWeight:600, fontFamily:'inherit', textDecoration:'underline' }}>
-                                lihat rincian jurnal
-                              </button>
-                            )}
-                          </td>
-                          <td style={{ padding:'0.6rem 0', textAlign:'right', fontWeight:700, whiteSpace:'nowrap',
-                            color: d.kategori==='potongan' ? '#b91c1c' : 'inherit' }}>
-                            {d.kategori==='potongan' ? '− ' : ''}{formatRupiah(d.nominal)}
-                          </td>
-                        </tr>
-                      ))}
-                      <tr style={{ borderTop:'2px solid var(--glass-border)' }}>
-                        <td style={{ padding:'0.7rem 0', fontWeight:800 }}>GAJI BERSIH</td>
-                        <td style={{ padding:'0.7rem 0', textAlign:'right', fontWeight:800, fontSize:'1.15rem', color:'#047857' }}>
-                          {formatRupiah(slipAktif.gaji_bersih)}
-                        </td>
-                      </tr>
-                    </tbody>
-                  </table>
+                  <SlipGajiPrintable model={dariSlipTersimpan(slipAktif, detail, {
+                    unitNama: aktif.units?.nama, bulan: aktif.bulan, tahun: aktif.tahun, internal: true,
+                  })} />
 
-                  {(slipAktif.peringatan || []).length > 0 && (
-                    <div style={{ marginTop:'1rem', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.5rem', padding:'0.7rem 0.85rem' }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:'0.35rem', fontWeight:700, fontSize:'0.8rem', color:'#92400e', marginBottom:'0.35rem' }}>
-                        <AlertTriangle size={14}/> Perlu diperiksa
-                      </div>
-                      <ul style={{ margin:0, paddingLeft:'1.1rem', fontSize:'0.78rem', color:'#92400e' }}>
-                        {slipAktif.peringatan.map((w,i)=><li key={i}>{w.komponen ? `${w.komponen}: ` : ''}{w.pesan}</li>)}
-                      </ul>
+                  {/* Admin: buka rincian jurnal per komponen tatap muka */}
+                  {detail.some(d => d.komponen_gaji_id && d.jumlah_unit != null) && (
+                    <div className="no-print" style={{ marginTop:'0.75rem', display:'flex', flexWrap:'wrap', gap:'0.5rem' }}>
+                      {detail.filter(d => d.komponen_gaji_id && d.jumlah_unit != null).map(d => (
+                        <button key={d.id} onClick={()=>lihatRincianJurnal(d)}
+                          style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem', padding:'0.35rem 0.7rem', cursor:'pointer', color:'var(--primary)', fontSize:'0.78rem', fontWeight:600, fontFamily:'inherit' }}>
+                          Lihat rincian jurnal — {d.nama_komponen}
+                        </button>
+                      ))}
                     </div>
                   )}
 
                   {/* Rincian jurnal */}
                   {rincianJurnal && (
-                    <div style={{ marginTop:'1rem', border:'1px solid var(--glass-border)', borderRadius:'0.5rem', padding:'0.85rem' }}>
+                    <div className="no-print" style={{ marginTop:'1rem', border:'1px solid var(--glass-border)', borderRadius:'0.5rem', padding:'0.85rem' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.6rem' }}>
                         <strong style={{ fontSize:'0.85rem' }}>Rincian Jurnal Mengajar</strong>
                         <button onClick={()=>setRincianJurnal(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-secondary)' }}><X size={16}/></button>

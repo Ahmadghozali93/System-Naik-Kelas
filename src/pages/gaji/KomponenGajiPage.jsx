@@ -3,6 +3,8 @@ import { Plus, X, Pencil, Trash2, Wallet, PlayCircle, AlertTriangle, CheckCircle
 import { supabase } from '../../lib/supabase';
 
 import { formatRupiah } from '../../utils/formatRupiah';
+import SlipGajiPrintable from '../../components/gaji/SlipGajiPrintable';
+import { dariSimulasi } from '../../utils/slipModel';
 
 const TIPE = [
   { value: 'nominal_tetap', label: 'Nominal Tetap',  desc: 'Angka pasti tiap bulan. Contoh: gaji pokok, tunjangan.' },
@@ -69,6 +71,7 @@ export default function KomponenGajiPage() {
   const [ujiOpen, setUjiOpen]   = useState(false);
   const [ujiForm, setUjiForm]   = useState({ guru_id:'', tahun:new Date().getFullYear(), bulan:new Date().getMonth()+1 });
   const [ujiHasil, setUjiHasil] = useState(null);
+  const [ujiMeta, setUjiMeta]   = useState(null);   // { nama, bulan, tahun } untuk pratinjau slip
   const [ujiLoading, setUjiLoading] = useState(false);
 
   useEffect(() => { loadAll(); }, []);
@@ -175,6 +178,7 @@ export default function KomponenGajiPage() {
     setUjiLoading(false);
     if (error) return alert('Perhitungan ditolak:\n\n' + error.message);
     setUjiHasil(data);
+    setUjiMeta({ nama: guru?.nama, bulan: ujiForm.bulan, tahun: ujiForm.tahun });
   };
 
   const tipeLabel = (v) => TIPE.find(t => t.value === v)?.label || v;
@@ -597,38 +601,7 @@ export default function KomponenGajiPage() {
 
             {ujiHasil && (
               <div style={{ marginTop:'1.25rem', borderTop:'1px solid var(--glass-border)', paddingTop:'1rem' }}>
-                <div style={{ display:'flex', justifyContent:'space-between', alignItems:'baseline', marginBottom:'0.75rem' }}>
-                  <span style={{ fontSize:'0.85rem', color:'var(--text-secondary)' }}>Gaji bersih</span>
-                  <span style={{ fontSize:'1.4rem', fontWeight:800, color:'#047857' }}>{formatRupiah(ujiHasil.gaji_bersih)}</span>
-                </div>
-
-                <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
-                  <tbody>
-                    {(ujiHasil.rincian || []).map((d,i)=>(
-                      <tr key={i} style={{ borderBottom:'1px solid var(--glass-border)' }}>
-                        <td style={{ padding:'0.45rem 0' }}>
-                          <div style={{ fontWeight:600 }}>{d.komponen}</div>
-                          {d.keterangan && <div style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>{d.keterangan}</div>}
-                        </td>
-                        <td style={{ padding:'0.45rem 0', textAlign:'right', fontWeight:700,
-                          color: d.kategori==='potongan' ? '#b91c1c' : 'inherit', whiteSpace:'nowrap' }}>
-                          {d.kategori==='potongan' ? '− ' : ''}{formatRupiah(d.nominal)}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-
-                {(ujiHasil.peringatan || []).length > 0 && (
-                  <div style={{ marginTop:'0.85rem', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.5rem', padding:'0.7rem 0.85rem' }}>
-                    <div style={{ display:'flex', alignItems:'center', gap:'0.35rem', fontWeight:700, fontSize:'0.8rem', color:'#92400e', marginBottom:'0.35rem' }}>
-                      <AlertTriangle size={14}/> Peringatan
-                    </div>
-                    <ul style={{ margin:0, paddingLeft:'1.1rem', fontSize:'0.78rem', color:'#92400e' }}>
-                      {ujiHasil.peringatan.map((w,i)=><li key={i}>{w.komponen ? `${w.komponen}: ` : ''}{w.pesan}</li>)}
-                    </ul>
-                  </div>
-                )}
+                <SlipGajiPrintable model={dariSimulasi(ujiHasil, ujiMeta || {})} />
               </div>
             )}
           </div>

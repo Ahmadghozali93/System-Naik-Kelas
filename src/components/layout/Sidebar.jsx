@@ -21,6 +21,7 @@ import {
     Wrench,
     FileText,
     Wallet,
+    ReceiptText,
     Receipt,
     BarChart3,
     ClipboardCheck,
@@ -612,6 +613,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         )}
                     </SidebarGroup>
                 )}
+
+                {/* SLIP GAJI SAYA — semua staf bisa melihat slip miliknya (RLS membatasi) */}
+                <NavLink
+                    to="/gaji/slip-saya"
+                    className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`}
+                    onClick={() => setIsOpen && setIsOpen(false)}
+                >
+                    <ReceiptText className="w-5 h-5" />
+                    <span style={{ fontWeight: 500 }}>Slip Gaji Saya</span>
+                </NavLink>
 
                 {hasPermission('/penilaian') && (
                     <SidebarGroup
