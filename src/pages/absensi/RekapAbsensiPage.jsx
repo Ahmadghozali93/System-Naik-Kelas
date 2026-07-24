@@ -63,12 +63,25 @@ export default function RekapAbsensiPage() {
 
   useEffect(() => { fetchRekap(); }, [dateFrom, dateTo, filterUnit, filterGuru, filterStatus]);
 
+  // "Izin Diajukan" dihitung dari PENGAJUAN (per shift), bukan dari absensi —
+  // karena tukar shift sengaja tidak membuat catatan absensi.
+  const [izinDiajukan, setIzinDiajukan] = useState({});
+  useEffect(() => {
+    supabase.from('v_izin_shift').select('guru_id')
+      .eq('status','Approved').gte('tanggal', dateFrom).lte('tanggal', dateTo)
+      .then(({ data }) => {
+        const m = {};
+        (data || []).forEach(r => { m[r.guru_id] = (m[r.guru_id] || 0) + 1; });
+        setIzinDiajukan(m);
+      });
+  }, [dateFrom, dateTo]);
+
   // Summary per karyawan
   const summary = useMemo(() => {
     const m = {};
     records.forEach(r => {
       const id = r.guru_id;
-      if (!m[id]) m[id] = { nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0, seragamBelum:0 };
+      if (!m[id]) m[id] = { guru_id:id, nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, 'Izin Tanpa Pengganti':0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0, seragamBelum:0 };
       const key = r.status || 'Alpha';
       if (m[id][key] !== undefined) m[id][key]++;
       const dm = getDurasi(r); if (dm) m[id].totalMenit += dm;
@@ -158,7 +171,7 @@ export default function RekapAbsensiPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'2px solid var(--glass-border)' }}>
-                  {['Nama','Hadir','Telat','Izin','Izin Tanpa Pengganti','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗','Belum Validasi'].map(h=>(
+                  {['Nama','Hadir','Telat','Izin','Izin Tanpa Pengganti','Izin Diajukan','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗','Belum Validasi'].map(h=>(
                     <th key={h} style={{ padding:'0.45rem 0.65rem', textAlign:h==='Nama'?'left':'center', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -167,7 +180,15 @@ export default function RekapAbsensiPage() {
                 {summary.map((s,i) => (
                   <tr key={i} style={{ borderBottom:'1px solid var(--glass-border)' }}>
                     <td style={{ padding:'0.55rem 0.65rem', fontWeight:600 }}>{s.nama}</td>
-                    {['Hadir','Telat','Izin','Izin Tanpa Pengganti','Sakit','Cuti','Alpha'].map(k => (
+                    {['Hadir','Telat','Izin','Izin Tanpa Pengganti'].map(k => (
+                      <td key={k} style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight: s[k]>0?700:400, color: s[k]>0?(STATUS_COLOR[k]||'inherit'):'var(--text-secondary)' }}>{s[k] || '-'}</td>
+                    ))}
+                    {/* Dari pengajuan izin (per shift) — termasuk tukar shift yang tidak membuat catatan absensi */}
+                    <td title="Jumlah shift yang diizinkan (tukar shift + ganti hari + tanpa pengganti)"
+                      style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight: izinDiajukan[s.guru_id]>0?700:400, color: izinDiajukan[s.guru_id]>0?'#7c3aed':'var(--text-secondary)' }}>
+                      {izinDiajukan[s.guru_id] || '-'}
+                    </td>
+                    {['Sakit','Cuti','Alpha'].map(k => (
                       <td key={k} style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight: s[k]>0?700:400, color: s[k]>0?(STATUS_COLOR[k]||'inherit'):'var(--text-secondary)' }}>{s[k] || '-'}</td>
                     ))}
                     <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:700, color:'var(--primary)' }}>{mntToStr(s.totalMenit)}</td>

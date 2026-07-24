@@ -480,6 +480,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                                 <BarChart3 className="w-4 h-4" /><span>Rekap Absensi</span>
                             </NavLink>
                         )}
+                        {hasPermission('/absensi/laporan-izin') && (
+                            <NavLink to="/absensi/laporan-izin" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <BarChart2 className="w-4 h-4" /><span>Laporan Izin</span>
+                            </NavLink>
+                        )}
                         {hasPermission('/absensi/hari-libur') && (
                             <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>

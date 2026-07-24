@@ -92,9 +92,11 @@ async function calcAutoValues(guruId, tahun, bulan) {
   const [attRes, izinRes, komplainRes, tmRes, teachingRes] = await Promise.all([
     supabase.from('attendances').select('status, seragam')
       .eq('guru_id', guruId).gte('tanggal', mulai).lte('tanggal', akhir),
-    supabase.from('leave_requests').select('id')
-      .eq('guru_id', guruId).eq('jenis', 'Izin').eq('status', 'Approved')
-      .gte('tanggal_mulai', mulai).lte('tanggal_mulai', akhir),
+    // Izin dihitung PER SHIFT (v_izin_shift), bukan per pengajuan.
+    // Angkanya sama persis dengan Laporan Izin per Shift.
+    supabase.from('v_izin_shift').select('id')
+      .eq('guru_id', guruId).eq('status', 'Approved')
+      .gte('tanggal', mulai).lte('tanggal', akhir),
     supabase.from('kpi_complaints').select('id')
       .eq('guru_id', guruId).eq('periode_tahun', tahun).eq('periode_bulan', bulan)
       .eq('kategori', 'dihitung'),

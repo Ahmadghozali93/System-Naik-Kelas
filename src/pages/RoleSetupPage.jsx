@@ -38,6 +38,7 @@ const AVAILABLE_MENUS = [
     { path: '/absensi/koreksi',      label: 'Absensi - Koreksi Absen' },
     { path: '/absensi/rekap',        label: 'Absensi - Rekap' },
     { path: '/absensi/hari-libur',   label: 'Absensi - Hari Libur' },
+    { path: '/absensi/laporan-izin', label: 'Absensi - Laporan Izin per Shift' },
     // ── Payroll ──────────────────────────────────────
     { path: '/payroll/komponen', label: 'Payroll - Komponen Gaji' },
     { path: '/payroll/struktur', label: 'Payroll - Struktur Gaji' },

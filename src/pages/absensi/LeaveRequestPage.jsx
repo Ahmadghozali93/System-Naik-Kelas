@@ -42,6 +42,13 @@ export default function LeaveRequestPage() {
 
   const [form, setForm] = useState({ unit_id:'', jenis:'Izin', sub_jenis:'tanpa_pengganti', tanggal_mulai:todayWIB(), tanggal_selesai:todayWIB(), alasan:'' });
 
+  // Tahap 2 — rincian per shift (khusus jenis 'Izin')
+  const [myShifts, setMyShifts]     = useState([]);   // jadwal milik pengaju
+  const [allShifts, setAllShifts]   = useState([]);   // jadwal guru lain (untuk tukar shift, boleh lintas cabang)
+  const [baris, setBaris]           = useState([]);
+  const [cekBentrok, setCekBentrok] = useState({});   // { indexBaris: 'pesan' }
+  const [kirim, setKirim]           = useState(false);
+
   const fetchAll = async () => {
     setLoading(true);
     const [rRes, uRes, gRes] = await Promise.all([
@@ -52,22 +59,115 @@ export default function LeaveRequestPage() {
     setRequests(rRes.data || []);
     setUnits(uRes.data   || []);
     setGurus(gRes.data   || []);
+
+    // Jadwal shift 60 hari ke depan — untuk memilih shift yang diizinkan
+    const dari = todayWIB();
+    const { data: ss } = await supabase.from('shift_schedules')
+      .select('id, guru_id, tanggal, dialihkan, shifts(id, nama, jam_mulai, jam_selesai, unit_id), gurus:guru_id(nama)')
+      .gte('tanggal', dari).order('tanggal').limit(1500);
+    const semua = (ss || []).filter(x => !x.dialihkan);
+    setMyShifts(semua.filter(x => x.guru_id === user?.id));
+    setAllShifts(semua.filter(x => x.guru_id !== user?.id));
     setLoading(false);
   };
 
   useEffect(() => { fetchAll(); }, []);
 
+  // ── Baris rincian (khusus jenis 'Izin') ──
+  const BARIS_KOSONG = { shift_schedule_id:'', jenis:'tanpa_pengganti',
+    guru_pengganti_id:'', tukar_dengan_schedule_id:'', tanggal_pengganti:'' };
+
+  const ubahBaris = (i, patch) => setBaris(b => b.map((x,idx) => idx===i ? {...x, ...patch} : x));
+  const hapusBaris = (i) => { setBaris(b => b.filter((_,idx)=>idx!==i)); setCekBentrok({}); };
+
+  const shiftById = (id) => [...myShifts, ...allShifts].find(x => x.id === id);
+
+  // Periksa bentrok lewat fungsi database (shift sama + jam bertabrakan)
+  const periksaBentrok = async (i, b) => {
+    const asal = shiftById(b.shift_schedule_id);
+    if (!asal) return null;
+    let pesan = null;
+
+    if (b.jenis === 'tukar_shift' && b.tukar_dengan_schedule_id) {
+      const tujuan = shiftById(b.tukar_dengan_schedule_id);
+      if (tujuan) {
+        // Pengaju menerima shift guru lain
+        const { data: p1 } = await supabase.rpc('cek_bentrok_jadwal',
+          { p_guru_id: user.id, p_shift_id: tujuan.shifts.id, p_tanggal: tujuan.tanggal });
+        // Guru lain menerima shift pengaju
+        const { data: p2 } = await supabase.rpc('cek_bentrok_jadwal',
+          { p_guru_id: tujuan.guru_id, p_shift_id: asal.shifts.id, p_tanggal: asal.tanggal });
+        if (p1) pesan = 'Anda: ' + p1;
+        else if (p2) pesan = (tujuan.gurus?.nama || 'Guru pengganti') + ': ' + p2;
+      }
+    } else if (b.jenis === 'ganti_hari' && b.tanggal_pengganti) {
+      const { data: p } = await supabase.rpc('cek_bentrok_jadwal',
+        { p_guru_id: user.id, p_shift_id: asal.shifts.id, p_tanggal: b.tanggal_pengganti });
+      if (p) pesan = 'Anda: ' + p;
+    }
+    setCekBentrok(c => ({ ...c, [i]: pesan }));
+    return pesan;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.unit_id) return alert('Pilih unit/cabang.');
-    if (form.jenis === 'Izin' && !form.sub_jenis) return alert('Pilih jenis izinnya.');
-    const { error } = await supabase.from('leave_requests').insert({
-      guru_id: user.id, ...form,
-      // Jenis izin hanya berlaku untuk 'Izin'; Sakit & Cuti dikosongkan
-      sub_jenis: form.jenis === 'Izin' ? form.sub_jenis : null,
+
+    // ── Cuti / Sakit: tetap berbasis rentang tanggal ──
+    if (form.jenis !== 'Izin') {
+      const { error } = await supabase.from('leave_requests').insert({
+        guru_id: user.id, unit_id: form.unit_id, jenis: form.jenis, sub_jenis: null,
+        tanggal_mulai: form.tanggal_mulai, tanggal_selesai: form.tanggal_selesai,
+        alasan: form.alasan,
+      });
+      if (error) return alert('Gagal: ' + error.message);
+      setModal(false); fetchAll(); return;
+    }
+
+    // ── Izin: wajib memilih shift, satu baris per shift ──
+    if (baris.length === 0) return alert('Tambahkan minimal satu shift yang mau diizinkan.');
+    for (const [i, b] of baris.entries()) {
+      if (!b.shift_schedule_id) return alert(`Baris ${i+1}: pilih shift yang diizinkan.`);
+      if (b.jenis === 'tukar_shift' && !b.tukar_dengan_schedule_id)
+        return alert(`Baris ${i+1}: pilih shift guru pengganti.`);
+      if (b.jenis === 'ganti_hari' && !b.tanggal_pengganti)
+        return alert(`Baris ${i+1}: isi tanggal pengganti.`);
+    }
+
+    setKirim(true);
+    // Periksa bentrok dulu — sebelum apa pun disimpan
+    for (const [i, b] of baris.entries()) {
+      const pesan = await periksaBentrok(i, b);
+      if (pesan) { setKirim(false); return alert(`Baris ${i+1} bentrok:\n\n${pesan}`); }
+    }
+
+    const tgl = baris.map(b => shiftById(b.shift_schedule_id)?.tanggal).filter(Boolean).sort();
+    const { data: lr, error } = await supabase.from('leave_requests').insert({
+      guru_id: user.id, unit_id: form.unit_id, jenis: 'Izin',
+      sub_jenis: baris.length === 1 ? baris[0].jenis : null,
+      tanggal_mulai: tgl[0], tanggal_selesai: tgl[tgl.length-1],
+      alasan: form.alasan,
+    }).select('id').single();
+    if (error) { setKirim(false); return alert('Gagal: ' + error.message); }
+
+    const rows = baris.map(b => {
+      const asal = shiftById(b.shift_schedule_id);
+      const tujuan = b.jenis === 'tukar_shift' ? shiftById(b.tukar_dengan_schedule_id) : null;
+      return {
+        leave_request_id: lr.id, jenis: b.jenis,
+        shift_schedule_id: b.shift_schedule_id, tanggal: asal?.tanggal,
+        tukar_dengan_schedule_id: tujuan?.id || null,
+        guru_pengganti_id: tujuan?.guru_id || null,
+        tanggal_pengganti: b.jenis === 'ganti_hari' ? b.tanggal_pengganti : null,
+      };
     });
-    if (error) return alert('Gagal: ' + error.message);
-    setModal(false); fetchAll();
+    const { error: e2 } = await supabase.from('izin_detail').insert(rows);
+    setKirim(false);
+    if (e2) {
+      await supabase.from('leave_requests').delete().eq('id', lr.id);  // batalkan agar tidak menggantung
+      return alert('Gagal menyimpan rincian: ' + e2.message);
+    }
+    setModal(false); setBaris([]); setCekBentrok({}); fetchAll();
   };
 
   const handleApprove = async (id, action) => {
@@ -197,44 +297,113 @@ export default function LeaveRequestPage() {
                 </select>
               </div>
 
-              {/* Jenis izin — hanya untuk 'Izin'. Sakit & Cuti tidak perlu. */}
+              {/* Rincian per shift — hanya untuk 'Izin'. Cuti & Sakit pakai rentang tanggal. */}
               {form.jenis === 'Izin' && (
                 <div>
-                  <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Jenis Izin *</label>
-                  <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
-                    {SUB_JENIS.map(s => {
-                      const dipilih = form.sub_jenis === s.value;
-                      const hangus  = s.value === 'tanpa_pengganti';
+                  <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>
+                    Shift yang Diizinkan *
+                  </label>
+
+                  {baris.length === 0 && (
+                    <p style={{ margin:'0 0 0.5rem', fontSize:'0.78rem', color:'var(--text-secondary)' }}>
+                      Belum ada. Tambahkan shift yang mau diizinkan — boleh lebih dari satu, dan jenisnya boleh berbeda-beda.
+                    </p>
+                  )}
+
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.6rem' }}>
+                    {baris.map((b, i) => {
+                      const asal = shiftById(b.shift_schedule_id);
+                      const pengganti = allShifts.filter(x => !b.guru_pengganti_id || x.guru_id === b.guru_pengganti_id);
+                      const bentrok = cekBentrok[i];
                       return (
-                        <button key={s.value} type="button"
-                          onClick={()=>setForm(f=>({...f, sub_jenis:s.value}))}
-                          style={{
-                            textAlign:'left', cursor:'pointer', fontFamily:'inherit',
-                            display:'flex', alignItems:'flex-start', gap:'0.6rem',
-                            border:`1.5px solid ${dipilih ? (hangus ? '#b91c1c' : 'var(--primary)') : 'var(--glass-border)'}`,
-                            background: dipilih ? (hangus ? 'rgba(185,28,28,0.06)' : 'rgba(79,70,229,0.06)') : 'var(--surface-color)',
-                            borderRadius:'0.5rem', padding:'0.6rem 0.75rem',
-                          }}>
-                          <span style={{ width:15, height:15, borderRadius:'50%', flexShrink:0, marginTop:'0.15rem',
-                            border:`4px solid ${dipilih ? (hangus ? '#b91c1c' : 'var(--primary)') : 'var(--glass-border)'}`,
-                            background: dipilih ? (hangus ? '#b91c1c' : 'var(--primary)') : 'transparent' }} />
-                          <span>
-                            <span style={{ fontWeight:700, fontSize:'0.86rem' }}>{s.label}</span>
-                            <span style={{ display:'block', fontSize:'0.76rem', color: hangus ? '#b91c1c' : 'var(--text-secondary)', marginTop:'0.1rem' }}>
-                              {s.ket}
-                            </span>
-                          </span>
-                        </button>
+                        <div key={i} style={{ border:`1px solid ${bentrok ? '#fca5a5' : 'var(--glass-border)'}`,
+                          background: bentrok ? 'rgba(185,28,28,0.03)' : 'var(--surface-color)',
+                          borderRadius:'0.55rem', padding:'0.75rem' }}>
+                          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.5rem' }}>
+                            <strong style={{ fontSize:'0.8rem' }}>Shift {i+1}</strong>
+                            <button type="button" onClick={()=>hapusBaris(i)}
+                              style={{ background:'#fee2e2', border:'none', borderRadius:'0.35rem', padding:'0.25rem 0.45rem', cursor:'pointer', color:'#b91c1c' }}>
+                              <X size={12}/>
+                            </button>
+                          </div>
+
+                          <select value={b.shift_schedule_id} style={{...inp, marginBottom:'0.5rem'}}
+                            onChange={e=>{ ubahBaris(i,{shift_schedule_id:e.target.value}); setCekBentrok(c=>({...c,[i]:null})); }}>
+                            <option value="">— Pilih shift Anda —</option>
+                            {myShifts.map(x=>(
+                              <option key={x.id} value={x.id}>
+                                {fmt(x.tanggal)} · {x.shifts?.nama} ({String(x.shifts?.jam_mulai).slice(0,5)}–{String(x.shifts?.jam_selesai).slice(0,5)})
+                              </option>
+                            ))}
+                          </select>
+
+                          <select value={b.jenis} style={{...inp, marginBottom:'0.5rem'}}
+                            onChange={e=>{ ubahBaris(i,{jenis:e.target.value, guru_pengganti_id:'', tukar_dengan_schedule_id:'', tanggal_pengganti:''}); setCekBentrok(c=>({...c,[i]:null})); }}>
+                            {SUB_JENIS.map(sj=><option key={sj.value} value={sj.value}>{sj.label}</option>)}
+                          </select>
+                          <p style={{ margin:'-0.25rem 0 0.5rem', fontSize:'0.73rem',
+                            color: b.jenis==='tanpa_pengganti' ? '#b91c1c' : 'var(--text-secondary)' }}>
+                            {SUB_JENIS.find(sj=>sj.value===b.jenis)?.ket}
+                          </p>
+
+                          {b.jenis === 'tukar_shift' && (
+                            <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+                              <select value={b.guru_pengganti_id} style={inp}
+                                onChange={e=>{ ubahBaris(i,{guru_pengganti_id:e.target.value, tukar_dengan_schedule_id:''}); setCekBentrok(c=>({...c,[i]:null})); }}>
+                                <option value="">— Pilih guru penukar (boleh lintas cabang) —</option>
+                                {[...new Set(allShifts.map(x=>x.guru_id))].map(gid=>{
+                                  const g = allShifts.find(x=>x.guru_id===gid);
+                                  return <option key={gid} value={gid}>{g?.gurus?.nama || gid}</option>;
+                                })}
+                              </select>
+                              {b.guru_pengganti_id && (
+                                <select value={b.tukar_dengan_schedule_id} style={inp}
+                                  onChange={e=>{ ubahBaris(i,{tukar_dengan_schedule_id:e.target.value}); setCekBentrok(c=>({...c,[i]:null})); }}
+                                  onBlur={()=>periksaBentrok(i, baris[i])}>
+                                  <option value="">— Pilih shift miliknya yang diambil —</option>
+                                  {pengganti.map(x=>(
+                                    <option key={x.id} value={x.id}>
+                                      {fmt(x.tanggal)} · {x.shifts?.nama} ({String(x.shifts?.jam_mulai).slice(0,5)}–{String(x.shifts?.jam_selesai).slice(0,5)})
+                                    </option>
+                                  ))}
+                                </select>
+                              )}
+                            </div>
+                          )}
+
+                          {b.jenis === 'ganti_hari' && (
+                            <input type="date" value={b.tanggal_pengganti} style={inp}
+                              min={todayWIB()}
+                              onChange={e=>{ ubahBaris(i,{tanggal_pengganti:e.target.value}); setCekBentrok(c=>({...c,[i]:null})); }}
+                              onBlur={()=>periksaBentrok(i, {...baris[i], tanggal_pengganti:baris[i].tanggal_pengganti})}
+                              placeholder="Tanggal pengganti"/>
+                          )}
+
+                          {bentrok && (
+                            <p style={{ margin:'0.5rem 0 0', fontSize:'0.75rem', color:'#b91c1c', fontWeight:600 }}>
+                              ⚠️ {bentrok}
+                            </p>
+                          )}
+                          {asal && b.jenis === 'tukar_shift' && (
+                            <p style={{ margin:'0.4rem 0 0', fontSize:'0.72rem', color:'var(--text-secondary)' }}>
+                              Shift ini akan ditandai <strong>dialihkan</strong> — tidak dihitung mangkir, dan tidak bisa di-check-in.
+                            </p>
+                          )}
+                        </div>
                       );
                     })}
                   </div>
-                  {(form.sub_jenis === 'tukar_shift' || form.sub_jenis === 'ganti_hari') && (
-                    <p style={{ margin:'0.5rem 0 0', fontSize:'0.75rem', color:'#92400e', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.4rem', padding:'0.5rem 0.65rem' }}>
-                      Penunjukan guru pengganti / tanggal pengganti belum tersedia — menyusul. Untuk sekarang, atur manual dan tuliskan di kolom alasan.
-                    </p>
-                  )}
+
+                  <button type="button" onClick={()=>setBaris(b=>[...b, {...BARIS_KOSONG}])}
+                    style={{ marginTop:'0.5rem', background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem',
+                      padding:'0.45rem 0.8rem', cursor:'pointer', color:'var(--primary)', fontWeight:600,
+                      fontSize:'0.82rem', fontFamily:'inherit', display:'flex', alignItems:'center', gap:'0.3rem' }}>
+                    <Plus size={14}/> Tambah Shift
+                  </button>
                 </div>
               )}
+
+              {form.jenis !== 'Izin' && (
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Dari *</label>
@@ -245,13 +414,14 @@ export default function LeaveRequestPage() {
                   <input type="date" required value={form.tanggal_selesai} min={form.tanggal_mulai} onChange={e=>setForm(f=>({...f,tanggal_selesai:e.target.value}))} style={inp}/>
                 </div>
               </div>
+              )}
               <div>
                 <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Alasan</label>
                 <textarea rows={3} value={form.alasan} onChange={e=>setForm(f=>({...f,alasan:e.target.value}))} placeholder="Ceritakan alasan..." style={{ ...inp, resize:'vertical' }}/>
               </div>
               <div style={{ display:'flex', gap:'0.65rem', justifyContent:'flex-end' }}>
                 <button type="button" className="btn" onClick={()=>setModal(false)}>Batal</button>
-                <button type="submit" className="btn btn-primary">Kirim Pengajuan</button>
+                <button type="submit" className="btn btn-primary" disabled={kirim}>{kirim ? 'Memeriksa...' : 'Kirim Pengajuan'}</button>
               </div>
             </form>
           </div>

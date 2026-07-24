@@ -169,7 +169,7 @@ export default function AbsensiCheckPage() {
 
     const [ssRes, attRes, hlRes] = await Promise.all([
       supabase.from('shift_schedules')
-        .select('*, shifts(*)')
+        .select('*, shifts(*), penitip:titipan_dari(nama)')
         .eq('guru_id', user.id)
         .eq('tanggal', today),
       supabase.from('attendances')
@@ -318,7 +318,19 @@ export default function AbsensiCheckPage() {
                     <span style={{ marginLeft: 8, color: '#b45309' }}>toleransi {shift.toleransi_menit} mnt</span>
                   </div>
                 </div>
-                {att && <StatusBadge s={att.status} />}
+                <div style={{ display:'flex', flexDirection:'column', alignItems:'flex-end', gap:'0.3rem' }}>
+                  {att && <StatusBadge s={att.status} />}
+                  {ss.dialihkan && (
+                    <span style={{ background:'#f3f4f6', color:'#6b7280', padding:'0.2rem 0.6rem', borderRadius:999, fontSize:'0.75rem', fontWeight:700, whiteSpace:'nowrap' }}>
+                      🔒 Ditukar — tidak bisa check-in
+                    </span>
+                  )}
+                  {ss.titipan_dari && (
+                    <span style={{ background:'#ede9fe', color:'#7c3aed', padding:'0.2rem 0.6rem', borderRadius:999, fontSize:'0.75rem', fontWeight:700, whiteSpace:'nowrap' }}>
+                      📥 Titipan dari {ss.penitip?.nama || 'guru lain'}
+                    </span>
+                  )}
+                </div>
               </div>
 
               {/* Timeline check-in / check-out */}
@@ -340,14 +352,19 @@ export default function AbsensiCheckPage() {
                 ))}
               </div>
 
-              {/* Tombol aksi */}
-              {!sudahCheckIn && (
+              {/* Tombol aksi — shift yang ditukar digembok */}
+              {ss.dialihkan ? (
+                <div style={{ textAlign:'center', background:'#f3f4f6', color:'#6b7280', borderRadius:'0.5rem', padding:'0.75rem', fontSize:'0.85rem', lineHeight:1.5 }}>
+                  Shift ini sudah ditukar dengan guru lain, jadi tidak perlu di-check-in.<br/>
+                  <span style={{ fontSize:'0.78rem' }}>Kalau ternyata Anda tetap masuk, minta admin mencabut izinnya dulu.</span>
+                </div>
+              ) : !sudahCheckIn && (
                 <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}
                   onClick={() => setCamera({ type: 'checkin', scheduleId: ss.id, unitId: shift.unit_id, shift })}>
                   <LogIn size={18} /> Check In Sekarang
                 </button>
               )}
-              {sudahCheckIn && !sudahCheckOut && (
+              {!ss.dialihkan && sudahCheckIn && !sudahCheckOut && (
                 <button className="btn" style={{ width: '100%', background: '#10b981', color: '#fff' }} disabled={busy}
                   onClick={() => setCamera({ type: 'checkout', attendanceId: att.id, shift })}>
                   <LogOut size={18} /> Check Out Sekarang
