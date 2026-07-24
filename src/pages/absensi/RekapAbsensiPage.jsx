@@ -140,7 +140,7 @@ export default function RekapAbsensiPage() {
           <label style={{ fontSize:'0.78rem', fontWeight:600, display:'block', marginBottom:'0.25rem' }}>Status</label>
           <select value={filterStatus} onChange={e=>setFilterStatus(e.target.value)} style={{ ...inp, width:'auto' }}>
             <option value="">Semua Status</option>
-            {[['Hadir','Hadir'],['Telat','Telat'],['Izin','Izin'],['Sakit','Sakit'],['Cuti','Cuti'],['Alpha','Mangkir']].map(([v,l])=><option key={v} value={v}>{l}</option>)}
+            {[['Hadir','Hadir'],['Telat','Telat'],['Izin','Izin'],['Izin Tanpa Pengganti','Izin Tanpa Pengganti'],['Sakit','Sakit'],['Cuti','Cuti'],['Alpha','Mangkir']].map(([v,l])=><option key={v} value={v}>{l}</option>)}
           </select>
         </div>
         <button className="btn btn-primary" style={{ display:'flex', alignItems:'center', gap:'0.35rem' }} onClick={exportCSV}>
@@ -158,7 +158,7 @@ export default function RekapAbsensiPage() {
             <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
               <thead>
                 <tr style={{ borderBottom:'2px solid var(--glass-border)' }}>
-                  {['Nama','Hadir','Telat','Izin','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗','Belum Validasi'].map(h=>(
+                  {['Nama','Hadir','Telat','Izin','Izin Tanpa Pengganti','Sakit','Cuti','Mangkir','Total Jam','Seragam ✓','Seragam ✗','Belum Validasi'].map(h=>(
                     <th key={h} style={{ padding:'0.45rem 0.65rem', textAlign:h==='Nama'?'left':'center', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                   ))}
                 </tr>
@@ -167,7 +167,7 @@ export default function RekapAbsensiPage() {
                 {summary.map((s,i) => (
                   <tr key={i} style={{ borderBottom:'1px solid var(--glass-border)' }}>
                     <td style={{ padding:'0.55rem 0.65rem', fontWeight:600 }}>{s.nama}</td>
-                    {['Hadir','Telat','Izin','Sakit','Cuti','Alpha'].map(k => (
+                    {['Hadir','Telat','Izin','Izin Tanpa Pengganti','Sakit','Cuti','Alpha'].map(k => (
                       <td key={k} style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight: s[k]>0?700:400, color: s[k]>0?(STATUS_COLOR[k]||'inherit'):'var(--text-secondary)' }}>{s[k] || '-'}</td>
                     ))}
                     <td style={{ padding:'0.55rem 0.65rem', textAlign:'center', fontWeight:700, color:'var(--primary)' }}>{mntToStr(s.totalMenit)}</td>

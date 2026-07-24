@@ -86,8 +86,11 @@ export default function KomponenGajiPage() {
     setUnits(uRes.data || []);
     setPrograms(pRes.data || []);
     setGurus(gRes.data || []);
-    const unik = [...new Set((aRes.data || []).map(a => a.status).filter(Boolean))].sort();
-    setStatusAbsensi(unik.length ? unik : ['Hadir','Telat','Alpha']);
+    // Status bawaan selalu ditampilkan, supaya aturan bonus bisa disetel
+    // SEBELUM status itu pernah muncul di data (mis. 'Izin Tanpa Pengganti').
+    const BAWAAN = ['Hadir','Telat','Izin','Izin Tanpa Pengganti','Sakit','Cuti','Alpha'];
+    const dariData = (aRes.data || []).map(a => a.status).filter(Boolean);
+    setStatusAbsensi([...new Set([...BAWAAN, ...dariData])]);
     setLoading(false);
   };
 

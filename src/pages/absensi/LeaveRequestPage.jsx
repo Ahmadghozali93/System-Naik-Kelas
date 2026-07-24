@@ -7,6 +7,16 @@ const todayWIB = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/
 const fmt      = (d) => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
 const JENIS    = ['Izin','Sakit','Cuti'];
 
+// Jenis izin — hanya muncul kalau jenis = 'Izin'.
+// Tahap 1: tukar_shift & ganti_hari sama-sama tercatat "Izin".
+// Tahap 2 nanti: tukar_shift jadi "jadwal dialihkan" (tanpa catatan absensi).
+const SUB_JENIS = [
+  { value:'tukar_shift',     label:'Tukar Shift',      ket:'Shift ditukar dengan guru lain — kelas tetap jalan' },
+  { value:'ganti_hari',      label:'Ganti Hari',       ket:'Mengajar di hari lain sebagai gantinya' },
+  { value:'tanpa_pengganti', label:'Tanpa Pengganti',  ket:'Kelas tidak jalan — bonus kehadiran hangus' },
+];
+const subLabel = (v) => SUB_JENIS.find(x=>x.value===v)?.label || '';
+
 const BADGE = {
   Pending:  ['#fef3c7','#92400e'],
   Approved: ['#d1fae5','#047857'],
@@ -30,7 +40,7 @@ export default function LeaveRequestPage() {
   const [filterStatus, setFilterStatus] = useState('');
   const [filterJenis, setFilterJenis]   = useState('');
 
-  const [form, setForm] = useState({ unit_id:'', jenis:'Izin', tanggal_mulai:todayWIB(), tanggal_selesai:todayWIB(), alasan:'' });
+  const [form, setForm] = useState({ unit_id:'', jenis:'Izin', sub_jenis:'tanpa_pengganti', tanggal_mulai:todayWIB(), tanggal_selesai:todayWIB(), alasan:'' });
 
   const fetchAll = async () => {
     setLoading(true);
@@ -50,8 +60,11 @@ export default function LeaveRequestPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!form.unit_id) return alert('Pilih unit/cabang.');
+    if (form.jenis === 'Izin' && !form.sub_jenis) return alert('Pilih jenis izinnya.');
     const { error } = await supabase.from('leave_requests').insert({
       guru_id: user.id, ...form,
+      // Jenis izin hanya berlaku untuk 'Izin'; Sakit & Cuti dikosongkan
+      sub_jenis: form.jenis === 'Izin' ? form.sub_jenis : null,
     });
     if (error) return alert('Gagal: ' + error.message);
     setModal(false); fetchAll();
@@ -92,7 +105,7 @@ export default function LeaveRequestPage() {
             {JENIS.map(j=><option key={j} value={j}>{j}</option>)}
           </select>
         </div>
-        <button className="btn btn-primary" onClick={()=>{ setForm({unit_id:'',jenis:'Izin',tanggal_mulai:todayWIB(),tanggal_selesai:todayWIB(),alasan:''}); setModal(true); }}>
+        <button className="btn btn-primary" onClick={()=>{ setForm({unit_id:'',jenis:'Izin',sub_jenis:'tanpa_pengganti',tanggal_mulai:todayWIB(),tanggal_selesai:todayWIB(),alasan:''}); setModal(true); }}>
           <Plus size={16}/> Ajukan Izin/Cuti
         </button>
       </div>
@@ -127,6 +140,15 @@ export default function LeaveRequestPage() {
                       <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)' }}>{unitName(r.unit_id)}</td>
                       <td style={{ padding:'0.7rem 0.75rem' }}>
                         <span style={{ background:r.jenis==='Sakit'?'#fee2e2':r.jenis==='Cuti'?'#ede9fe':'#dbeafe', color:r.jenis==='Sakit'?'#b91c1c':r.jenis==='Cuti'?'#7c3aed':'#1e40af', padding:'0.15rem 0.55rem', borderRadius:999, fontSize:'0.75rem', fontWeight:600 }}>{r.jenis}</span>
+                        {r.sub_jenis && (
+                          <div style={{ marginTop:'0.2rem' }}>
+                            <span style={{
+                              background: r.sub_jenis==='tanpa_pengganti' ? '#fee2e2' : '#f3f4f6',
+                              color:      r.sub_jenis==='tanpa_pengganti' ? '#b91c1c' : '#374151',
+                              padding:'0.1rem 0.45rem', borderRadius:999, fontSize:'0.68rem', fontWeight:600, whiteSpace:'nowrap',
+                            }}>{subLabel(r.sub_jenis)}</span>
+                          </div>
+                        )}
                       </td>
                       <td style={{ padding:'0.7rem 0.75rem', whiteSpace:'nowrap' }}>{fmt(r.tanggal_mulai)}</td>
                       <td style={{ padding:'0.7rem 0.75rem', whiteSpace:'nowrap' }}>{fmt(r.tanggal_selesai)}</td>
@@ -174,6 +196,45 @@ export default function LeaveRequestPage() {
                   {JENIS.map(j=><option key={j} value={j}>{j}</option>)}
                 </select>
               </div>
+
+              {/* Jenis izin — hanya untuk 'Izin'. Sakit & Cuti tidak perlu. */}
+              {form.jenis === 'Izin' && (
+                <div>
+                  <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Jenis Izin *</label>
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.4rem' }}>
+                    {SUB_JENIS.map(s => {
+                      const dipilih = form.sub_jenis === s.value;
+                      const hangus  = s.value === 'tanpa_pengganti';
+                      return (
+                        <button key={s.value} type="button"
+                          onClick={()=>setForm(f=>({...f, sub_jenis:s.value}))}
+                          style={{
+                            textAlign:'left', cursor:'pointer', fontFamily:'inherit',
+                            display:'flex', alignItems:'flex-start', gap:'0.6rem',
+                            border:`1.5px solid ${dipilih ? (hangus ? '#b91c1c' : 'var(--primary)') : 'var(--glass-border)'}`,
+                            background: dipilih ? (hangus ? 'rgba(185,28,28,0.06)' : 'rgba(79,70,229,0.06)') : 'var(--surface-color)',
+                            borderRadius:'0.5rem', padding:'0.6rem 0.75rem',
+                          }}>
+                          <span style={{ width:15, height:15, borderRadius:'50%', flexShrink:0, marginTop:'0.15rem',
+                            border:`4px solid ${dipilih ? (hangus ? '#b91c1c' : 'var(--primary)') : 'var(--glass-border)'}`,
+                            background: dipilih ? (hangus ? '#b91c1c' : 'var(--primary)') : 'transparent' }} />
+                          <span>
+                            <span style={{ fontWeight:700, fontSize:'0.86rem' }}>{s.label}</span>
+                            <span style={{ display:'block', fontSize:'0.76rem', color: hangus ? '#b91c1c' : 'var(--text-secondary)', marginTop:'0.1rem' }}>
+                              {s.ket}
+                            </span>
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                  {(form.sub_jenis === 'tukar_shift' || form.sub_jenis === 'ganti_hari') && (
+                    <p style={{ margin:'0.5rem 0 0', fontSize:'0.75rem', color:'#92400e', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.4rem', padding:'0.5rem 0.65rem' }}>
+                      Penunjukan guru pengganti / tanggal pengganti belum tersedia — menyusul. Untuk sekarang, atur manual dan tuliskan di kolom alasan.
+                    </p>
+                  )}
+                </div>
+              )}
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
                 <div>
                   <label style={{ fontSize:'0.82rem', fontWeight:600, display:'block', marginBottom:'0.3rem' }}>Dari *</label>
