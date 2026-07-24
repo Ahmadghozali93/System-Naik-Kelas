@@ -328,7 +328,7 @@ export default function LeaveRequestPage() {
                           </div>
 
                           <select value={b.shift_schedule_id} style={{...inp, marginBottom:'0.5rem'}}
-                            onChange={e=>{ ubahBaris(i,{shift_schedule_id:e.target.value}); setCekBentrok(c=>({...c,[i]:null})); }}>
+                            onChange={e=>{ const nb={...b, shift_schedule_id:e.target.value}; ubahBaris(i,{shift_schedule_id:e.target.value}); periksaBentrok(i, nb); }}>
                             <option value="">— Pilih shift Anda —</option>
                             {myShifts.map(x=>(
                               <option key={x.id} value={x.id}>
@@ -358,8 +358,7 @@ export default function LeaveRequestPage() {
                               </select>
                               {b.guru_pengganti_id && (
                                 <select value={b.tukar_dengan_schedule_id} style={inp}
-                                  onChange={e=>{ ubahBaris(i,{tukar_dengan_schedule_id:e.target.value}); setCekBentrok(c=>({...c,[i]:null})); }}
-                                  onBlur={()=>periksaBentrok(i, baris[i])}>
+                                  onChange={e=>{ const nb={...b, tukar_dengan_schedule_id:e.target.value}; ubahBaris(i,{tukar_dengan_schedule_id:e.target.value}); periksaBentrok(i, nb); }}>
                                   <option value="">— Pilih shift miliknya yang diambil —</option>
                                   {pengganti.map(x=>(
                                     <option key={x.id} value={x.id}>
@@ -374,8 +373,7 @@ export default function LeaveRequestPage() {
                           {b.jenis === 'ganti_hari' && (
                             <input type="date" value={b.tanggal_pengganti} style={inp}
                               min={todayWIB()}
-                              onChange={e=>{ ubahBaris(i,{tanggal_pengganti:e.target.value}); setCekBentrok(c=>({...c,[i]:null})); }}
-                              onBlur={()=>periksaBentrok(i, {...baris[i], tanggal_pengganti:baris[i].tanggal_pengganti})}
+                              onChange={e=>{ const nb={...b, tanggal_pengganti:e.target.value}; ubahBaris(i,{tanggal_pengganti:e.target.value}); periksaBentrok(i, nb); }}
                               placeholder="Tanggal pengganti"/>
                           )}
 
