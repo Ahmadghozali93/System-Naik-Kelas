@@ -82,7 +82,7 @@ export default function KomponenGajiPage() {
       supabase.from('komponen_gaji').select('*').order('urutan_tampil').order('nama'),
       supabase.from('units').select('id, nama').eq('aktif', true).order('nama'),
       supabase.from('programs').select('id, nama').order('nama'),
-      supabase.from('gurus').select('id, nama').eq('status','Aktif').order('nama'),
+      supabase.from('gurus').select('id, nama, role').eq('status','Aktif').order('nama'),
       // Status absensi tidak punya tabel master — ambil nilai yang benar-benar dipakai
       supabase.from('attendances').select('status').limit(1000),
     ]);
@@ -178,7 +178,7 @@ export default function KomponenGajiPage() {
     setUjiLoading(false);
     if (error) return alert('Perhitungan ditolak:\n\n' + error.message);
     setUjiHasil(data);
-    setUjiMeta({ nama: guru?.nama, bulan: ujiForm.bulan, tahun: ujiForm.tahun });
+    setUjiMeta({ nama: guru?.nama, jabatan: guru?.role, bulan: ujiForm.bulan, tahun: ujiForm.tahun });
   };
 
   const tipeLabel = (v) => TIPE.find(t => t.value === v)?.label || v;

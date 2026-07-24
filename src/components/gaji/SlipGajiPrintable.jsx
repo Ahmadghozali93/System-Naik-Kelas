@@ -1,4 +1,6 @@
+import { useState, useEffect } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { supabase } from '../../lib/supabase';
 import { formatRupiah } from '../../utils/formatRupiah';
 
 const BULAN = ['', 'Januari','Februari','Maret','April','Mei','Juni','Juli','Agustus','September','Oktober','November','Desember'];
@@ -33,8 +35,23 @@ function Baris({ nama, nominal, keterangan, potongan }) {
 }
 
 export default function SlipGajiPrintable({ model }) {
+  // Mulai dari cache localStorage, lalu segarkan dari Supabase agar logo
+  // & nama lembaga tetap muncul walau cache belum terisi.
+  const [app, setApp] = useState(bacaAppSettings);
+  useEffect(() => {
+    supabase.from('app_settings').select('key, value').in('key', ['app_name', 'logo_url'])
+      .then(({ data }) => {
+        if (!data) return;
+        const row = {};
+        data.forEach(r => { row[r.key] = r.value; });
+        if (row.app_name || row.logo_url) {
+          setApp({ lembaga: row.app_name || 'Naik Kelas', logo: row.logo_url || '' });
+        }
+      });
+  }, []);
+
   if (!model) return null;
-  const { lembaga, logo } = bacaAppSettings();
+  const { lembaga, logo } = app;
   const totalPend = sum(model.pendapatan);
   const totalPot  = sum(model.potongan);
   const periodeText = `${BULAN[model.periode?.bulan] || ''} ${model.periode?.tahun || ''}`.trim();
