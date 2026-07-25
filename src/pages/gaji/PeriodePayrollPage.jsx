@@ -138,7 +138,17 @@ export default function PeriodePayrollPage() {
     if (!window.confirm(pesan)) return;
 
     const patch = { status };
-    if (status === 'terkunci') { patch.tanggal_kunci = new Date().toISOString(); patch.dikunci_oleh = user?.id || null; }
+    if (status === 'terkunci') {
+      patch.tanggal_kunci = new Date().toISOString();
+      patch.dikunci_oleh  = user?.id || null;
+      // Salin identitas + tanda tangan penyetuju SEKARANG, supaya slip yang
+      // sudah dicetak tidak ikut berubah kalau tanda tangannya diganti nanti.
+      const { data: penyetuju } = await supabase.from('gurus')
+        .select('nama, role, ttd_gambar').eq('id', user?.id || '').maybeSingle();
+      patch.disetujui_nama    = penyetuju?.nama || user?.nama || null;
+      patch.disetujui_jabatan = penyetuju?.role || user?.role || null;
+      patch.disetujui_ttd     = penyetuju?.ttd_gambar || null;
+    }
     if (status === 'dibayar')  { patch.tanggal_bayar = new Date().toISOString(); }
 
     const { error } = await supabase.from('periode_payroll').update(patch).eq('id', aktif.id);
@@ -302,6 +312,10 @@ export default function PeriodePayrollPage() {
 
                   <SlipGajiPrintable model={dariSlipTersimpan(slipAktif, detail, {
                     unitNama: aktif.units?.nama, bulan: aktif.bulan, tahun: aktif.tahun, internal: true,
+                    persetujuan: aktif.disetujui_nama ? {
+                      nama: aktif.disetujui_nama, jabatan: aktif.disetujui_jabatan,
+                      ttd: aktif.disetujui_ttd, tanggal: aktif.tanggal_kunci,
+                    } : null,
                   })} />
 
                   {/* Admin: buka rincian jurnal per komponen tatap muka */}

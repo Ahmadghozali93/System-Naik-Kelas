@@ -122,16 +122,49 @@ export default function SlipGajiPrintable({ model }) {
         </div>
       )}
 
-      {/* FOOTER: tanggal cetak + tanda tangan */}
+      {/* FOOTER: tanggal cetak + tanda tangan penyetuju */}
       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-end', marginTop:'1.75rem', gap:'1rem' }}>
         <div style={{ fontSize:'0.75rem', color:'#6b7280' }}>
           Dicetak pada {fmtTanggalPanjang(new Date())}
         </div>
-        <div style={{ textAlign:'center', fontSize:'0.8rem' }}>
-          <div style={{ color:'#6b7280' }}>Mengetahui,</div>
-          <div style={{ height:'3.25rem' }} />
-          <div style={{ borderTop:'1px solid #111827', paddingTop:'0.25rem', minWidth:170 }}>Pimpinan</div>
-        </div>
+        <TandaTangan persetujuan={model.persetujuan} />
+      </div>
+    </div>
+  );
+}
+
+// Blok tanda tangan. Kalau periode sudah disetujui (dikunci), tampilkan nama,
+// jabatan, dan gambar tanda tangan penyetuju; kalau belum, tetap ruang kosong
+// untuk ditandatangani manual.
+function TandaTangan({ persetujuan }) {
+  const disetujui = !!persetujuan?.nama;
+  return (
+    <div style={{ textAlign:'center', fontSize:'0.8rem' }}>
+      <div style={{ color:'#6b7280' }}>
+        {disetujui ? 'Disetujui oleh,' : 'Mengetahui,'}
+      </div>
+
+      <div style={{ height:'3.25rem', display:'flex', alignItems:'center', justifyContent:'center' }}>
+        {disetujui && persetujuan.ttd && (
+          <img src={persetujuan.ttd} alt="Tanda tangan"
+            style={{ maxHeight:'3.1rem', maxWidth:170, objectFit:'contain' }} />
+        )}
+      </div>
+
+      <div style={{ borderTop:'1px solid #111827', paddingTop:'0.25rem', minWidth:170 }}>
+        {disetujui ? (
+          <>
+            <div style={{ fontWeight:700 }}>{persetujuan.nama}</div>
+            {persetujuan.jabatan && (
+              <div style={{ fontSize:'0.72rem', color:'#6b7280' }}>{persetujuan.jabatan}</div>
+            )}
+            {persetujuan.tanggal && (
+              <div style={{ fontSize:'0.68rem', color:'#9ca3af' }}>
+                Disetujui {fmtTanggalPanjang(persetujuan.tanggal)}
+              </div>
+            )}
+          </>
+        ) : 'Pimpinan'}
       </div>
     </div>
   );
