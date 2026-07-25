@@ -39,7 +39,7 @@ const buildBroadcastUrl = (nowa, p) => {
   const nominal = (p.nominal||0).toLocaleString('id-ID');
   const link    = notaAktif(p) ? notaUrl(p) : null;
   const nota    = link ? `\n\nNota${p.nomor_nota ? ' ' + p.nomor_nota : ''} :\n${link}` : '';
-  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nPembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\nSPP bulan : ${bulan}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}${nota}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
+  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nTerima kasih, pembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\nSPP bulan : ${bulan}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}${nota}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 };
 
