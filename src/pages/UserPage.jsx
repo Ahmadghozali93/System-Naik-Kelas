@@ -3,8 +3,14 @@ import { Users, Edit, Trash2, X, MapPin, MessageCircle, Eye } from 'lucide-react
 import { supabase } from '../lib/supabase';
 import DatePicker from '../components/DatePicker';
 import { toProperCase } from '../utils/formatRupiah';
+import { useAuth } from '../context/authStore';
 
 export default function UserPage() {
+    const { user: userLogin } = useAuth();
+    // Payroll tidak memakai kolom role, melainkan flag boleh_kelola_payroll
+    // (lihat migrasi 0006). Hanya Owner yang boleh mengubahnya — dijaga juga
+    // oleh trigger cegah_ubah_flag_payroll di database.
+    const isOwner = userLogin?.role === 'Owner';
     const [gurus, setGurus] = useState([]);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [isLoading, setIsLoading] = useState(true);
@@ -25,7 +31,8 @@ export default function UserPage() {
         nowa: '',
         status: 'Aktif',
         alamat: '',
-        maps: ''
+        maps: '',
+        boleh_kelola_payroll: false
     });
 
     // Fetch data from Supabase
@@ -65,7 +72,8 @@ export default function UserPage() {
                 nowa: guru.nowa || '',
                 status: guru.status || 'Aktif',
                 alamat: guru.alamat || '',
-                maps: guru.maps || ''
+                maps: guru.maps || '',
+                boleh_kelola_payroll: guru.boleh_kelola_payroll || false
             });
         } else {
             setEditingId(null);
@@ -79,7 +87,8 @@ export default function UserPage() {
                 nowa: '',
                 status: 'Aktif',
                 alamat: '',
-                maps: ''
+                maps: '',
+                boleh_kelola_payroll: false
             });
         }
         setIsModalOpen(true);
@@ -107,6 +116,9 @@ export default function UserPage() {
                 tanggal_masuk: formData.tanggal_masuk || null,
                 role_guru:     formData.role_guru || null,
             };
+            // Non-Owner tidak ikut mengirim flag payroll sama sekali, supaya
+            // penyuntingan data biasa tidak pernah tersangkut trigger izin.
+            if (!isOwner) delete cleanData.boleh_kelola_payroll;
             if (editingId) {
                 // Edit existing in Supabase
                 const { error } = await supabase
@@ -438,6 +450,29 @@ export default function UserPage() {
                                     <option value="Tutor">Tutor</option>
                                 </select>
                             </div>
+                            {isOwner && (
+                                <div style={{ gridColumn: '1 / -1', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.75rem 0.875rem', background: 'var(--surface-color)' }}>
+                                    <label style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem', cursor: isViewing ? 'default' : 'pointer' }}>
+                                        <input
+                                            type="checkbox"
+                                            name="boleh_kelola_payroll"
+                                            checked={!!formData.boleh_kelola_payroll}
+                                            onChange={(e) => setFormData(prev => ({ ...prev, boleh_kelola_payroll: e.target.checked }))}
+                                            disabled={isViewing}
+                                            style={{ marginTop: '0.2rem', width: '1rem', height: '1rem', cursor: 'inherit' }}
+                                        />
+                                        <span>
+                                            <span style={{ display: 'block', fontWeight: 600, fontSize: '0.85rem' }}>Kelola Payroll</span>
+                                            <span style={{ display: 'block', fontSize: '0.78rem', color: 'var(--text-secondary)', marginTop: '0.15rem' }}>
+                                                Boleh membuat periode gaji, menghitung, dan melihat paket gaji — terbatas pada cabang
+                                                yang ditugaskan ke user ini di Absensi → Master Shift → tab Unit Karyawan. Tanpa
+                                                penugasan cabang, izin ini belum berpengaruh. Terpisah dari Role, hanya Owner yang
+                                                boleh mengubahnya.
+                                            </span>
+                                        </span>
+                                    </label>
+                                </div>
+                            )}
                             <div>
                                 <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Kelas Bonus KPI</label>
                                 <select
