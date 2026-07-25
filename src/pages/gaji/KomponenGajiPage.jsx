@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Plus, X, Pencil, Trash2, Wallet, PlayCircle, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 
+import { useHakPayroll } from '../../hooks/useHakPayroll';
 import { formatRupiah } from '../../utils/formatRupiah';
 import SlipGajiPrintable from '../../components/gaji/SlipGajiPrintable';
 import { dariSimulasi } from '../../utils/slipModel';
@@ -55,6 +56,7 @@ function cekKelengkapan(tipe, cfg) {
 
 export default function KomponenGajiPage() {
 
+  const hak = useHakPayroll();
   const [rows, setRows]         = useState([]);
   const [units, setUnits]       = useState([]);
   const [programs, setPrograms] = useState([]);
@@ -98,7 +100,24 @@ export default function KomponenGajiPage() {
     setLoading(false);
   };
 
-  const openAdd  = () => { setEditId(null); setForm(EMPTY); setModal(true); };
+  // ── Batas cabang ──
+  // Pengelola non-Owner hanya boleh menulis komponen milik cabangnya:
+  // komponen "Semua cabang" (unit_id NULL) tetap milik Owner. Pilihan yang
+  // pasti ditolak database tidak ditawarkan di form.
+  const unitPilihan = hak.batasiCabang ? units.filter(u => hak.unitIds.includes(u.id)) : units;
+  const bisaTulis   = (r) => !hak.batasiCabang || (!!r.unit_id && hak.unitIds.includes(r.unit_id));
+  const bisaTambah  = hak.bolehKelola && (!hak.batasiCabang || unitPilihan.length > 0);
+  const alasanTakBisaTambah = !hak.bolehKelola
+    ? 'Akun Anda belum diberi izin "Kelola Payroll". Minta Owner menyalakannya di menu User.'
+    : 'Akun Anda belum ditugaskan ke cabang mana pun, jadi belum ada cabang yang bisa dipilih.';
+
+  const openAdd  = () => {
+    if (!bisaTambah) return alert(alasanTakBisaTambah);
+    setEditId(null);
+    // Non-Owner tidak punya opsi "Semua cabang", jadi cabang pertamanya dipilihkan.
+    setForm({ ...EMPTY, unit_id: hak.batasiCabang ? unitPilihan[0].id : '' });
+    setModal(true);
+  };
   const openEdit = (r) => {
     setEditId(r.id);
     setForm({ kode:r.kode, nama:r.nama, kategori:r.kategori, tipe_perhitungan:r.tipe_perhitungan,
@@ -112,6 +131,8 @@ export default function KomponenGajiPage() {
   const handleSave = async (e) => {
     e.preventDefault();
     if (!form.kode.trim() || !form.nama.trim()) return alert('Kode dan Nama wajib diisi.');
+    if (hak.batasiCabang && !form.unit_id)
+      return alert('Pilih cabang dulu. Komponen untuk semua cabang hanya bisa dibuat Owner.');
 
     // Sistem menolak mengaktifkan komponen yang konfigurasinya belum lengkap
     if (form.aktif) {
@@ -199,7 +220,9 @@ export default function KomponenGajiPage() {
             style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
             <PlayCircle size={16} /> Uji Coba Hitung
           </button>
-          <button className="btn btn-primary" onClick={openAdd} style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
+          <button className="btn btn-primary" onClick={openAdd} disabled={hak.loading || loading || !bisaTambah}
+            title={bisaTambah ? undefined : alasanTakBisaTambah}
+            style={{ display:'flex', alignItems:'center', gap:'0.4rem', opacity: (hak.loading || loading || bisaTambah) ? 1 : 0.5 }}>
             <Plus size={16} /> Tambah Komponen
           </button>
         </div>
@@ -252,14 +275,23 @@ export default function KomponenGajiPage() {
                       </td>
                       <td style={{ padding:'0.7rem 0.75rem' }}>
                         <div style={{ display:'flex', gap:'0.35rem' }}>
-                          <button onClick={()=>openEdit(r)} title="Ubah"
-                            style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'var(--primary)' }}>
-                            <Pencil size={13} />
-                          </button>
-                          <button onClick={()=>hapus(r)} title="Hapus"
-                            style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'#b91c1c' }}>
-                            <Trash2 size={13} />
-                          </button>
+                          {bisaTulis(r) ? (
+                            <>
+                              <button onClick={()=>openEdit(r)} title="Ubah"
+                                style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'var(--primary)' }}>
+                                <Pencil size={13} />
+                              </button>
+                              <button onClick={()=>hapus(r)} title="Hapus"
+                                style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'#b91c1c' }}>
+                                <Trash2 size={13} />
+                              </button>
+                            </>
+                          ) : (
+                            <span title={r.unit_id ? 'Komponen milik cabang lain' : 'Komponen untuk semua cabang — hanya Owner yang bisa mengubah'}
+                              style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>
+                              hanya baca
+                            </span>
+                          )}
                         </div>
                       </td>
                     </tr>
@@ -302,11 +334,16 @@ export default function KomponenGajiPage() {
                   </select>
                 </div>
                 <div>
-                  <label style={lbl}>Berlaku di Cabang</label>
+                  <label style={lbl}>Berlaku di Cabang {hak.batasiCabang && '*'}</label>
                   <select value={form.unit_id} onChange={e=>setForm(f=>({...f,unit_id:e.target.value}))} style={inp}>
-                    <option value="">Semua cabang</option>
-                    {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
+                    {!hak.batasiCabang && <option value="">Semua cabang</option>}
+                    {unitPilihan.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
                   </select>
+                  {hak.batasiCabang && (
+                    <p style={{ margin:'0.3rem 0 0', fontSize:'0.72rem', color:'var(--text-secondary)' }}>
+                      Komponen untuk semua cabang hanya bisa dibuat Owner.
+                    </p>
+                  )}
                 </div>
               </div>
 

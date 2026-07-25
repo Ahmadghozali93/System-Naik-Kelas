@@ -1,12 +1,14 @@
 import { useState, useEffect } from 'react';
 import { Plus, X, Trash2, Layers, Pencil } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
+import { useHakPayroll } from '../../hooks/useHakPayroll';
 
 const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)',
   background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.88rem', width:'100%', boxSizing:'border-box' };
 const lbl = { fontSize:'0.8rem', fontWeight:600, display:'block', marginBottom:'0.3rem' };
 
 export default function PaketGajiPage() {
+  const hak = useHakPayroll();
   const [paket, setPaket]       = useState([]);
   const [komponen, setKomponen] = useState([]);
   const [units, setUnits]       = useState([]);
@@ -36,9 +38,28 @@ export default function PaketGajiPage() {
     if (aktif) setAktif((pRes.data || []).find(p => p.id === aktif.id) || null);
   };
 
+  // ── Batas cabang ──
+  // Sama seperti komponen gaji: paket "Semua cabang" (unit_id NULL) milik
+  // Owner. Pengelola cabang boleh melihatnya (0015) tapi tidak mengubahnya.
+  const unitPilihan = hak.batasiCabang ? units.filter(u => hak.unitIds.includes(u.id)) : units;
+  const bisaTulis   = (p) => !hak.batasiCabang || (!!p.unit_id && hak.unitIds.includes(p.unit_id));
+  const bisaBuat    = hak.bolehKelola && (!hak.batasiCabang || unitPilihan.length > 0);
+  const alasanTakBisaBuat = !hak.bolehKelola
+    ? 'Akun Anda belum diberi izin "Kelola Payroll". Minta Owner menyalakannya di menu User.'
+    : 'Akun Anda belum ditugaskan ke cabang mana pun, jadi belum ada cabang yang bisa dipilih.';
+
+  const openBuat = () => {
+    if (!bisaBuat) return alert(alasanTakBisaBuat);
+    setEditId(null);
+    setForm({ nama:'', unit_id: hak.batasiCabang ? unitPilihan[0].id : '', keterangan:'' });
+    setModal(true);
+  };
+
   const simpan = async (e) => {
     e.preventDefault();
     if (!form.nama.trim()) return alert('Nama paket wajib diisi.');
+    if (hak.batasiCabang && !form.unit_id)
+      return alert('Pilih cabang dulu. Paket untuk semua cabang hanya bisa dibuat Owner.');
     const payload = { nama: form.nama.trim(), unit_id: form.unit_id || null, keterangan: form.keterangan || null };
     const { error } = editId
       ? await supabase.from('paket_gaji').update(payload).eq('id', editId)
@@ -83,8 +104,9 @@ export default function PaketGajiPage() {
             Kumpulan komponen per jabatan, supaya tidak perlu memasang satu-satu tiap karyawan baru.
           </p>
         </div>
-        <button className="btn btn-primary" onClick={()=>{ setEditId(null); setForm({nama:'',unit_id:'',keterangan:''}); setModal(true); }}
-          style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
+        <button className="btn btn-primary" onClick={openBuat} disabled={hak.loading || loading || !bisaBuat}
+          title={bisaBuat ? undefined : alasanTakBisaBuat}
+          style={{ display:'flex', alignItems:'center', gap:'0.4rem', opacity: (hak.loading || loading || bisaBuat) ? 1 : 0.5 }}>
           <Plus size={16}/> Buat Paket
         </button>
       </div>
@@ -125,24 +147,35 @@ export default function PaketGajiPage() {
                   {aktif.keterangan && <p style={{ fontSize:'0.8rem', color:'var(--text-secondary)', margin:'0.2rem 0 0' }}>{aktif.keterangan}</p>}
                 </div>
                 <div style={{ display:'flex', gap:'0.4rem' }}>
-                  <button onClick={()=>{ setEditId(aktif.id); setForm({nama:aktif.nama,unit_id:aktif.unit_id||'',keterangan:aktif.keterangan||''}); setModal(true); }}
-                    style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem', padding:'0.35rem 0.55rem', cursor:'pointer', color:'var(--primary)' }}>
-                    <Pencil size={13}/>
-                  </button>
-                  <button onClick={()=>hapusPaket(aktif)}
-                    style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.35rem 0.55rem', cursor:'pointer', color:'#b91c1c' }}>
-                    <Trash2 size={13}/>
-                  </button>
+                  {bisaTulis(aktif) ? (
+                    <>
+                      <button onClick={()=>{ setEditId(aktif.id); setForm({nama:aktif.nama,unit_id:aktif.unit_id||'',keterangan:aktif.keterangan||''}); setModal(true); }}
+                        style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.4rem', padding:'0.35rem 0.55rem', cursor:'pointer', color:'var(--primary)' }}>
+                        <Pencil size={13}/>
+                      </button>
+                      <button onClick={()=>hapusPaket(aktif)}
+                        style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.35rem 0.55rem', cursor:'pointer', color:'#b91c1c' }}>
+                        <Trash2 size={13}/>
+                      </button>
+                    </>
+                  ) : (
+                    <span title={aktif.unit_id ? 'Paket milik cabang lain' : 'Paket untuk semua cabang — hanya Owner yang bisa mengubah'}
+                      style={{ fontSize:'0.75rem', color:'var(--text-secondary)' }}>
+                      hanya baca
+                    </span>
+                  )}
                 </div>
               </div>
 
-              <div style={{ display:'flex', gap:'0.5rem', marginBottom:'1rem' }}>
-                <select value={tambahKomp} onChange={e=>setTambahKomp(e.target.value)} style={{...inp, flex:1}}>
-                  <option value="">— Pilih komponen untuk ditambahkan —</option>
-                  {komponen.map(k => <option key={k.id} value={k.id}>{k.nama} ({k.kategori})</option>)}
-                </select>
-                <button className="btn btn-primary" onClick={tambahIsi} style={{ whiteSpace:'nowrap' }}>Tambah</button>
-              </div>
+              {bisaTulis(aktif) && (
+                <div style={{ display:'flex', gap:'0.5rem', marginBottom:'1rem' }}>
+                  <select value={tambahKomp} onChange={e=>setTambahKomp(e.target.value)} style={{...inp, flex:1}}>
+                    <option value="">— Pilih komponen untuk ditambahkan —</option>
+                    {komponen.map(k => <option key={k.id} value={k.id}>{k.nama} ({k.kategori})</option>)}
+                  </select>
+                  <button className="btn btn-primary" onClick={tambahIsi} style={{ whiteSpace:'nowrap' }}>Tambah</button>
+                </div>
+              )}
 
               {(aktif.isi || []).length === 0 ? (
                 <p style={{ color:'var(--text-secondary)', fontSize:'0.88rem' }}>Paket ini belum berisi komponen.</p>
@@ -156,10 +189,12 @@ export default function PaketGajiPage() {
                           {i.komponen?.tipe_perhitungan?.replace('_',' ')}
                         </td>
                         <td style={{ padding:'0.6rem 0', textAlign:'right' }}>
-                          <button onClick={()=>hapusIsi(i.id)}
-                            style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'#b91c1c' }}>
-                            <Trash2 size={12}/>
-                          </button>
+                          {bisaTulis(aktif) && (
+                            <button onClick={()=>hapusIsi(i.id)}
+                              style={{ background:'#fee2e2', border:'none', borderRadius:'0.4rem', padding:'0.3rem 0.5rem', cursor:'pointer', color:'#b91c1c' }}>
+                              <Trash2 size={12}/>
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -185,11 +220,16 @@ export default function PaketGajiPage() {
                   style={inp} placeholder="Guru Tetap" />
               </div>
               <div>
-                <label style={lbl}>Cabang</label>
+                <label style={lbl}>Cabang {hak.batasiCabang && '*'}</label>
                 <select value={form.unit_id} onChange={e=>setForm(f=>({...f,unit_id:e.target.value}))} style={inp}>
-                  <option value="">Semua cabang</option>
-                  {units.map(u=><option key={u.id} value={u.id}>{u.nama}</option>)}
+                  {!hak.batasiCabang && <option value="">Semua cabang</option>}
+                  {unitPilihan.map(u=><option key={u.id} value={u.id}>{u.nama}</option>)}
                 </select>
+                {hak.batasiCabang && (
+                  <p style={{ margin:'0.3rem 0 0', fontSize:'0.72rem', color:'var(--text-secondary)' }}>
+                    Paket untuk semua cabang hanya bisa dibuat Owner.
+                  </p>
+                )}
               </div>
               <div>
                 <label style={lbl}>Keterangan</label>
