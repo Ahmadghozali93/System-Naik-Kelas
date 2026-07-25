@@ -27,6 +27,7 @@ import DashboardPage from './pages/DashboardPage';
 import SettingsPage from './pages/SettingsPage';
 import LandingPage from './pages/LandingPage';
 import PengajuanReschedulePage from './pages/PengajuanReschedulePage';
+import NotaPublikPage from './pages/NotaPublikPage';
 import JurnalPage from './pages/JurnalPage';
 import TagihanSiswaPage from './pages/TagihanSiswaPage';
 import LaporanSppPage from './pages/LaporanSppPage';
@@ -143,6 +144,8 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/login" element={<LoginPage />} />
           <Route path="/pengajuan-reschedule" element={<PengajuanReschedulePage />} />
+          {/* Nota bayar untuk orang tua — dibuka tanpa login lewat token */}
+          <Route path="/nota/:token" element={<NotaPublikPage />} />
 
 
           {/* PROTECTED LAYOUT */}

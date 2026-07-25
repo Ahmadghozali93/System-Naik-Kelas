@@ -45,15 +45,28 @@ ALTER TABLE public.periode_payroll
 -- ── 4. Karyawan boleh membaca periode dari slip miliknya yang sudah dibayar ──
 -- Tanpa ini, halaman "Slip Gaji Saya" tidak bisa menampilkan bulan/tahun
 -- maupun nama & tanda tangan penyetuju.
+--
+-- PENTING: pengecekan slip WAJIB lewat fungsi SECURITY DEFINER, bukan
+-- subquery langsung ke slip_gaji. Policy sg_select pada slip_gaji sudah
+-- menyebut periode_payroll; kalau policy periode_payroll balik menyebut
+-- slip_gaji, PostgreSQL menolak SEMUA query ke dua tabel itu dengan
+-- "infinite recursion detected in policy for relation".
+CREATE OR REPLACE FUNCTION public.punya_slip_dibayar(p_periode_id UUID)
+RETURNS BOOLEAN LANGUAGE sql STABLE SECURITY DEFINER SET search_path = public AS $$
+  SELECT EXISTS (
+    SELECT 1 FROM slip_gaji s
+    WHERE s.periode_payroll_id = p_periode_id
+      AND s.guru_id = public.absensi_guru_id()
+      AND s.status  = 'dibayar'
+  );
+$$;
+REVOKE ALL    ON FUNCTION public.punya_slip_dibayar(UUID) FROM public;
+GRANT EXECUTE ON FUNCTION public.punya_slip_dibayar(UUID) TO authenticated;
+
 DROP POLICY IF EXISTS pp_select ON public.periode_payroll;
 CREATE POLICY pp_select ON public.periode_payroll FOR SELECT TO authenticated
   USING (
     public.payroll_is_owner()
     OR public.payroll_kelola_unit(unit_id)
-    OR EXISTS (
-      SELECT 1 FROM public.slip_gaji s
-      WHERE s.periode_payroll_id = periode_payroll.id
-        AND s.guru_id = public.absensi_guru_id()
-        AND s.status  = 'dibayar'
-    )
+    OR public.punya_slip_dibayar(id)
   );

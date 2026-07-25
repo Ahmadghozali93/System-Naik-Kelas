@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle, Send } from 'lucide-react';
+import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle, Send, Copy, Check, Ban, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatRupiah, toProperCase } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
@@ -17,8 +17,18 @@ const waLink = (nowa) => {
   return `https://wa.me/${num}`;
 };
 
+// Nota hanya terbit setelah transaksi diverifikasi (lihat migrasi 0013).
+const sudahTerverifikasi = (p) => p.status === 'Terverifikasi';
+
+const notaUrl = (p) =>
+  p.nota_token ? `${window.location.origin}/nota/${p.nota_token}` : null;
+
+// Nota yang dicabut tetap punya nomor (pembukuan tidak boleh bolong),
+// tapi linknya sudah mati — jangan ditawarkan lagi untuk dibagikan.
+const notaAktif = (p) => sudahTerverifikasi(p) && !!p.nota_token && !p.nota_dicabut;
+
 const buildBroadcastUrl = (nowa, p) => {
-  if (!nowa) return null;
+  if (!nowa || !sudahTerverifikasi(p)) return null;
   const num    = nowa.replace(/\D/g,'').replace(/^0/,'62');
   const bulan  = p.jatuh_tempo
     ? new Date(p.jatuh_tempo).toLocaleDateString('id-ID',{month:'long',year:'numeric'})
@@ -27,7 +37,9 @@ const buildBroadcastUrl = (nowa, p) => {
     ? new Date(p.tanggal_bayar).toLocaleDateString('id-ID',{day:'2-digit',month:'long',year:'numeric'})
     : '-';
   const nominal = (p.nominal||0).toLocaleString('id-ID');
-  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nPembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\nSPP bulan : ${bulan}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
+  const link    = notaAktif(p) ? notaUrl(p) : null;
+  const nota    = link ? `\n\nNota${p.nomor_nota ? ' ' + p.nomor_nota : ''} :\n${link}` : '';
+  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nPembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\nSPP bulan : ${bulan}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}${nota}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
 };
 
@@ -90,6 +102,8 @@ export default function TagihanSiswaPage() {
   const [trDateFrom, setTrDateFrom] = useState('');
   const [trDateTo, setTrDateTo]     = useState('');
   const [trPage, setTrPage]         = useState(1);
+  const [notaTersalin, setNotaTersalin] = useState(null);   // id transaksi yg link notanya baru disalin
+  const [notaProses, setNotaProses]     = useState(null);   // id transaksi yg status notanya sedang diubah
 
   // Modal
   const [modal, setModal]         = useState(null);
@@ -143,6 +157,48 @@ export default function TagihanSiswaPage() {
   };
 
   const getNominal = (aktivasi) => Number(aktivasi.spp) || 0;
+
+  const salinNota = async (p) => {
+    const url = notaUrl(p);
+    if (!url) return;
+    try {
+      await navigator.clipboard.writeText(url);
+      setNotaTersalin(p.id);
+      setTimeout(() => setNotaTersalin(null), 2000);
+    } catch {
+      // Clipboard API diblokir (mis. halaman non-HTTPS) — tampilkan saja linknya
+      window.prompt('Salin link nota:', url);
+    }
+  };
+
+  // Cabut = matikan link nota yang sudah terlanjur dibagikan. Nomor nota
+  // tetap ada supaya deret pembukuan tidak bolong. Saat diaktifkan lagi,
+  // trigger di database menerbitkan token baru — link lama tetap mati.
+  const ubahStatusNota = async (p, cabut) => {
+    const konfirmasi = cabut
+      ? `Cabut link nota ${p.nomor_nota || ''}?\n\nLink yang sudah dikirim ke orang tua langsung tidak bisa dibuka lagi. Nomor notanya tetap tersimpan.`
+      : `Aktifkan kembali nota ${p.nomor_nota || ''}?\n\nSistem membuat link BARU. Link lama tetap mati, jadi harus dikirim ulang ke orang tua.`;
+    if (!window.confirm(konfirmasi)) return;
+
+    setNotaProses(p.id);
+    const { data, error } = await supabase.from('pembayaran_spp')
+      .update({
+        nota_dicabut:      cabut,
+        nota_dicabut_pada: cabut ? new Date().toISOString() : null,
+        nota_dicabut_oleh: cabut ? (user?.nama || user?.email || '-') : null,
+      })
+      .eq('id', p.id)
+      .select()
+      .single();
+    setNotaProses(null);
+
+    if (error) {
+      alert('Gagal mengubah status nota: ' + error.message);
+      return;
+    }
+    // Pakai baris hasil update — token barunya dibuat di database, bukan di sini.
+    setTransaksis(prev => prev.map(t => (t.id === p.id ? { ...t, ...data } : t)));
+  };
 
   const handleDelete = async (id) => {
     if (!window.confirm('Hapus transaksi ini?')) return;
@@ -433,7 +489,7 @@ export default function TagihanSiswaPage() {
                     <thead>
                       <tr style={{borderBottom:'2px solid var(--glass-border)',background:'rgba(79,70,229,0.04)'}}>
                         {[{l:'NO',a:'center',w:44},{l:'TGL BAYAR',a:'left'},{l:'JATUH TEMPO',a:'left'},
-                          {l:'NAMA SISWA',a:'left'},{l:'BROADCAST',a:'center'},{l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},
+                          {l:'NAMA SISWA',a:'left'},{l:'NOTA',a:'left'},{l:'BROADCAST',a:'center'},{l:'PROGRAM',a:'left'},{l:'UNIT',a:'left'},
                           {l:'NOMINAL SPP',a:'right'},{l:'DISKON',a:'right'},{l:'YG DIBAYAR',a:'right'},
                           {l:'METODE',a:'left'},{l:'STATUS',a:'center'},{l:'DICATAT OLEH',a:'left'},
                           {l:'CATATAN',a:'left'},{l:'',a:'center'}].map(h=>(
@@ -453,6 +509,49 @@ export default function TagihanSiswaPage() {
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontWeight:600}}>{fmt(p.tanggal_bayar||p.created_at?.split('T')[0])}</td>
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem',color:'#b45309',fontWeight:600}}>{fmt(p.jatuh_tempo)}</td>
                             <td style={{padding:'0.75rem',fontWeight:500,whiteSpace:'nowrap'}}>{p.nama_siswa||'-'}</td>
+                            <td style={{padding:'0.75rem',whiteSpace:'nowrap'}}>
+                              {!verified || !p.nota_token ? (
+                                <span style={{color:'var(--text-secondary)',fontSize:'0.78rem'}}
+                                  title="Nota terbit setelah transaksi diverifikasi di menu Rekonsiliasi">
+                                  Belum terbit
+                                </span>
+                              ) : p.nota_dicabut ? (
+                                <span style={{display:'inline-flex',alignItems:'center',gap:'0.35rem'}}>
+                                  <span style={{color:'#b91c1c',fontWeight:600,fontSize:'0.8rem',textDecoration:'line-through',
+                                      fontVariantNumeric:'tabular-nums'}}
+                                    title={`Link dicabut${p.nota_dicabut_oleh ? ' oleh ' + p.nota_dicabut_oleh : ''}${p.nota_dicabut_pada ? ' pada ' + fmt(p.nota_dicabut_pada.split('T')[0]) : ''}`}>
+                                    {p.nomor_nota || 'Nota'}
+                                  </span>
+                                  <button onClick={()=>ubahStatusNota(p,false)} disabled={notaProses===p.id}
+                                    title="Aktifkan kembali (link baru)"
+                                    style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.35rem',
+                                      padding:'0.15rem 0.3rem',cursor:notaProses===p.id?'wait':'pointer',display:'inline-flex',
+                                      color:'var(--text-secondary)'}}>
+                                    <RotateCcw size={13}/>
+                                  </button>
+                                </span>
+                              ) : (
+                                <span style={{display:'inline-flex',alignItems:'center',gap:'0.35rem'}}>
+                                  <a href={notaUrl(p)} target="_blank" rel="noreferrer" title={notaUrl(p)}
+                                    style={{color:'var(--primary)',fontWeight:600,fontSize:'0.8rem',fontVariantNumeric:'tabular-nums'}}>
+                                    {p.nomor_nota || 'Lihat nota'}
+                                  </a>
+                                  <button onClick={()=>salinNota(p)} title="Salin link nota"
+                                    style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.35rem',
+                                      padding:'0.15rem 0.3rem',cursor:'pointer',display:'inline-flex',
+                                      color: notaTersalin===p.id ? '#047857' : 'var(--text-secondary)'}}>
+                                    {notaTersalin===p.id ? <Check size={13}/> : <Copy size={13}/>}
+                                  </button>
+                                  <button onClick={()=>ubahStatusNota(p,true)} disabled={notaProses===p.id}
+                                    title="Cabut link nota"
+                                    style={{background:'none',border:'1px solid var(--glass-border)',borderRadius:'0.35rem',
+                                      padding:'0.15rem 0.3rem',cursor:notaProses===p.id?'wait':'pointer',display:'inline-flex',
+                                      color:'#b91c1c'}}>
+                                    <Ban size={13}/>
+                                  </button>
+                                </span>
+                              )}
+                            </td>
                             <td style={{padding:'0.75rem',textAlign:'center'}}>
                               {buildBroadcastUrl(nowaMap[p.siswa_id], p) ? (
                                 <a href={buildBroadcastUrl(nowaMap[p.siswa_id], p)} target="_blank" rel="noreferrer"
@@ -461,7 +560,17 @@ export default function TagihanSiswaPage() {
                                     fontWeight:600,whiteSpace:'nowrap',fontSize:'0.78rem'}}>
                                   <Send size={13}/> Kirim WA
                                 </a>
-                              ) : '-'}
+                              ) : (
+                                <span title={!verified
+                                    ? 'Aktif setelah transaksi diverifikasi di menu Rekonsiliasi'
+                                    : 'Nomor WA siswa belum terisi'}
+                                  style={{display:'inline-flex',alignItems:'center',gap:'5px',background:'var(--surface-color)',
+                                    color:'var(--text-secondary)',border:'1px solid var(--glass-border)',
+                                    padding:'0.3rem 0.7rem',borderRadius:'0.4rem',
+                                    fontWeight:600,whiteSpace:'nowrap',fontSize:'0.78rem',cursor:'not-allowed'}}>
+                                  <Send size={13}/> Kirim WA
+                                </span>
+                              )}
                             </td>
                             <td style={{padding:'0.75rem',color:'var(--primary)',fontWeight:500}}>{p.nama_program||'-'}</td>
                             <td style={{padding:'0.75rem',color:'var(--text-secondary)'}}>{p.unit||'-'}</td>
