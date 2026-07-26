@@ -9,10 +9,17 @@
 -- status karangan sendiri. Migrasi ini yang benar-benar menutupnya.
 --
 -- ⚠️ JANGAN JALANKAN SEBELUM:
---   1. Frontend yang memakai RPC sudah tayang dan dipakai semua guru
---      minimal 3 hari (HP yang masih memegang bundel JS lama akan
---      langsung gagal absen setelah ini).
---   2. Kueri kesiapan di bawah mengembalikan 0 baris.
+--   1. Frontend yang memakai RPC sudah TAYANG, dan
+--   2. Satu putaran shift penuh sudah lewat sejak penayangan — supaya
+--      semua guru, termasuk shift malam, sudah sempat membuka aplikasi
+--      versi baru minimal sekali.
+--
+-- Kenapa hanya satu putaran shift, bukan berhari-hari: service worker
+-- aplikasi ini memakai strategi network-first (lihat public/sw.js), jadi
+-- guru yang online SELALU mendapat bundel terbaru begitu membuka
+-- aplikasi. Tidak ada bundel lama yang bertahan berhari-hari. Yang
+-- benar-benar perlu ditunggu hanyalah setiap orang membuka aplikasinya
+-- sekali, dan itu terjadi dengan sendirinya saat mereka absen.
 --
 -- Migrasi ini MENOLAK BERJALAN SENDIRI kalau syarat itu belum terpenuhi
 -- — lihat bagian 1. Itu disengaja: dijalankan terlalu dini, akibatnya
@@ -35,18 +42,37 @@
 
 DO $$
 DECLARE
-  v_sisa INT;
+  v_lama INT;
+  v_baru INT;
 BEGIN
-  SELECT COUNT(*) INTO v_sisa
+  -- Sinyal NEGATIF: masih ada yang menulis lewat jalur lama.
+  SELECT COUNT(*) INTO v_lama
   FROM public.attendances a
   JOIN public.shift_schedules ss ON ss.id = a.shift_schedule_id
-  WHERE a.check_in >= now() - INTERVAL '3 days'
+  WHERE a.check_in >= now() - INTERVAL '24 hours'
     AND a.status_lokasi IS NULL
     AND public.absensi_mode_efektif(ss.shift_id) <> 'nonaktif';
 
-  IF v_sisa > 0 THEN
+  -- Sinyal POSITIF: ada bukti frontend baru benar-benar dipakai.
+  --
+  -- Ini yang penting, dan sempat terlewat: kalau hanya sinyal negatif
+  -- yang diperiksa, pemeriksaan ini LOLOS di hari tanpa absensi sama
+  -- sekali (libur, akhir pekan). Migrasi lalu berjalan mulus padahal
+  -- frontend-nya belum tayang, dan seluruh guru gagal absen keesokan
+  -- paginya — persis bencana yang ingin dicegah.
+  SELECT COUNT(*) INTO v_baru
+  FROM public.attendances
+  WHERE check_in >= now() - INTERVAL '24 hours'
+    AND status_lokasi IS NOT NULL;
+
+  IF v_baru = 0 THEN
     RAISE EXCEPTION
-      'Migrasi dibatalkan: masih ada % absensi 3 hari terakhir yang ditulis lewat jalur lama. Pastikan semua guru sudah memakai aplikasi versi terbaru dulu, atau jalankan kueri kesiapan di bagian 5 untuk melihat siapa saja.', v_sisa;
+      'Migrasi dibatalkan: belum ada satu pun absensi 24 jam terakhir yang ditulis lewat RPC. Kemungkinan frontend versi baru belum tayang, atau memang belum ada yang absen hari ini. Tayangkan dulu, tunggu satu putaran shift penuh, baru jalankan migrasi ini.';
+  END IF;
+
+  IF v_lama > 0 THEN
+    RAISE EXCEPTION
+      'Migrasi dibatalkan: masih ada % absensi 24 jam terakhir yang ditulis lewat jalur lama. Jalankan kueri kesiapan di bagian 5 untuk melihat siapa saja, lalu minta mereka membuka ulang aplikasinya.', v_lama;
   END IF;
 END $$;
 
@@ -203,10 +229,15 @@ GRANT EXECUTE ON FUNCTION public.absensi_anomali(DATE, DATE) TO authenticated;
 --   FROM attendances a
 --   JOIN shift_schedules ss ON ss.id = a.shift_schedule_id
 --   JOIN gurus g ON g.id = a.guru_id
---   WHERE a.check_in >= now() - INTERVAL '3 days'
+--   WHERE a.check_in >= now() - INTERVAL '24 hours'
 --     AND a.status_lokasi IS NULL
 --     AND absensi_mode_efektif(ss.shift_id) <> 'nonaktif'
 --   GROUP BY g.nama ORDER BY jumlah DESC;
+--
+-- Dan pastikan yang ini ADA isinya (bukti frontend baru sudah dipakai):
+--
+--   SELECT COUNT(*) FROM attendances
+--   WHERE check_in >= now() - INTERVAL '24 hours' AND status_lokasi IS NOT NULL;
 --
 -- Kalau masih ada isinya, minta guru tersebut menutup penuh aplikasinya
 -- lalu membukanya lagi (bundel lama tersangkut di service worker).
