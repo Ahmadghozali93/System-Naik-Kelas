@@ -40,6 +40,10 @@ const AVAILABLE_MENUS = [
     { path: '/absensi/hari-libur',   label: 'Absensi - Hari Libur' },
     { path: '/absensi/laporan-izin', label: 'Absensi - Laporan Izin per Shift' },
     { path: '/absensi/penyesuaian-shift', label: 'Absensi - Penyesuaian Shift (SPV)' },
+    { path: '/absensi/verifikasi-lokasi', label: 'Absensi - Verifikasi Lokasi' },
+    // Halaman ini bisa dibuka Supervisor, tapi tombol simpannya hanya aktif
+    // untuk Owner/Administrator — RLS menegakkan hal yang sama di server.
+    { path: '/absensi/pengaturan',   label: 'Absensi - Pengaturan Kunci Lokasi' },
     // ── Payroll (mesin fleksibel; route tetap /gaji/*) ─
     { path: '/gaji/komponen',    label: 'Payroll - Komponen Gaji' },
     { path: '/gaji/paket',       label: 'Payroll - Paket Gaji' },
