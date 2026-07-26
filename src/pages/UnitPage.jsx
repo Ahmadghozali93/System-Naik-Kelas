@@ -1,6 +1,17 @@
 import { useState, useEffect } from 'react';
 import { Building, Edit, Trash2, X, MapPin } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import MapPicker from '../components/MapPicker';
+
+// Mode kunci lokasi absensi per cabang (lihat migrasi 0017).
+// Kosong = ikut setelan global.
+const MODE_LOKASI = [
+    { v: '',         label: 'Ikut setelan global' },
+    { v: 'nonaktif', label: 'Nonaktif — lokasi tidak diminta' },
+    { v: 'senyap',   label: 'Senyap — direkam, guru tidak diberi tahu' },
+    { v: 'catat',    label: 'Catat — absen tetap jadi, ditandai untuk SPV' },
+    { v: 'blokir',   label: 'Blokir — di luar area harus diajukan' },
+];
 
 export default function UnitPage() {
     const [units, setUnits] = useState([]);
@@ -14,7 +25,11 @@ export default function UnitPage() {
     const [formData, setFormData] = useState({
         nama: '',
         maps: '',
-        aktif: true
+        aktif: true,
+        latitude: null,
+        longitude: null,
+        radius_meter: 150,
+        mode_lokasi: ''
     });
 
     // Fetch data from Supabase
@@ -46,14 +61,22 @@ export default function UnitPage() {
             setFormData({
                 nama: unit.nama || '',
                 maps: unit.maps || '',
-                aktif: unit.aktif !== undefined ? unit.aktif : true
+                aktif: unit.aktif !== undefined ? unit.aktif : true,
+                latitude: unit.latitude != null ? Number(unit.latitude) : null,
+                longitude: unit.longitude != null ? Number(unit.longitude) : null,
+                radius_meter: unit.radius_meter ?? 150,
+                mode_lokasi: unit.mode_lokasi || ''
             });
         } else {
             setEditingId(null);
             setFormData({
                 nama: '',
                 maps: '',
-                aktif: true
+                aktif: true,
+                latitude: null,
+                longitude: null,
+                radius_meter: 150,
+                mode_lokasi: ''
             });
         }
         setIsModalOpen(true);
@@ -75,25 +98,33 @@ export default function UnitPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
+        // mode_lokasi kosong berarti "ikut setelan global" → harus NULL,
+        // string kosong ditolak CHECK constraint di migrasi 0017.
+        const payload = {
+            ...formData,
+            mode_lokasi: formData.mode_lokasi || null,
+            radius_meter: Number(formData.radius_meter) || 150,
+        };
+
         try {
             if (editingId) {
                 // Edit existing in Supabase
                 const { error } = await supabase
                     .from('units')
-                    .update(formData)
+                    .update(payload)
                     .eq('id', editingId);
 
                 if (error) throw error;
 
                 // Update local state
                 setUnits(units.map(u =>
-                    u.id === editingId ? { ...u, ...formData } : u
+                    u.id === editingId ? { ...u, ...payload } : u
                 ));
             } else {
                 // Add new to Supabase
                 const newId = 'UNIT-' + Math.random().toString(36).substr(2, 6).toUpperCase();
                 const today = new Date().toISOString().split('T')[0];
-                const newUnitData = { id: newId, dibuat_pada: today, ...formData };
+                const newUnitData = { id: newId, dibuat_pada: today, ...payload };
 
                 const { error } = await supabase
                     .from('units')
@@ -314,6 +345,49 @@ export default function UnitPage() {
                                         style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
                                         placeholder="https://maps.google.com/?q=..."
                                     />
+                                </div>
+
+                                {/* Titik absensi — dipakai mengunci lokasi check-in.
+                                    Kolom "Link Google Maps" di atas tidak bisa dipakai
+                                    untuk ini: isinya teks bebas, dan link pendek
+                                    maps.app.goo.gl tidak bisa diurai jadi koordinat. */}
+                                <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.1rem' }}>
+                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                        Titik Absensi
+                                    </label>
+                                    <MapPicker
+                                        initialCoords={formData.latitude != null && formData.longitude != null
+                                            ? { lat: Number(formData.latitude), lng: Number(formData.longitude) } : null}
+                                        onLocationSelect={(coords) => setFormData(prev => ({
+                                            ...prev, latitude: coords.lat, longitude: coords.lng
+                                        }))}
+                                    />
+                                    <p style={{ margin: '0.45rem 0 0', fontSize: '0.75rem', color: 'var(--text-secondary)', lineHeight: 1.5 }}>
+                                        Selama titik ini kosong, absensi tetap berjalan normal dan tidak ada guru yang terkunci.
+                                    </p>
+                                </div>
+
+                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Radius (meter)</label>
+                                        <input
+                                            type="number" name="radius_meter" min="30" max="5000"
+                                            value={formData.radius_meter}
+                                            onChange={handleInputChange}
+                                            style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                        />
+                                    </div>
+                                    <div>
+                                        <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mode Kunci</label>
+                                        <select
+                                            name="mode_lokasi"
+                                            value={formData.mode_lokasi}
+                                            onChange={handleInputChange}
+                                            style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                        >
+                                            {MODE_LOKASI.map(m => <option key={m.v} value={m.v}>{m.label}</option>)}
+                                        </select>
+                                    </div>
                                 </div>
 
                                 <label style={{ display: 'flex', alignItems: 'center', gap: '0.65rem', cursor: 'pointer', padding: '0.75rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}>

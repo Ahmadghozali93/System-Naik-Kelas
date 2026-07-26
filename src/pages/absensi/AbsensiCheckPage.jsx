@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
-import { Camera, CheckCircle2, LogIn, LogOut, Clock, AlertCircle, RefreshCw } from 'lucide-react';
+import { Camera, CheckCircle2, LogIn, LogOut, Clock, AlertCircle, RefreshCw, MapPin, Loader2 } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
+import { ambilLokasi, jarakMeter, pesanGagal } from '../../hooks/useGeolocation';
 
 // ── WIB helpers ──────────────────────────────────────────────
 const todayWIB = () =>
@@ -16,13 +17,19 @@ const fmtTime = (ts) =>
 const fmtWIBDate = (ts) =>
   ts ? new Date(ts).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta', weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) : '-';
 
-const calcStatus = (checkInISO, shift) => {
-  const wib = new Date(new Date(checkInISO).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-  const [h, m] = shift.jam_mulai.split(':').map(Number);
-  const limitMin = h * 60 + m + (shift.toleransi_menit || 15);
-  const ciMin = wib.getHours() * 60 + wib.getMinutes();
-  return ciMin <= limitMin ? 'Hadir' : 'Telat';
+// ── Mode kunci lokasi ─────────────────────────────────────────
+// Cerminan absensi_mode_efektif() di migrasi 0017. Dipakai hanya untuk
+// memutuskan apa yang ditampilkan; keputusan yang mengikat tetap di server.
+const modeEfektif = (shift, pengaturan) => {
+  if (shift?.wajib_lokasi === false) return 'nonaktif';
+  let m = shift?.units?.mode_lokasi || pengaturan?.mode || 'nonaktif';
+  if (pengaturan?.darurat && m === 'blokir') m = 'catat';
+  return m;
 };
+
+// Di mode 'senyap' lokasi tetap direkam, tapi guru tidak diberi tahu
+// apa pun — layarnya harus persis seperti sebelum fitur ini ada.
+const tampilkanLokasi = (mode) => mode === 'catat' || mode === 'blokir';
 
 // ── Komponen Kamera ───────────────────────────────────────────
 function CameraModal({ onCapture, onClose, label }) {
@@ -137,6 +144,112 @@ function CameraModal({ onCapture, onClose, label }) {
   );
 }
 
+// ── Kartu Kegagalan ───────────────────────────────────────────
+// Kegagalan absen tidak boleh berhenti di "gagal". Guru perlu tahu
+// sebabnya dan langkah yang bisa mereka kerjakan sendiri — kalau tidak,
+// yang terjadi bukan mereka membetulkan setelan HP, melainkan menelepon
+// SPV, dan fitur ini akan dianggap biang masalah lalu dimatikan.
+function KartuGagal({ g, onTutup, onUlangi, onAjukan }) {
+  return (
+    <div style={{ background: '#fef2f2', border: '1px solid #fecaca', borderRadius: '0.65rem', padding: '1rem 1.15rem', marginBottom: '1rem', color: '#7f1d1d' }}>
+      <div style={{ display: 'flex', alignItems: 'flex-start', gap: '0.6rem' }}>
+        <AlertCircle size={18} style={{ flexShrink: 0, marginTop: 2, color: '#dc2626' }} />
+        <div style={{ flex: 1 }}>
+          <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{g.judul}</div>
+          <div style={{ fontSize: '0.86rem', marginTop: '0.2rem', lineHeight: 1.5 }}>{g.pesan}</div>
+
+          {g.langkah?.length > 0 && (
+            <ol style={{ margin: '0.65rem 0 0 1.1rem', padding: 0, fontSize: '0.82rem', lineHeight: 1.6 }}>
+              {g.langkah.map((l, i) => <li key={i}>{l}</li>)}
+            </ol>
+          )}
+
+          <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.85rem', flexWrap: 'wrap' }}>
+            {g.ulangi && onUlangi && (
+              <button className="btn btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }} onClick={onUlangi}>
+                <RefreshCw size={14} /> Coba Lagi
+              </button>
+            )}
+            {g.boleh_ajukan && onAjukan && (
+              <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', background: '#fff', border: '1px solid #fecaca' }} onClick={onAjukan}>
+                Ajukan Absen Luar Area
+              </button>
+            )}
+            {g.kode === 'APP_OUTDATED' && (
+              <button className="btn btn-primary" style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem' }}
+                onClick={async () => {
+                  // Bundel lama tersangkut di service worker — bersihkan
+                  // dulu, kalau tidak muat ulang biasa akan memuat versi
+                  // lama yang sama lagi.
+                  try {
+                    const regs = await navigator.serviceWorker?.getRegistrations?.() || [];
+                    await Promise.all(regs.map(r => r.unregister()));
+                    const keys = await caches?.keys?.() || [];
+                    await Promise.all(keys.map(k => caches.delete(k)));
+                  } catch { /* abaikan, muat ulang tetap dicoba */ }
+                  window.location.reload(true);
+                }}>
+                <RefreshCw size={14} /> Muat Ulang Aplikasi
+              </button>
+            )}
+            <button className="btn" style={{ padding: '0.4rem 0.9rem', fontSize: '0.82rem', background: '#fff', border: '1px solid #fecaca' }} onClick={onTutup}>
+              Tutup
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Modal Alasan Absen di Luar Area ───────────────────────────
+function AlasanModal({ jarak, unitNama, onKirim, onClose, busy }) {
+  const [alasan, setAlasan] = useState('');
+  return (
+    <div className="modal-overlay">
+      <div className="modal-content" style={{ maxWidth: 420 }} onClick={e => e.stopPropagation()}>
+        <h2 style={{ fontWeight: 700, fontSize: '1.05rem', marginBottom: '0.5rem' }}>Absen dari Luar Area</h2>
+        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', lineHeight: 1.55, marginBottom: '1rem' }}>
+          Posisi Anda {jarak != null ? `${jarak} m` : 'jauh'} dari {unitNama || 'cabang'}.
+          Absen tetap akan dicatat, tapi ditandai untuk diperiksa atasan. Tuliskan alasannya.
+        </p>
+        <textarea
+          value={alasan} onChange={e => setAlasan(e.target.value)} rows={3}
+          placeholder="Mis: mengantar siswa lomba di SMPN 5"
+          style={{ width: '100%', padding: '0.65rem 0.85rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', fontFamily: 'inherit', color: 'var(--text-primary)', resize: 'vertical' }}
+        />
+        <div style={{ display: 'flex', gap: '0.75rem', marginTop: '1rem' }}>
+          <button className="btn" style={{ flex: 1 }} onClick={onClose} disabled={busy}>Batal</button>
+          <button className="btn btn-primary" style={{ flex: 1 }} disabled={busy || alasan.trim().length < 5}
+            onClick={() => onKirim(alasan.trim())}>
+            {busy ? 'Mengirim...' : 'Kirim Pengajuan'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ── Status lokasi di kartu shift ──────────────────────────────
+function StripLokasi({ state }) {
+  if (!state) return null;
+  const { fase, jarak, unitNama, akurasi, radius } = state;
+  const gaya = { mencari: ['#f1f5f9', '#475569'], ok: ['#d1fae5', '#047857'], jauh: ['#fef3c7', '#92400e'], gagal: ['#fee2e2', '#b91c1c'] }[fase] || ['#f1f5f9', '#475569'];
+  const teks = {
+    mencari: akurasi ? `Mencari lokasi... (±${akurasi} m)` : 'Mencari lokasi...',
+    ok: `${jarak} m dari ${unitNama} · dalam area`,
+    jauh: `${jarak} m dari ${unitNama} · di luar area (batas ${radius} m)`,
+    gagal: 'Lokasi belum terbaca',
+  }[fase];
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', background: gaya[0], color: gaya[1], padding: '0.5rem 0.75rem', borderRadius: '0.5rem', fontSize: '0.8rem', fontWeight: 600, marginBottom: '0.85rem' }}>
+      {fase === 'mencari' ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <MapPin size={14} />}
+      {teks}
+    </div>
+  );
+}
+
 // ── Komponen Badge Status ─────────────────────────────────────
 const STATUS_LABEL = { Alpha: 'Mangkir' };
 const StatusBadge = ({ s }) => {
@@ -156,6 +269,23 @@ export default function AbsensiCheckPage() {
   const [camera, setCamera]         = useState(null); // { type:'checkin'|'checkout', scheduleId, unitId, shift }
   const [busy, setBusy]             = useState(false);
   const [msg, setMsg]               = useState(null); // { ok, text }
+  const [pengaturan, setPengaturan] = useState(null); // setelan kunci lokasi
+  const [gagal, setGagal]           = useState(null); // kartu kegagalan
+  const [lokasiState, setLokasiState] = useState({}); // { [scheduleId]: {fase,jarak,...} }
+  const [alasanFor, setAlasanFor]   = useState(null); // konteks modal luar area
+
+  // Pencarian lokasi dijalankan berbarengan dengan kamera dibuka, lalu
+  // hasilnya ditunggu saat foto dikirim. GPS butuh 10–60 detik untuk
+  // "cold start"; kalau dikerjakan berurutan, guru menunggu dua kali.
+  const lokasiPromise = useRef(null);
+  // Waktu tombol absen PERTAMA kali ditekan untuk tiap shift, walau
+  // percobaan itu gagal. Tanpa ini, guru yang sudah sampai pukul 07:02
+  // tapi baru berhasil absen 07:20 akan tercatat Telat.
+  const percobaan1 = useRef({});
+  // Foto & konteks absen terakhir, supaya pengajuan "luar area" bisa
+  // dikirim ulang tanpa memaksa guru berfoto dari awal.
+  const fotoTerakhir = useRef(null);
+  const konteksTerakhir = useRef(null);
 
   useEffect(() => {
     const t = setInterval(() => setClock(nowWIBDisplay()), 1000);
@@ -167,9 +297,9 @@ export default function AbsensiCheckPage() {
     setLoading(true);
     const today = todayWIB();
 
-    const [ssRes, attRes, hlRes] = await Promise.all([
+    const [ssRes, attRes, hlRes, setRes] = await Promise.all([
       supabase.from('shift_schedules')
-        .select('*, shifts(*), penitip:titipan_dari(nama)')
+        .select('*, shifts(*, units(nama, latitude, longitude, radius_meter, mode_lokasi)), penitip:titipan_dari(nama)')
         .eq('guru_id', user.id)
         .eq('tanggal', today),
       supabase.from('attendances')
@@ -179,6 +309,9 @@ export default function AbsensiCheckPage() {
       supabase.from('hari_libur')
         .select('*')
         .eq('tanggal', today),
+      supabase.from('absensi_pengaturan')
+        .select('mode, darurat, akurasi_maks')
+        .maybeSingle(),
     ]);
 
     // Urutkan shift berdasarkan jam mulai (pagi di atas, malam di bawah)
@@ -188,6 +321,9 @@ export default function AbsensiCheckPage() {
     setMyShifts(sortedShifts);
     setAttendances(attRes.data || []);
     setHariLibur((hlRes.data || []).length > 0 ? hlRes.data[0] : null);
+    // Kalau tabel setelan belum ada (migrasi 0017 belum dijalankan),
+    // fitur ini diam total dan absensi berjalan seperti biasa.
+    setPengaturan(setRes.data || null);
     setLoading(false);
   };
 
@@ -202,53 +338,213 @@ export default function AbsensiCheckPage() {
     return publicUrl;
   };
 
-  const handleCheckIn = async (blob) => {
-    setBusy(true); setCamera(null);
+  // Setiap kegagalan dicatat, bukan sekadar ditampilkan lalu hilang —
+  // tanpa ini tidak akan ketahuan berapa banyak guru yang diam-diam
+  // kesulitan, karena mereka tidak akan lapor.
+  const catatGagal = async (kode, pesan, extra = {}) => {
     try {
-      const { shift, scheduleId, unitId } = camera;
-      const now = new Date().toISOString();
-      const status = calcStatus(now, shift);
-      const fotoUrl = shift.wajib_foto ? await uploadFoto(blob, 'checkin') : null;
-
-      const { error } = await supabase.from('attendances').insert({
-        guru_id: user.id,
-        shift_schedule_id: scheduleId,
-        unit_id: unitId,
-        tanggal: todayWIB(),
-        check_in: now,
-        foto_checkin: fotoUrl,
-        status,
+      await supabase.rpc('absen_catat_gagal', {
+        p_kode: kode,
+        p_pesan: pesan || null,
+        p_schedule_id: extra.scheduleId || null,
+        p_jenis: extra.jenis || null,
+        p_lat: extra.lat ?? null,
+        p_lng: extra.lng ?? null,
+        p_akurasi: extra.akurasi ?? null,
+        p_perangkat: typeof navigator !== 'undefined' ? navigator.userAgent : null,
       });
-      if (error) throw error;
-      setMsg({ ok: true, text: `Check-in berhasil! Status: ${status}` });
-      fetchData();
-    } catch (e) {
-      setMsg({ ok: false, text: e.message });
-    } finally { setBusy(false); }
+    } catch { /* log tidak boleh ikut menggagalkan absen */ }
   };
 
-  const handleCheckOut = async (blob) => {
+  const tampilkanGagal = (kode, extra = {}) => {
+    const g = pesanGagal(kode, extra);
+    setGagal(g);
+    return g;
+  };
+
+  // Mulai mencari lokasi. Di mode 'senyap' hasilnya cuma direkam; di mode
+  // lain fase-nya ikut ditampilkan di kartu shift.
+  const mulaiCariLokasi = (ss, mode) => {
+    if (mode === 'nonaktif') { lokasiPromise.current = Promise.resolve(null); return; }
+
+    const unit = ss.shifts?.units;
+    if (tampilkanLokasi(mode)) {
+      setLokasiState(s => ({ ...s, [ss.id]: { fase: 'mencari' } }));
+    }
+
+    lokasiPromise.current = ambilLokasi({
+      akurasiMaks: pengaturan?.akurasi_maks || 150,
+      onProgress: (akurasi) => {
+        if (!tampilkanLokasi(mode)) return;
+        setLokasiState(s => ({ ...s, [ss.id]: { ...s[ss.id], fase: 'mencari', akurasi } }));
+      },
+    }).then(r => {
+      if (tampilkanLokasi(mode)) {
+        const jarak = r.lat != null && unit?.latitude != null
+          ? jarakMeter(r.lat, r.lng, Number(unit.latitude), Number(unit.longitude)) : null;
+        const radius = unit?.radius_meter || 150;
+        setLokasiState(s => ({
+          ...s,
+          [ss.id]: {
+            fase: !r.ok ? 'gagal' : (jarak != null && jarak > radius ? 'jauh' : 'ok'),
+            jarak, radius, akurasi: r.akurasi, unitNama: unit?.nama || 'cabang',
+          },
+        }));
+      }
+      return r;
+    });
+  };
+
+  const mulaiCheckIn = (ss) => {
+    const shift = ss.shifts;
+    const mode = modeEfektif(shift, pengaturan);
+    setGagal(null);
+    if (!percobaan1.current[ss.id]) percobaan1.current[ss.id] = new Date().toISOString();
+    mulaiCariLokasi(ss, mode);
+    setCamera({ type: 'checkin', scheduleId: ss.id, unitId: shift.unit_id, shift, mode, ss });
+  };
+
+  const mulaiCheckOut = (ss, att) => {
+    const shift = ss.shifts;
+    const mode = modeEfektif(shift, pengaturan);
+    setGagal(null);
+    mulaiCariLokasi(ss, mode);
+    setCamera({ type: 'checkout', attendanceId: att.id, scheduleId: ss.id, shift, mode, ss });
+  };
+
+  // Tunggu hasil pencarian lokasi yang sudah berjalan sejak kamera dibuka.
+  const ambilHasilLokasi = async (mode, jenis, scheduleId, alasan) => {
+    if (mode === 'nonaktif') return { kirim: {}, lanjut: true };
+
+    const r = (await lokasiPromise.current) || { ok: false, kode: 'LOC_TIMEOUT' };
+    const kirim = { p_lat: r.lat ?? null, p_lng: r.lng ?? null, p_akurasi: r.akurasi ?? null };
+
+    if (!r.ok) {
+      await catatGagal(r.kode || 'LOC_TIMEOUT', r.pesan, { scheduleId, jenis, lat: r.lat, lng: r.lng, akurasi: r.akurasi });
+
+      // Di 'senyap' dan 'catat', lokasi yang gagal terbaca tidak boleh
+      // menghalangi absen — guru tetap masuk kerja, hanya datanya kosong.
+      // Di 'blokir', pengajuan beralasan tetap diteruskan supaya server
+      // yang memutuskan; kalau tidak, guru yang HP-nya memang selalu
+      // buruk sinyalnya tidak akan pernah bisa absen sama sekali.
+      if (mode !== 'blokir' || alasan) return { kirim, lanjut: true };
+
+      tampilkanGagal(r.kode || 'LOC_TIMEOUT', { akurasi: r.akurasi, boleh_ajukan: r.lemah === true });
+      return { lanjut: false };
+    }
+
+    return { kirim, lanjut: true };
+  };
+
+  // Jalur absensi sebelum migrasi 0017 — INSERT/UPDATE langsung ke tabel.
+  // Hanya dipakai sebagai jaring pengaman kalau RPC belum ada di database,
+  // supaya rilis frontend yang mendahului migrasi tidak mematikan absensi
+  // sepagi hari. Hapus bersamaan dengan pencabutan policy "att_insert_self".
+  const kirimAbsenCaraLama = async (konteks, fotoUrl) => {
+    const { type, shift, scheduleId, attendanceId } = konteks;
+    const now = new Date().toISOString();
+
+    if (type === 'checkin') {
+      const wib = new Date(new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+      const [h, m] = shift.jam_mulai.split(':').map(Number);
+      const batas = h * 60 + m + (shift.toleransi_menit || 15);
+      const status = (wib.getHours() * 60 + wib.getMinutes()) <= batas ? 'Hadir' : 'Telat';
+
+      const { error } = await supabase.from('attendances').insert({
+        guru_id: user.id, shift_schedule_id: scheduleId, unit_id: shift.unit_id,
+        tanggal: todayWIB(), check_in: now, foto_checkin: fotoUrl, status,
+      });
+      if (error) { tampilkanGagal('RPC_ERROR', { pesan: error.message }); return; }
+      setMsg({ ok: true, text: `Check-in berhasil! Status: ${status}` });
+    } else {
+      const { error } = await supabase.from('attendances')
+        .update({ check_out: now, foto_checkout: fotoUrl }).eq('id', attendanceId);
+      if (error) { tampilkanGagal('RPC_ERROR', { pesan: error.message }); return; }
+      setMsg({ ok: true, text: 'Check-out berhasil!' });
+    }
+    fetchData();
+  };
+
+  const kirimAbsen = async (blob, alasan = null) => {
+    const konteks = camera || alasanFor || konteksTerakhir.current;
+    if (!konteks) return;
+    konteksTerakhir.current = konteks;
+    const { type, shift, scheduleId, attendanceId, mode } = konteks;
+    const jenis = type === 'checkin' ? 'checkin' : 'checkout';
+
     setBusy(true); setCamera(null);
     try {
-      const { shift, attendanceId } = camera;
-      const now = new Date().toISOString();
-      const fotoUrl = shift.wajib_foto ? await uploadFoto(blob, 'checkout') : null;
+      const lok = await ambilHasilLokasi(mode, jenis, scheduleId, alasan);
+      if (!lok.lanjut) return;
 
-      const { error } = await supabase.from('attendances').update({
-        check_out: now,
-        foto_checkout: fotoUrl,
-      }).eq('id', attendanceId);
-      if (error) throw error;
-      setMsg({ ok: true, text: 'Check-out berhasil!' });
+      let fotoUrl = null;
+      if (shift.wajib_foto && blob) {
+        try {
+          fotoUrl = await uploadFoto(blob, jenis);
+        } catch (e) {
+          await catatGagal('UPLOAD_FAILED', e.message, { scheduleId, jenis });
+          tampilkanGagal('UPLOAD_FAILED');
+          return;
+        }
+      }
+
+      const { data, error } = type === 'checkin'
+        ? await supabase.rpc('absen_check_in', {
+            p_schedule_id: scheduleId, p_foto: fotoUrl, p_alasan: alasan,
+            p_percobaan_1: percobaan1.current[scheduleId] || null, ...lok.kirim,
+          })
+        : await supabase.rpc('absen_check_out', {
+            p_attendance_id: attendanceId, p_foto: fotoUrl, p_alasan: alasan, ...lok.kirim,
+          });
+
+      if (error) {
+        // RPC belum ada → migrasi 0017 belum dijalankan di database ini.
+        // Jangan matikan absensi hanya karena urutan rilis: pakai jalur
+        // lama yang policy-nya memang sengaja masih hidup. Absen tetap
+        // tercatat, hanya tanpa data lokasi.
+        if (/PGRST202|function .* does not exist|schema cache/i.test(error.message)) {
+          await kirimAbsenCaraLama(konteks, fotoUrl);
+          return;
+        }
+        const kode = /JWT|token/i.test(error.message) ? 'SESSION_EXPIRED'
+                   : /fetch|network/i.test(error.message) ? 'NET_OFFLINE' : null;
+        await catatGagal(kode || 'RPC_ERROR', error.message, { scheduleId, jenis });
+        tampilkanGagal(kode || 'RPC_ERROR', kode ? {} : { pesan: error.message });
+        return;
+      }
+
+      if (!data?.ok) {
+        await catatGagal(data?.kode || 'UNKNOWN', data?.pesan, { scheduleId, jenis });
+        tampilkanGagal(data?.kode || 'UNKNOWN', {
+          pesan: data?.pesan,
+          boleh_ajukan: data?.boleh_ajukan,
+          jarak: data?.jarak_m, unitNama: data?.unit_nama,
+        });
+        return;
+      }
+
+      delete percobaan1.current[scheduleId];
+      setAlasanFor(null);
+      setMsg({
+        ok: true,
+        text: type === 'checkin'
+          ? `Check-in berhasil! Status: ${data.status}` +
+            (tampilkanLokasi(mode) && data.status_lokasi === 'Luar Area'
+              ? ` — tercatat ${data.jarak_m} m dari ${data.unit_nama}, akan diperiksa atasan.` : '')
+          : 'Check-out berhasil!',
+      });
       fetchData();
     } catch (e) {
-      setMsg({ ok: false, text: e.message });
+      const kode = !navigator.onLine ? 'NET_OFFLINE' : null;
+      await catatGagal(kode || 'EXCEPTION', e.message, { scheduleId, jenis });
+      tampilkanGagal(kode || 'EXCEPTION', kode ? {} : { pesan: e.message });
     } finally { setBusy(false); }
   };
 
   const onCapture = (blob) => {
-    if (camera?.type === 'checkin') handleCheckIn(blob);
-    else handleCheckOut(blob);
+    // Foto disimpan supaya pengajuan luar area tidak perlu berfoto ulang.
+    fotoTerakhir.current = blob;
+    kirimAbsen(blob);
   };
 
   if (loading) return <div style={{ padding: '2rem', color: 'var(--text-secondary)' }}>Memuat data shift...</div>;
@@ -279,6 +575,25 @@ export default function AbsensiCheckPage() {
           {msg.ok ? <CheckCircle2 size={18} /> : <AlertCircle size={18} />} {msg.text}
           <button onClick={() => setMsg(null)} style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', fontSize: '1.1rem', color: 'inherit' }}>×</button>
         </div>
+      )}
+
+      {/* Kegagalan absen — sebab + langkah perbaikan */}
+      {gagal && (
+        <KartuGagal
+          g={gagal}
+          onTutup={() => setGagal(null)}
+          onUlangi={() => {
+            setGagal(null);
+            const k = konteksTerakhir.current;
+            if (!k) return;
+            if (k.type === 'checkin') mulaiCheckIn(k.ss);
+            else mulaiCheckOut(k.ss, { id: k.attendanceId });
+          }}
+          onAjukan={() => {
+            setAlasanFor({ ...konteksTerakhir.current, jarak: gagal.jarak, unitNama: gagal.unitNama });
+            setGagal(null);
+          }}
+        />
       )}
 
       {/* Hari Libur */}
@@ -352,6 +667,11 @@ export default function AbsensiCheckPage() {
                 ))}
               </div>
 
+              {/* Status lokasi — hanya muncul di mode 'catat'/'blokir' */}
+              {tampilkanLokasi(modeEfektif(shift, pengaturan)) && !sudahCheckOut && (
+                <StripLokasi state={lokasiState[ss.id]} />
+              )}
+
               {/* Tombol aksi — shift yang ditukar digembok */}
               {ss.dialihkan ? (
                 <div style={{ textAlign:'center', background:'#f3f4f6', color:'#6b7280', borderRadius:'0.5rem', padding:'0.75rem', fontSize:'0.85rem', lineHeight:1.5 }}>
@@ -360,13 +680,13 @@ export default function AbsensiCheckPage() {
                 </div>
               ) : !sudahCheckIn && (
                 <button className="btn btn-primary" style={{ width: '100%' }} disabled={busy}
-                  onClick={() => setCamera({ type: 'checkin', scheduleId: ss.id, unitId: shift.unit_id, shift })}>
+                  onClick={() => mulaiCheckIn(ss)}>
                   <LogIn size={18} /> Check In Sekarang
                 </button>
               )}
               {!ss.dialihkan && sudahCheckIn && !sudahCheckOut && (
                 <button className="btn" style={{ width: '100%', background: '#10b981', color: '#fff' }} disabled={busy}
-                  onClick={() => setCamera({ type: 'checkout', attendanceId: att.id, shift })}>
+                  onClick={() => mulaiCheckOut(ss, att)}>
                   <LogOut size={18} /> Check Out Sekarang
                 </button>
               )}
@@ -387,6 +707,15 @@ export default function AbsensiCheckPage() {
           label={camera.type === 'checkin' ? 'Foto Check-in' : 'Foto Check-out'}
           onCapture={onCapture}
           onClose={() => setCamera(null)}
+        />
+      )}
+
+      {/* Modal alasan absen di luar area */}
+      {alasanFor && (
+        <AlasanModal
+          jarak={alasanFor.jarak} unitNama={alasanFor.unitNama} busy={busy}
+          onClose={() => setAlasanFor(null)}
+          onKirim={(alasan) => kirimAbsen(fotoTerakhir.current, alasan)}
         />
       )}
     </div>
