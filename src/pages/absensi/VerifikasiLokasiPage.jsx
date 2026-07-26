@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { MapPin, Check, X, AlertTriangle, ExternalLink, Clock } from 'lucide-react';
+import { MapPin, Check, X, AlertTriangle, ExternalLink, Clock, Zap } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
@@ -28,6 +28,7 @@ export default function VerifikasiLokasiPage() {
   const [tab, setTab]           = useState('verifikasi'); // 'verifikasi' | 'gagal'
   const [rows, setRows]         = useState([]);
   const [logGagal, setLogGagal] = useState([]);
+  const [anomali, setAnomali]   = useState([]);
   const [loading, setLoading]   = useState(false);
   const [dariTgl, setDariTgl]   = useState(awalBulan());
   const [sampaiTgl, setSampaiTgl] = useState(todayWIB());
@@ -44,17 +45,21 @@ export default function VerifikasiLokasiPage() {
       .order('tanggal', { ascending: false });
     if (hanyaPending) q = q.is('lokasi_disetujui', null);
 
-    const [attRes, logRes] = await Promise.all([
+    const [attRes, logRes, anoRes] = await Promise.all([
       q,
       supabase.from('absensi_gagal_log')
         .select('kode, tanggal, perangkat, akurasi, jarak_m, gurus!guru_id(nama), units!unit_id(nama)')
         .gte('tanggal', dariTgl).lte('tanggal', sampaiTgl)
         .order('created_at', { ascending: false })
         .limit(300),
+      // Migrasi 0018 belum tentu sudah dijalankan — kalau RPC-nya belum
+      // ada, tab Anomali cukup kosong, bukan menggagalkan halaman.
+      supabase.rpc('absensi_anomali', { p_dari: dariTgl, p_sampai: sampaiTgl }),
     ]);
 
     setRows(attRes.data || []);
     setLogGagal(logRes.data || []);
+    setAnomali(anoRes.error ? [] : (anoRes.data || []));
     setLoading(false);
   };
 
@@ -107,7 +112,11 @@ export default function VerifikasiLokasiPage() {
 
       {/* Tab */}
       <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '1.25rem', flexWrap: 'wrap' }}>
-        {[['verifikasi', `Perlu Diperiksa${pendingCount ? ` (${pendingCount})` : ''}`], ['gagal', `Kegagalan Absen (${logGagal.length})`]].map(([k, label]) => (
+        {[
+          ['verifikasi', `Perlu Diperiksa${pendingCount ? ` (${pendingCount})` : ''}`],
+          ['gagal', `Kegagalan Absen (${logGagal.length})`],
+          ['anomali', `Anomali${anomali.length ? ` (${anomali.length})` : ''}`],
+        ].map(([k, label]) => (
           <button key={k} onClick={() => setTab(k)} className="btn"
             style={{ background: tab === k ? 'var(--primary)' : 'var(--surface-color)', color: tab === k ? '#fff' : 'var(--text-primary)', border: tab === k ? 'none' : '1px solid var(--glass-border)', fontSize: '0.85rem' }}>
             {label}
@@ -263,6 +272,55 @@ export default function VerifikasiLokasiPage() {
                 ))}
                 {logGagal.length === 0 && (
                   <tr><td colSpan={7} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada catatan kegagalan.</td></tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+
+      {/* ── Anomali perpindahan ── */}
+      {!loading && tab === 'anomali' && (
+        <>
+          <div className="glass-card" style={{ padding: '1.25rem', marginBottom: '1.25rem' }}>
+            <h2 style={{ fontSize: '0.95rem', fontWeight: 700, margin: '0 0 0.3rem', display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+              <Zap size={16} /> Perpindahan Mustahil
+            </h2>
+            <p style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', margin: 0, lineHeight: 1.6 }}>
+              Dua titik absen milik guru yang sama, berjarak lebih dari 2 km, dengan selisih waktu yang menuntut
+              kecepatan di atas 120 km/jam. Perlu dinyatakan terus terang: aplikasi web <strong>tidak bisa</strong> mendeteksi
+              Fake GPS — tidak ada API browser yang membedakan koordinat palsu dari asli, itu butuh aplikasi native.
+              Daftar ini hanya menaikkan risiko ketahuan, bukan bukti. Periksa juga foto selfie-nya sebelum menyimpulkan.
+            </p>
+          </div>
+
+          <div className="glass-card" style={{ padding: '1.25rem', overflowX: 'auto' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.83rem', minWidth: 720 }}>
+              <thead>
+                <tr style={{ textAlign: 'left', color: 'var(--text-secondary)', fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  {['Tanggal', 'Guru', 'Cabang', 'Perpindahan', 'Jarak', 'Selisih', 'Kecepatan'].map(h => (
+                    <th key={h} style={{ padding: '0.5rem 0.6rem' }}>{h}</th>
+                  ))}
+                </tr>
+              </thead>
+              <tbody>
+                {anomali.map((a, i) => (
+                  <tr key={a.attendance_id || i} style={{ borderTop: '1px solid var(--glass-border)' }}>
+                    <td style={{ padding: '0.55rem 0.6rem', whiteSpace: 'nowrap' }}>{fmtTgl(a.tanggal)}</td>
+                    <td style={{ padding: '0.55rem 0.6rem', fontWeight: 600 }}>{a.guru_nama || '—'}</td>
+                    <td style={{ padding: '0.55rem 0.6rem' }}>{a.unit_nama || '—'}</td>
+                    <td style={{ padding: '0.55rem 0.6rem', whiteSpace: 'nowrap', color: 'var(--text-secondary)' }}>
+                      {a.jenis_sebelum} {fmtJam(a.waktu_sebelum)} → {a.jenis} {fmtJam(a.waktu)}
+                    </td>
+                    <td style={{ padding: '0.55rem 0.6rem', fontWeight: 700 }}>{(a.jarak_m / 1000).toFixed(1)} km</td>
+                    <td style={{ padding: '0.55rem 0.6rem' }}>{a.selisih_menit} mnt</td>
+                    <td style={{ padding: '0.55rem 0.6rem', fontWeight: 700, color: '#b91c1c' }}>{Math.round(a.kecepatan_kmh)} km/j</td>
+                  </tr>
+                ))}
+                {anomali.length === 0 && (
+                  <tr><td colSpan={7} style={{ padding: '1.5rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                    Tidak ada anomali pada rentang ini. (Kalau menu ini selalu kosong, kemungkinan migrasi 0018 belum dijalankan.)
+                  </td></tr>
                 )}
               </tbody>
             </table>

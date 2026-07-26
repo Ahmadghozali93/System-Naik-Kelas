@@ -436,35 +436,6 @@ export default function AbsensiCheckPage() {
     return { kirim, lanjut: true };
   };
 
-  // Jalur absensi sebelum migrasi 0017 — INSERT/UPDATE langsung ke tabel.
-  // Hanya dipakai sebagai jaring pengaman kalau RPC belum ada di database,
-  // supaya rilis frontend yang mendahului migrasi tidak mematikan absensi
-  // sepagi hari. Hapus bersamaan dengan pencabutan policy "att_insert_self".
-  const kirimAbsenCaraLama = async (konteks, fotoUrl) => {
-    const { type, shift, scheduleId, attendanceId } = konteks;
-    const now = new Date().toISOString();
-
-    if (type === 'checkin') {
-      const wib = new Date(new Date(now).toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
-      const [h, m] = shift.jam_mulai.split(':').map(Number);
-      const batas = h * 60 + m + (shift.toleransi_menit || 15);
-      const status = (wib.getHours() * 60 + wib.getMinutes()) <= batas ? 'Hadir' : 'Telat';
-
-      const { error } = await supabase.from('attendances').insert({
-        guru_id: user.id, shift_schedule_id: scheduleId, unit_id: shift.unit_id,
-        tanggal: todayWIB(), check_in: now, foto_checkin: fotoUrl, status,
-      });
-      if (error) { tampilkanGagal('RPC_ERROR', { pesan: error.message }); return; }
-      setMsg({ ok: true, text: `Check-in berhasil! Status: ${status}` });
-    } else {
-      const { error } = await supabase.from('attendances')
-        .update({ check_out: now, foto_checkout: fotoUrl }).eq('id', attendanceId);
-      if (error) { tampilkanGagal('RPC_ERROR', { pesan: error.message }); return; }
-      setMsg({ ok: true, text: 'Check-out berhasil!' });
-    }
-    fetchData();
-  };
-
   const kirimAbsen = async (blob, alasan = null) => {
     const konteks = camera || alasanFor || konteksTerakhir.current;
     if (!konteks) return;
@@ -498,15 +469,13 @@ export default function AbsensiCheckPage() {
           });
 
       if (error) {
-        // RPC belum ada → migrasi 0017 belum dijalankan di database ini.
-        // Jangan matikan absensi hanya karena urutan rilis: pakai jalur
-        // lama yang policy-nya memang sengaja masih hidup. Absen tetap
-        // tercatat, hanya tanpa data lokasi.
-        if (/PGRST202|function .* does not exist|schema cache/i.test(error.message)) {
-          await kirimAbsenCaraLama(konteks, fotoUrl);
-          return;
-        }
-        const kode = /JWT|token/i.test(error.message) ? 'SESSION_EXPIRED'
+        // Jalur mundur ke INSERT langsung sudah dihapus: setelah migrasi
+        // 0018 mencabut policy "att_insert_self", jalur itu tidak akan
+        // pernah berhasil lagi — menyisakannya hanya menghasilkan pesan
+        // error yang membingungkan. RPC hilang kini berarti bundel lama.
+        const kode = /PGRST202|function .* does not exist|schema cache/i.test(error.message) ? 'APP_OUTDATED'
+                   : /JWT|token/i.test(error.message) ? 'SESSION_EXPIRED'
+                   : /row-level security|violates row-level/i.test(error.message) ? 'APP_OUTDATED'
                    : /fetch|network/i.test(error.message) ? 'NET_OFFLINE' : null;
         await catatGagal(kode || 'RPC_ERROR', error.message, { scheduleId, jenis });
         tampilkanGagal(kode || 'RPC_ERROR', kode ? {} : { pesan: error.message });
