@@ -19,6 +19,23 @@ const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px soli
 const STATUS_COLOR = { Hadir:'#047857', Telat:'#d97706', Izin:'#7c3aed', Sakit:'#b91c1c', Cuti:'#0891b2', Alpha:'#6b7280' };
 const STATUS_LABEL = { Alpha:'Mangkir' };
 const SBadge = ({s}) => <span style={{background:`${STATUS_COLOR[s]||'#6b7280'}1a`,color:STATUS_COLOR[s]||'#6b7280',padding:'0.15rem 0.55rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>{STATUS_LABEL[s]||s||'Mangkir'}</span>;
+// Status lokasi absen (migrasi 0017). 'Tanpa Data' berarti koordinat cabang
+// belum diisi atau lokasi tidak terbaca — bukan pelanggaran guru.
+const LOKASI_COLOR = { 'Dalam Area':'#047857', 'Luar Area':'#b45309', 'GPS Lemah':'#4338ca', 'Tanpa Data':'#6b7280' };
+const LokasiBadge = ({v, jarak, disetujui}) => {
+  if (!v) return <span style={{color:'var(--text-secondary)',fontSize:'0.75rem'}}>—</span>;
+  const c = LOKASI_COLOR[v] || '#6b7280';
+  return (
+    <span style={{ display:'inline-flex', alignItems:'center', gap:'0.3rem', whiteSpace:'nowrap' }}>
+      <span style={{background:`${c}1a`,color:c,padding:'0.15rem 0.55rem',borderRadius:999,fontSize:'0.75rem',fontWeight:700}}>
+        {v}{jarak != null ? ` · ${Math.round(jarak)} m` : ''}
+      </span>
+      {disetujui === true  && <span title="Disetujui atasan" style={{color:'#047857',fontWeight:700,fontSize:'0.75rem'}}>✓</span>}
+      {disetujui === false && <span title="Ditolak atasan"   style={{color:'#b91c1c',fontWeight:700,fontSize:'0.75rem'}}>✗</span>}
+    </span>
+  );
+};
+
 const SeragamBadge = ({v}) => {
   if (!v) return <span style={{color:'var(--text-secondary)',fontSize:'0.75rem'}}>—</span>;
   const ok = v==='Sesuai';
@@ -93,7 +110,7 @@ export default function RekapAbsensiPage() {
   }, [records]);
 
   const exportCSV = () => {
-    const header = ['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Status','Durasi','Seragam','Catatan'];
+    const header = ['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Status','Durasi','Seragam','Status Lokasi','Jarak (m)','Akurasi (m)','Alasan Luar Area','Verifikasi Lokasi','Catatan'];
     const rows = records.map(r => [
       r.tanggal,
       r.gurus?.nama||'-',
@@ -104,6 +121,11 @@ export default function RekapAbsensiPage() {
       STATUS_LABEL[r.status]||r.status||'Mangkir',
       mntToStr(getDurasi(r)),
       r.seragam||'-',
+      r.status_lokasi||'-',
+      r.jarak_checkin_m != null ? Math.round(r.jarak_checkin_m) : '-',
+      r.akurasi_checkin != null ? Math.round(r.akurasi_checkin) : '-',
+      `"${(r.alasan_luar_area||'').replace(/"/g,'""')}"`,
+      r.lokasi_disetujui === true ? 'Disetujui' : r.lokasi_disetujui === false ? 'Ditolak' : '-',
       `"${(r.catatan||'').replace(/"/g,'""')}"`,
     ]);
     const csv = [header, ...rows].map(r => r.join(',')).join('\n');
@@ -226,7 +248,7 @@ export default function RekapAbsensiPage() {
                   <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.82rem' }}>
                     <thead>
                       <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
-                        {['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Durasi','Status','Seragam','Catatan'].map(h=>(
+                        {['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Durasi','Status','Seragam','Lokasi','Catatan'].map(h=>(
                           <th key={h} style={{ padding:'0.65rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                         ))}
                       </tr>
@@ -245,6 +267,9 @@ export default function RekapAbsensiPage() {
                           <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{mntToStr(getDurasi(r))}</td>
                           <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={r.status}/></td>
                           <td style={{ padding:'0.7rem 0.75rem' }}><SeragamBadge v={r.seragam}/></td>
+                          <td style={{ padding:'0.7rem 0.75rem' }} title={r.alasan_luar_area||''}>
+                            <LokasiBadge v={r.status_lokasi} jarak={r.jarak_checkin_m} disetujui={r.lokasi_disetujui}/>
+                          </td>
                           <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.8rem', color:'var(--text-secondary)', maxWidth:200, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }} title={r.catatan||''}>{r.catatan||'—'}</td>
                         </tr>
                       ))}

@@ -15,6 +15,8 @@ import {
     RefreshCw,
     LayoutDashboard,
     Settings,
+    MapPin,
+    ShieldCheck,
     X,
     Database,
     CalendarRange,
@@ -434,7 +436,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {/* ABSENSI GROUP */}
-                {['/absensi/check','/absensi/dashboard','/absensi/shift','/absensi/jadwal-shift','/absensi/izin','/absensi/lembur','/absensi/koreksi','/absensi/rekap','/absensi/hari-libur'].some(p => hasPermission(p)) && (
+                {['/absensi/check','/absensi/dashboard','/absensi/shift','/absensi/jadwal-shift','/absensi/izin','/absensi/lembur','/absensi/koreksi','/absensi/rekap','/absensi/hari-libur','/absensi/verifikasi-lokasi','/absensi/pengaturan'].some(p => hasPermission(p)) && (
                     <SidebarGroup
                         title="Absensi"
                         icon={Clock}
@@ -494,6 +496,16 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/absensi/hari-libur') && (
                             <NavLink to="/absensi/hari-libur" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <CalendarOff className="w-4 h-4" /><span>Hari Libur</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/verifikasi-lokasi') && (
+                            <NavLink to="/absensi/verifikasi-lokasi" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <MapPin className="w-4 h-4" /><span>Verifikasi Lokasi</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/absensi/pengaturan') && (
+                            <NavLink to="/absensi/pengaturan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ShieldCheck className="w-4 h-4" /><span>Pengaturan Lokasi</span>
                             </NavLink>
                         )}
                     </SidebarGroup>

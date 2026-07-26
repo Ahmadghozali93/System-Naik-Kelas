@@ -44,6 +44,8 @@ import RekapAbsensiPage from './pages/absensi/RekapAbsensiPage';
 import HariLiburPage from './pages/absensi/HariLiburPage';
 import LaporanIzinPage from './pages/absensi/LaporanIzinPage';
 import PenyesuaianShiftPage from './pages/absensi/PenyesuaianShiftPage';
+import PengaturanAbsensiPage from './pages/absensi/PengaturanAbsensiPage';
+import VerifikasiLokasiPage from './pages/absensi/VerifikasiLokasiPage';
 import KpiIndicatorPage from './pages/kpi/KpiIndicatorPage';
 import KpiAssessmentPage from './pages/kpi/KpiAssessmentPage';
 import KpiDashboardPage from './pages/kpi/KpiDashboardPage';
@@ -189,6 +191,8 @@ function App() {
             <Route path="/absensi/hari-libur"  element={<HariLiburPage />} />
             <Route path="/absensi/laporan-izin" element={<LaporanIzinPage />} />
             <Route path="/absensi/penyesuaian-shift" element={<PenyesuaianShiftPage />} />
+            <Route path="/absensi/verifikasi-lokasi" element={<VerifikasiLokasiPage />} />
+            <Route path="/absensi/pengaturan"  element={<PengaturanAbsensiPage />} />
 
             {/* KPI */}
             <Route path="/kpi/indikator"  element={<KpiIndicatorPage />} />

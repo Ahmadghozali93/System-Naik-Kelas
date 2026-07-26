@@ -3,7 +3,7 @@ import { Plus, Edit, Trash2, X, Clock, Users } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
-const EMPTY_FORM = { unit_id:'', nama:'', jam_mulai:'08:00', jam_selesai:'16:00', toleransi_menit:15, lintas_hari:false, wajib_foto:true, aktif:true };
+const EMPTY_FORM = { unit_id:'', nama:'', jam_mulai:'08:00', jam_selesai:'16:00', toleransi_menit:15, lintas_hari:false, wajib_foto:true, aktif:true, wajib_lokasi:null };
 
 const inp = { padding:'0.55rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.88rem', width:'100%', boxSizing:'border-box' };
 
@@ -43,7 +43,7 @@ export default function ShiftMasterPage() {
   useEffect(() => { fetchAll(); }, []);
 
   const openAdd  = () => { setEditId(null); setForm(EMPTY_FORM); setModal(true); };
-  const openEdit = (s) => { setEditId(s.id); setForm({ unit_id:s.unit_id, nama:s.nama, jam_mulai:s.jam_mulai, jam_selesai:s.jam_selesai, toleransi_menit:s.toleransi_menit, lintas_hari:s.lintas_hari, wajib_foto:s.wajib_foto, aktif:s.aktif }); setModal(true); };
+  const openEdit = (s) => { setEditId(s.id); setForm({ unit_id:s.unit_id, nama:s.nama, jam_mulai:s.jam_mulai, jam_selesai:s.jam_selesai, toleransi_menit:s.toleransi_menit, lintas_hari:s.lintas_hari, wajib_foto:s.wajib_foto, aktif:s.aktif, wajib_lokasi:s.wajib_lokasi ?? null }); setModal(true); };
 
   const handleSave = async (e) => {
     e.preventDefault();
@@ -143,7 +143,7 @@ export default function ShiftMasterPage() {
               <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.84rem' }}>
                 <thead>
                   <tr style={{ borderBottom:'2px solid var(--glass-border)', background:'rgba(79,70,229,0.04)' }}>
-                    {['No','Unit','Nama Shift','Jam Mulai','Jam Selesai','Toleransi','Lintas Hari','Wajib Foto','Status','Aksi'].map(h=>(
+                    {['No','Unit','Nama Shift','Jam Mulai','Jam Selesai','Toleransi','Lintas Hari','Wajib Foto','Kunci Lokasi','Status','Aksi'].map(h=>(
                       <th key={h} style={{ padding:'0.65rem 0.75rem', textAlign:'left', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap' }}>{h}</th>
                     ))}
                   </tr>
@@ -161,6 +161,11 @@ export default function ShiftMasterPage() {
                       <td style={{ padding:'0.7rem 0.75rem' }}>{s.toleransi_menit} mnt</td>
                       <td style={{ padding:'0.7rem 0.75rem' }}>{s.lintas_hari ? '✓' : '-'}</td>
                       <td style={{ padding:'0.7rem 0.75rem' }}>{s.wajib_foto ? '✓' : '-'}</td>
+                      <td style={{ padding:'0.7rem 0.75rem', fontSize:'0.78rem' }}>
+                        {s.wajib_lokasi === false
+                          ? <span style={{ color:'#b45309', fontWeight:600 }}>Dikecualikan</span>
+                          : <span style={{ color:'var(--text-secondary)' }}>ikut cabang</span>}
+                      </td>
                       <td style={{ padding:'0.7rem 0.75rem' }}>
                         <span style={{ background:s.aktif?'#d1fae5':'#fee2e2', color:s.aktif?'#047857':'#b91c1c', padding:'0.15rem 0.6rem', borderRadius:999, fontSize:'0.75rem', fontWeight:600 }}>{s.aktif?'Aktif':'Nonaktif'}</span>
                       </td>
@@ -293,6 +298,22 @@ export default function ShiftMasterPage() {
                   </label>
                 ))}
               </div>
+
+              {/* Pengecualian kunci lokasi. Ditulis terbalik ("kecualikan")
+                  karena keadaan normalnya adalah mengikuti setelan cabang —
+                  centang ini hanya untuk shift yang memang di luar kantor. */}
+              <label style={{ display:'flex', alignItems:'flex-start', gap:'0.55rem', cursor:'pointer', fontSize:'0.88rem', padding:'0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)' }}>
+                <input type="checkbox" checked={form.wajib_lokasi === false}
+                  onChange={e=>setForm(f=>({...f, wajib_lokasi: e.target.checked ? false : null }))}
+                  style={{ width:16, height:16, marginTop:2, flexShrink:0 }}/>
+                <span>
+                  Kecualikan dari kunci lokasi
+                  <span style={{ display:'block', fontSize:'0.78rem', color:'var(--text-secondary)', lineHeight:1.5, marginTop:'0.15rem' }}>
+                    Untuk shift yang memang dikerjakan di luar cabang — dinas luar, kunjungan sekolah.
+                    Kalau tidak dicentang, shift ini mengikuti setelan cabangnya.
+                  </span>
+                </span>
+              </label>
               <div style={{ display:'flex', gap:'0.65rem', justifyContent:'flex-end', marginTop:'0.5rem' }}>
                 <button type="button" className="btn" onClick={()=>setModal(false)}>Batal</button>
                 <button type="submit" className="btn btn-primary">Simpan</button>
