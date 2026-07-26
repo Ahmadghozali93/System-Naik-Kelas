@@ -1,5 +1,5 @@
 -- ============================================================
--- 0018  Kunci lokasi absensi — Tahap 2: tutup celah bypass
+-- 0019  Kunci lokasi absensi — Tahap 2: tutup celah bypass
 --
 -- Migrasi 0017 memindahkan penulisan absensi ke RPC, TAPI sengaja
 -- membiarkan policy "att_insert_self" tetap hidup sebagai masa transisi.
@@ -7,6 +7,10 @@
 -- dilewati: siapa pun yang paham DevTools bisa menembakkan INSERT
 -- langsung ke tabel attendances dari browser, lengkap dengan jam dan
 -- status karangan sendiri. Migrasi ini yang benar-benar menutupnya.
+--
+-- INI SATU-SATUNYA MIGRASI RANGKAIAN INI YANG BISA MEMBUAT SELURUH GURU
+-- GAGAL ABSEN kalau dijalankan pada waktu yang salah. Karena itu ia
+-- dipisahkan dari 0018 (deteksi anomali) yang tidak berisiko apa-apa.
 --
 -- ⚠️ JANGAN JALANKAN SEBELUM:
 --   1. Frontend yang memakai RPC sudah TAYANG, dan
@@ -22,17 +26,24 @@
 -- sekali, dan itu terjadi dengan sendirinya saat mereka absen.
 --
 -- Migrasi ini MENOLAK BERJALAN SENDIRI kalau syarat itu belum terpenuhi
--- — lihat bagian 1. Itu disengaja: dijalankan terlalu dini, akibatnya
--- seluruh guru gagal absen pada jam masuk keesokan harinya.
+-- — lihat bagian 1. Kalau Anda melihat pesan "Migrasi dibatalkan", itu
+-- bukan kerusakan: seluruh transaksi dibatalkan dan tidak ada satu pun
+-- perubahan yang tersimpan. Pastikan dengan:
 --
--- CARA MEMBATALKAN (kalau ternyata ada masalah):
+--   SELECT policyname FROM pg_policies
+--   WHERE tablename = 'attendances' AND policyname = 'att_insert_self';
+--
+--   1 baris  → policy masih ada, belum ada yang berubah
+--   0 baris  → migrasi sudah berhasil dijalankan
+--
+-- CARA MEMBATALKAN (kalau ternyata ada masalah setelah dijalankan):
 --   CREATE POLICY "att_insert_self" ON attendances FOR INSERT
 --     WITH CHECK (guru_id = absensi_guru_id());
 -- ============================================================
 
 
 -- ------------------------------------------------------------
--- 1. Pengaman — pastikan sudah tidak ada yang memakai jalur lama
+-- 1. Pengaman
 --
 -- Absensi yang ditulis lewat RPC selalu mengisi status_lokasi selama
 -- modenya bukan 'nonaktif'. Jadi baris dengan status_lokasi NULL pada
@@ -67,12 +78,12 @@ BEGIN
 
   IF v_baru = 0 THEN
     RAISE EXCEPTION
-      'Migrasi dibatalkan: belum ada satu pun absensi 24 jam terakhir yang ditulis lewat RPC. Kemungkinan frontend versi baru belum tayang, atau memang belum ada yang absen hari ini. Tayangkan dulu, tunggu satu putaran shift penuh, baru jalankan migrasi ini.';
+      'Migrasi dibatalkan: belum ada satu pun absensi 24 jam terakhir yang ditulis lewat RPC. Kemungkinan frontend versi baru belum tayang, atau memang belum ada yang absen hari ini. Tayangkan dulu, tunggu satu putaran shift penuh, baru jalankan migrasi ini. Tidak ada perubahan yang tersimpan.';
   END IF;
 
   IF v_lama > 0 THEN
     RAISE EXCEPTION
-      'Migrasi dibatalkan: masih ada % absensi 24 jam terakhir yang ditulis lewat jalur lama. Jalankan kueri kesiapan di bagian 5 untuk melihat siapa saja, lalu minta mereka membuka ulang aplikasinya.', v_lama;
+      'Migrasi dibatalkan: masih ada % absensi 24 jam terakhir yang ditulis lewat jalur lama. Jalankan kueri kesiapan di bagian 3 untuk melihat siapa saja, lalu minta mereka membuka ulang aplikasinya. Tidak ada perubahan yang tersimpan.', v_lama;
   END IF;
 END $$;
 
@@ -111,116 +122,7 @@ DROP POLICY IF EXISTS "att_insert_self" ON public.attendances;
 
 
 -- ------------------------------------------------------------
--- 3. Deteksi anomali lokasi
---
--- Batas kejujuran yang perlu dinyatakan: aplikasi web TIDAK BISA
--- mendeteksi Fake GPS. Tidak ada API browser yang membedakan koordinat
--- palsu dari asli — itu butuh aplikasi native. Yang bisa dilakukan
--- hanya menaikkan risiko ketahuan.
---
--- View ini mencari perpindahan yang mustahil: dua titik absen milik
--- guru yang sama, berjauhan, dalam selisih waktu yang tidak masuk akal.
--- Guru yang check-out di cabang lalu 4 menit kemudian check-in 30 km
--- dari sana jelas ada yang tidak beres — entah GPS palsu, entah HP-nya
--- dipegang orang lain.
---
--- security_invoker: view ini ikut RLS tabel attendances, jadi SPV hanya
--- melihat cabang yang dikelolanya.
---
--- CATATAN: security_invoker butuh PostgreSQL 15 ke atas. Kalau baris
--- CREATE VIEW di bawah gagal dengan "unrecognized parameter", berarti
--- project ini masih PG14. Buang saja klausa WITH (security_invoker = on)
--- — tapi sadari konsekuensinya: tanpa itu view berjalan dengan hak
--- pemiliknya, sehingga SPV bisa melihat anomali dari SEMUA cabang,
--- bukan hanya cabangnya sendiri.
--- ------------------------------------------------------------
-
-DROP VIEW IF EXISTS public.absensi_anomali_lokasi;
-
-CREATE VIEW public.absensi_anomali_lokasi
-WITH (security_invoker = on) AS
-WITH titik AS (
-  -- Check-in dan check-out diperlakukan sama: keduanya bukti "guru ada
-  -- di sini pada jam sekian".
-  SELECT a.id, a.guru_id, a.unit_id, a.tanggal,
-         'checkin'::text AS jenis, a.check_in AS waktu,
-         a.lat_checkin AS lat, a.lng_checkin AS lng
-  FROM public.attendances a
-  WHERE a.check_in IS NOT NULL AND a.lat_checkin IS NOT NULL
-  UNION ALL
-  SELECT a.id, a.guru_id, a.unit_id, a.tanggal,
-         'checkout', a.check_out, a.lat_checkout, a.lng_checkout
-  FROM public.attendances a
-  WHERE a.check_out IS NOT NULL AND a.lat_checkout IS NOT NULL
-),
-berpasangan AS (
-  SELECT t.*,
-         LAG(waktu) OVER w AS waktu_sebelum,
-         LAG(lat)   OVER w AS lat_sebelum,
-         LAG(lng)   OVER w AS lng_sebelum,
-         LAG(jenis) OVER w AS jenis_sebelum
-  FROM titik t
-  WINDOW w AS (PARTITION BY guru_id ORDER BY waktu)
-)
-SELECT
-  b.id            AS attendance_id,
-  b.guru_id,
-  b.unit_id,
-  b.tanggal,
-  b.jenis,
-  b.waktu,
-  b.jenis_sebelum,
-  b.waktu_sebelum,
-  ROUND(public.absensi_jarak_meter(b.lat_sebelum, b.lng_sebelum, b.lat, b.lng)) AS jarak_m,
-  ROUND(EXTRACT(EPOCH FROM (b.waktu - b.waktu_sebelum))/60)::int                AS selisih_menit,
-  ROUND((
-    public.absensi_jarak_meter(b.lat_sebelum, b.lng_sebelum, b.lat, b.lng) / 1000.0
-  ) / GREATEST(EXTRACT(EPOCH FROM (b.waktu - b.waktu_sebelum))/3600.0, 0.0001))  AS kecepatan_kmh
-FROM berpasangan b
-WHERE b.waktu_sebelum IS NOT NULL
-  -- Ambang sengaja longgar supaya tidak membanjiri SPV dengan kasus
-  -- wajar. 2 km menyaring guru yang pindah cabang beneran; 120 km/jam
-  -- tidak mungkin dicapai di jalanan kota dalam hitungan menit.
-  AND public.absensi_jarak_meter(b.lat_sebelum, b.lng_sebelum, b.lat, b.lng) > 2000
-  AND (
-    public.absensi_jarak_meter(b.lat_sebelum, b.lng_sebelum, b.lat, b.lng) / 1000.0
-  ) / GREATEST(EXTRACT(EPOCH FROM (b.waktu - b.waktu_sebelum))/3600.0, 0.0001) > 120;
-
-GRANT SELECT ON public.absensi_anomali_lokasi TO authenticated;
-
-
--- ------------------------------------------------------------
--- 4. Fungsi bantu untuk halaman verifikasi
---
--- View di atas tidak bisa langsung di-JOIN ke gurus/units lewat
--- PostgREST, jadi disediakan RPC yang sudah lengkap dengan namanya.
--- ------------------------------------------------------------
-
-CREATE OR REPLACE FUNCTION public.absensi_anomali(
-  p_dari  DATE DEFAULT (now() AT TIME ZONE 'Asia/Jakarta')::date - 30,
-  p_sampai DATE DEFAULT (now() AT TIME ZONE 'Asia/Jakarta')::date
-) RETURNS TABLE (
-  attendance_id UUID, tanggal DATE, guru_nama TEXT, unit_nama TEXT,
-  jenis TEXT, waktu TIMESTAMPTZ, jenis_sebelum TEXT, waktu_sebelum TIMESTAMPTZ,
-  jarak_m NUMERIC, selisih_menit INT, kecepatan_kmh NUMERIC
-) LANGUAGE sql STABLE SECURITY INVOKER
-SET search_path = public AS $$
-  SELECT v.attendance_id, v.tanggal, g.nama, u.nama,
-         v.jenis, v.waktu, v.jenis_sebelum, v.waktu_sebelum,
-         v.jarak_m, v.selisih_menit, v.kecepatan_kmh
-  FROM public.absensi_anomali_lokasi v
-  LEFT JOIN public.gurus g ON g.id = v.guru_id
-  LEFT JOIN public.units u ON u.id = v.unit_id
-  WHERE v.tanggal BETWEEN p_dari AND p_sampai
-  ORDER BY v.waktu DESC
-  LIMIT 200;
-$$;
-
-GRANT EXECUTE ON FUNCTION public.absensi_anomali(DATE, DATE) TO authenticated;
-
-
--- ------------------------------------------------------------
--- 5. Kueri kesiapan & pemantauan
+-- 3. Kueri kesiapan & pemantauan
 --
 -- Jalankan SEBELUM migrasi ini, untuk melihat siapa yang masih memakai
 -- jalur lama (harus kosong):
@@ -239,8 +141,8 @@ GRANT EXECUTE ON FUNCTION public.absensi_anomali(DATE, DATE) TO authenticated;
 --   SELECT COUNT(*) FROM attendances
 --   WHERE check_in >= now() - INTERVAL '24 hours' AND status_lokasi IS NOT NULL;
 --
--- Kalau masih ada isinya, minta guru tersebut menutup penuh aplikasinya
--- lalu membukanya lagi (bundel lama tersangkut di service worker).
+-- Kalau kueri pertama masih ada isinya, minta guru tersebut menutup
+-- penuh aplikasinya lalu membukanya lagi.
 --
 -- Kalibrasi radius sebelum menaikkan cabang ke 'blokir' — jangan pakai
 -- rata-rata, pakai persentil, supaya satu pencilan tidak melebarkan

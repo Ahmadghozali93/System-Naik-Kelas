@@ -470,7 +470,7 @@ export default function AbsensiCheckPage() {
 
       if (error) {
         // Jalur mundur ke INSERT langsung sudah dihapus: setelah migrasi
-        // 0018 mencabut policy "att_insert_self", jalur itu tidak akan
+        // 0019 mencabut policy "att_insert_self", jalur itu tidak akan
         // pernah berhasil lagi — menyisakannya hanya menghasilkan pesan
         // error yang membingungkan. RPC hilang kini berarti bundel lama.
         const kode = /PGRST202|function .* does not exist|schema cache/i.test(error.message) ? 'APP_OUTDATED'
