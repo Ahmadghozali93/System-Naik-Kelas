@@ -105,6 +105,7 @@ export default function JurnalPage() {
   const [filterBulanTahun, setFilterBulanTahun] = useState(String(new Date().getFullYear()));
   const [filterStartDate, setFilterStartDate] = useState('');
   const [filterEndDate, setFilterEndDate] = useState('');
+  const [filterGuru, setFilterGuru] = useState('');   // '' = semua guru
   const [search, setSearch] = useState('');
 
   // Pagination State
@@ -121,7 +122,7 @@ export default function JurnalPage() {
     if (user) {
       fetchJurnals();
     }
-  }, [filterType, filterBulan, filterStartDate, filterEndDate, user, isPrivileged]);
+  }, [filterType, filterBulan, filterStartDate, filterEndDate, filterGuru, user, isPrivileged]);
 
   const fetchJurnals = async () => {
     setIsLoadingJurnals(true);
@@ -141,6 +142,11 @@ export default function JurnalPage() {
 
         if (!isPrivileged && user?.id) {
           query = query.eq('guru_id', user.id);
+        } else if (isPrivileged && filterGuru) {
+          // Disaring di server, bukan di sisi tampilan, supaya sejalan dengan
+          // filter waktu: ringkasan statistik, Ekspor CSV, dan Mass Delete
+          // semuanya bekerja pada kumpulan data yang sama.
+          query = query.eq('guru_id', filterGuru);
         }
 
         if (filterType === 'bulan' && filterBulan) {
@@ -493,6 +499,23 @@ export default function JurnalPage() {
               onChange={(e) => { setSearch(e.target.value); setCurrentPage(1); }}
               style={{ padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', minWidth: '220px' }}
             />
+            {/* Hanya untuk yang boleh melihat jurnal orang lain. Bagi guru
+                biasa daftar ini tidak ada gunanya — jurnalnya sudah dibatasi
+                miliknya sendiri di query. */}
+            {isPrivileged && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                <Users className="w-4 h-4" style={{ color: 'var(--text-secondary)' }} />
+                <select
+                  value={filterGuru}
+                  onChange={(e) => { setFilterGuru(e.target.value); setCurrentPage(1); }}
+                  style={{ padding: '0.5rem 0.6rem', borderRadius: '0.5rem', border: `1px solid ${filterGuru ? 'var(--primary)' : 'var(--glass-border)'}`, background: 'var(--surface-color)', fontFamily: 'inherit', fontSize: '0.88rem', color: 'var(--text-primary)', minWidth: '170px', fontWeight: filterGuru ? 600 : 400 }}
+                >
+                  <option value="">Semua Guru</option>
+                  {gurus.map(g => <option key={g.id} value={g.id}>{g.nama}</option>)}
+                </select>
+              </div>
+            )}
+
             <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', color: 'var(--text-secondary)', fontWeight: 500 }}>
                 <Filter className="w-4 h-4" /> Filter Waktu:
             </div>
