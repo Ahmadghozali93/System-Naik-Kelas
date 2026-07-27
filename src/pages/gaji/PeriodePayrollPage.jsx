@@ -21,7 +21,6 @@ const STATUS_CFG = {
 export default function PeriodePayrollPage() {
   const { user } = useAuth();
   const [periode, setPeriode] = useState([]);
-  const [units, setUnits]     = useState([]);
   const [loading, setLoading] = useState(true);
 
   const [aktif, setAktif]   = useState(null);   // periode yang dibuka
@@ -29,7 +28,7 @@ export default function PeriodePayrollPage() {
   const [hitung, setHitung] = useState(false);
 
   const [buatModal, setBuatModal] = useState(false);
-  const [buatForm, setBuatForm]   = useState({ unit_id:'', tahun:new Date().getFullYear(), bulan:new Date().getMonth()+1 });
+  const [buatForm, setBuatForm]   = useState({ tahun:new Date().getFullYear(), bulan:new Date().getMonth()+1 });
 
   const [slipAktif, setSlipAktif] = useState(null);   // slip yang dilihat rinciannya
   const [detail, setDetail]       = useState([]);
@@ -42,13 +41,9 @@ export default function PeriodePayrollPage() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [pRes, uRes] = await Promise.all([
-      supabase.from('periode_payroll').select('*, units:unit_id(nama)')
-        .order('tahun',{ascending:false}).order('bulan',{ascending:false}),
-      supabase.from('units').select('id, nama').eq('aktif', true).order('nama'),
-    ]);
+    const pRes = await supabase.from('periode_payroll').select('*')
+      .order('tahun',{ascending:false}).order('bulan',{ascending:false});
     setPeriode(pRes.data || []);
-    setUnits(uRes.data || []);
     setLoading(false);
   };
 
@@ -63,12 +58,11 @@ export default function PeriodePayrollPage() {
 
   const buatPeriode = async (e) => {
     e.preventDefault();
-    if (!buatForm.unit_id) return alert('Pilih cabang.');
     const { error } = await supabase.from('periode_payroll').insert({
-      unit_id: buatForm.unit_id, tahun: Number(buatForm.tahun), bulan: Number(buatForm.bulan), status:'draft',
+      tahun: Number(buatForm.tahun), bulan: Number(buatForm.bulan), status:'draft',
     });
     if (error) {
-      if (error.code === '23505') return alert('Periode untuk cabang & bulan itu sudah ada.');
+      if (error.code === '23505') return alert('Periode untuk bulan itu sudah ada.');
       return alert('Gagal: ' + error.message);
     }
     setBuatModal(false); loadAll();
@@ -191,7 +185,6 @@ export default function PeriodePayrollPage() {
                     borderLeft:`3px solid ${dipilih ? 'var(--primary)' : 'transparent'}` }}>
                   <div style={{ fontWeight:600, fontSize:'0.88rem' }}>{BULAN[p.bulan]} {p.tahun}</div>
                   <div style={{ display:'flex', alignItems:'center', gap:'0.4rem', marginTop:'0.2rem' }}>
-                    <span style={{ fontSize:'0.72rem', color:'var(--text-secondary)' }}>{p.units?.nama}</span>
                     <span style={{ background:c.bg, color:c.color, padding:'0.05rem 0.4rem', borderRadius:999, fontSize:'0.68rem', fontWeight:700 }}>{c.label}</span>
                   </div>
                 </button>
@@ -213,7 +206,7 @@ export default function PeriodePayrollPage() {
                 <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap:'wrap', gap:'0.75rem', marginBottom:'1rem' }}>
                   <div>
                     <h2 style={{ fontSize:'1.1rem', fontWeight:700, margin:0 }}>
-                      {BULAN[aktif.bulan]} {aktif.tahun} — {aktif.units?.nama}
+                      {BULAN[aktif.bulan]} {aktif.tahun}
                     </h2>
                     <div style={{ fontSize:'0.8rem', color:'var(--text-secondary)', marginTop:'0.2rem' }}>
                       {slips.length} karyawan · Total {formatRupiah(slips.reduce((a,s)=>a+Number(s.gaji_bersih),0))}
@@ -249,7 +242,7 @@ export default function PeriodePayrollPage() {
 
                 {slips.length === 0 ? (
                   <p style={{ color:'var(--text-secondary)', fontSize:'0.88rem' }}>
-                    Belum ada slip. Klik <strong>Hitung Semua</strong> untuk menghitung gaji seluruh karyawan di cabang ini.
+                    Belum ada slip. Klik <strong>Hitung Semua</strong> untuk menghitung gaji seluruh karyawan aktif.
                   </p>
                 ) : (
                   <div style={{ overflowX:'auto' }}>
@@ -311,7 +304,7 @@ export default function PeriodePayrollPage() {
                   </div>
 
                   <SlipGajiPrintable model={dariSlipTersimpan(slipAktif, detail, {
-                    unitNama: aktif.units?.nama, bulan: aktif.bulan, tahun: aktif.tahun, internal: true,
+                    bulan: aktif.bulan, tahun: aktif.tahun, internal: true,
                     persetujuan: aktif.disetujui_nama ? {
                       nama: aktif.disetujui_nama, jabatan: aktif.disetujui_jabatan,
                       ttd: aktif.disetujui_ttd, tanggal: aktif.tanggal_kunci,
@@ -380,13 +373,6 @@ export default function PeriodePayrollPage() {
               <button onClick={()=>setBuatModal(false)} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={20}/></button>
             </div>
             <form onSubmit={buatPeriode} style={{ display:'flex', flexDirection:'column', gap:'0.85rem' }}>
-              <div>
-                <label style={lbl}>Cabang *</label>
-                <select required value={buatForm.unit_id} onChange={e=>setBuatForm(f=>({...f,unit_id:e.target.value}))} style={inp}>
-                  <option value="">— Pilih cabang —</option>
-                  {units.map(u=><option key={u.id} value={u.id}>{u.nama}</option>)}
-                </select>
-              </div>
               <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:'0.65rem' }}>
                 <div>
                   <label style={lbl}>Bulan *</label>

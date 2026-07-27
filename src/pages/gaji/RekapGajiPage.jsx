@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { Download, FileSpreadsheet, Search } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../../lib/supabase';
@@ -17,8 +17,7 @@ const lbl = { fontSize:'0.72rem', fontWeight:700, textTransform:'uppercase', let
 
 export default function RekapGajiPage() {
   const now = new Date();
-  const [units, setUnits]   = useState([]);
-  const [filter, setFilter] = useState({ bulan: now.getMonth()+1, tahun: now.getFullYear(), unit_id: '' });
+  const [filter, setFilter] = useState({ bulan: now.getMonth()+1, tahun: now.getFullYear() });
   const [loading, setLoading] = useState(false);
   const [sudahCari, setSudahCari] = useState(false);
 
@@ -27,24 +26,17 @@ export default function RekapGajiPage() {
   const [colPot, setColPot]   = useState([]);   // nama komponen potongan
   const [rows, setRows]       = useState([]);   // baris per karyawan
 
-  useEffect(() => {
-    supabase.from('units').select('id, nama').eq('aktif', true).order('nama')
-      .then(({ data }) => setUnits(data || []));
-  }, []);
-
   const tampilkan = async () => {
     setLoading(true); setSudahCari(true);
     setColPend([]); setColPot([]); setRows([]);
 
-    // 1. Periode pada bulan/tahun ini (RLS membatasi ke unit yang boleh dilihat)
-    let q = supabase.from('periode_payroll')
-      .select('id, unit_id, status, units:unit_id(nama)')
+    // 1. Periode bulan ini. Sejak 0020 periode bersifat global — satu per
+    //    bulan untuk seluruh perusahaan, tidak lagi dipecah per cabang.
+    const { data: periodes } = await supabase.from('periode_payroll')
+      .select('id, status')
       .eq('tahun', filter.tahun).eq('bulan', filter.bulan);
-    if (filter.unit_id) q = q.eq('unit_id', filter.unit_id);
-    const { data: periodes } = await q;
 
     if (!periodes || periodes.length === 0) { setLoading(false); return; }
-    const perMap = Object.fromEntries(periodes.map(p => [p.id, p]));
     const perIds = periodes.map(p => p.id);
 
     // 2. Slip semua karyawan pada periode-periode itu
@@ -91,11 +83,9 @@ export default function RekapGajiPage() {
 
     // 5. Susun baris
     const baris = slips.map(s => {
-      const per = perMap[s.periode_payroll_id];
       const a = absMap[s.guru_id] || { hadir:0, telat:0, izin:0, alpha:0 };
       return {
         nama: s.gurus?.nama || s.snapshot_karyawan?.nama || '-',
-        unit: per?.units?.nama || '-',
         jabatan: s.snapshot_karyawan?.jabatan || '-',
         pend: cPend.map(k => pivot[s.id]?.[k] || 0),
         pot:  cPot.map(k => pivot[s.id]?.[k] || 0),
@@ -105,7 +95,7 @@ export default function RekapGajiPage() {
         ...a,
         status: STATUS_LABEL[s.status] || s.status,
       };
-    }).sort((x, y) => x.unit.localeCompare(y.unit) || x.nama.localeCompare(y.nama));
+    }).sort((x, y) => x.nama.localeCompare(y.nama));
 
     setColPend(cPend); setColPot(cPot); setRows(baris);
     setLoading(false);
@@ -115,13 +105,13 @@ export default function RekapGajiPage() {
   const totalKol = (getter) => rows.reduce((a, r) => a + getter(r), 0);
 
   const exportExcel = () => {
-    const header = ['No','Nama','Unit','Jabatan', ...colPend, 'Total Pendapatan',
+    const header = ['No','Nama','Jabatan', ...colPend, 'Total Pendapatan',
       ...colPot, 'Total Potongan', 'Gaji Bersih', 'Hadir','Telat','Izin','Alpha','Status'];
     const body = rows.map((r, i) => [
-      i+1, r.nama, r.unit, r.jabatan, ...r.pend, r.totalPend,
+      i+1, r.nama, r.jabatan, ...r.pend, r.totalPend,
       ...r.pot, r.totalPot, r.bersih, r.hadir, r.telat, r.izin, r.alpha, r.status,
     ]);
-    const total = ['', 'TOTAL', '', '',
+    const total = ['', 'TOTAL', '',
       ...colPend.map((_, i) => totalKol(r => r.pend[i])), totalKol(r => r.totalPend),
       ...colPot.map((_, i) => totalKol(r => r.pot[i])),  totalKol(r => r.totalPot),
       totalKol(r => r.bersih),
@@ -163,13 +153,6 @@ export default function RekapGajiPage() {
           <input type="number" style={{...inp, width:100}} value={filter.tahun}
             onChange={e=>setFilter(f=>({...f, tahun:Number(e.target.value)}))} />
         </div>
-        <div>
-          <label style={lbl}>Unit</label>
-          <select style={inp} value={filter.unit_id} onChange={e=>setFilter(f=>({...f, unit_id:e.target.value}))}>
-            <option value="">Semua unit</option>
-            {units.map(u => <option key={u.id} value={u.id}>{u.nama}</option>)}
-          </select>
-        </div>
         <button className="btn btn-primary" onClick={tampilkan} disabled={loading}
           style={{ display:'flex', alignItems:'center', gap:'0.4rem' }}>
           <Search size={15}/> {loading ? 'Memuat...' : 'Tampilkan'}
@@ -202,7 +185,6 @@ export default function RekapGajiPage() {
                 <tr>
                   <th style={th}>No</th>
                   <th style={th}>Nama</th>
-                  <th style={th}>Unit</th>
                   <th style={th}>Jabatan</th>
                   {colPend.map(k => <th key={k} style={thR}>{k}</th>)}
                   <th style={{...thR, background:'rgba(4,120,87,0.06)'}}>Total Pendapatan</th>
@@ -221,7 +203,6 @@ export default function RekapGajiPage() {
                   <tr key={i}>
                     <td style={{...txt, color:'var(--text-secondary)'}}>{i+1}</td>
                     <td style={{...txt, fontWeight:600}}>{r.nama}</td>
-                    <td style={txt}>{r.unit}</td>
                     <td style={{...txt, color:'var(--text-secondary)'}}>{r.jabatan}</td>
                     {r.pend.map((v, j) => <td key={j} style={money}>{v ? formatRupiah(v) : '−'}</td>)}
                     <td style={{...money, fontWeight:700, background:'rgba(4,120,87,0.06)'}}>{formatRupiah(r.totalPend)}</td>
@@ -237,7 +218,7 @@ export default function RekapGajiPage() {
                 ))}
                 {/* Baris total */}
                 <tr style={{ background:'rgba(79,70,229,0.05)', fontWeight:700 }}>
-                  <td style={txt} colSpan={4}>TOTAL ({rows.length} karyawan)</td>
+                  <td style={txt} colSpan={3}>TOTAL ({rows.length} karyawan)</td>
                   {colPend.map((_, j) => <td key={j} style={money}>{formatRupiah(totalKol(r => r.pend[j]))}</td>)}
                   <td style={{...money, background:'rgba(4,120,87,0.06)'}}>{formatRupiah(totalKol(r => r.totalPend))}</td>
                   {colPot.map((_, j) => <td key={j} style={money}>{formatRupiah(totalKol(r => r.pot[j]))}</td>)}

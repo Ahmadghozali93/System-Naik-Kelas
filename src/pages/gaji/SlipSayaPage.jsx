@@ -11,7 +11,7 @@ export default function SlipSayaPage() {
   const { user } = useAuth();
   const [slips, setSlips]     = useState([]);
   const [loading, setLoading] = useState(true);
-  const [aktif, setAktif]     = useState(null);   // { slip, detail, unitNama, bulan, tahun }
+  const [aktif, setAktif]     = useState(null);   // { slip, detail, bulan, tahun }
   const [memuatSlip, setMemuatSlip] = useState(false);
 
   useEffect(() => { if (user?.id) load(); }, [user?.id]);
@@ -21,7 +21,7 @@ export default function SlipSayaPage() {
     // RLS: guru hanya bisa melihat slip miliknya yang sudah 'dibayar'
     const { data } = await supabase
       .from('slip_gaji')
-      .select('*, periode_payroll:periode_payroll_id(tahun, bulan, unit_id, tanggal_kunci, disetujui_nama, disetujui_jabatan, disetujui_ttd, units:unit_id(nama))')
+      .select('*, periode_payroll:periode_payroll_id(tahun, bulan, tanggal_kunci, disetujui_nama, disetujui_jabatan, disetujui_ttd)')
       .eq('guru_id', user.id)
       .eq('status', 'dibayar');
     const urut = (data || []).sort((a, b) => {
@@ -41,7 +41,6 @@ export default function SlipSayaPage() {
     const per = slip.periode_payroll;
     setAktif({
       slip, detail: detail || [],
-      unitNama: per?.units?.nama || '',
       bulan: per?.bulan, tahun: per?.tahun,
       persetujuan: per?.disetujui_nama ? {
         nama: per.disetujui_nama, jabatan: per.disetujui_jabatan,
@@ -53,7 +52,7 @@ export default function SlipSayaPage() {
 
   const model = aktif
     ? dariSlipTersimpan(aktif.slip, aktif.detail,
-        { unitNama: aktif.unitNama, bulan: aktif.bulan, tahun: aktif.tahun, internal: false,
+        { bulan: aktif.bulan, tahun: aktif.tahun, internal: false,
           persetujuan: aktif.persetujuan })
     : null;
 
