@@ -72,7 +72,26 @@ DELETE FROM public.periode_payroll;
 
 -- ------------------------------------------------------------
 -- 3. Skema — periode jadi global per bulan
+--
+-- Policy lama HARUS dihapus lebih dulu. Enam policy menyebut
+-- periode_payroll.unit_id di dalam ekspresinya — termasuk policy pada
+-- slip_gaji dan slip_gaji_detail yang menengok ke tabel periode lewat
+-- sub-query. Selama policy itu masih ada, Postgres menolak membuang
+-- kolomnya: "cannot drop column unit_id because other objects depend
+-- on it". Penggantinya dibuat di bagian 6.
+--
+-- Sengaja TIDAK memakai DROP COLUMN ... CASCADE. CASCADE akan ikut
+-- menghapus policy-policy itu diam-diam, dan kalau bagian 6 gagal,
+-- tabel gaji berakhir tanpa policy sama sekali — RLS menyala tanpa
+-- aturan, seluruh akses tertutup, tanpa jejak apa yang hilang.
 -- ------------------------------------------------------------
+
+DROP POLICY IF EXISTS pp_select  ON public.periode_payroll;
+DROP POLICY IF EXISTS pp_write   ON public.periode_payroll;
+DROP POLICY IF EXISTS sg_select  ON public.slip_gaji;
+DROP POLICY IF EXISTS sg_write   ON public.slip_gaji;
+DROP POLICY IF EXISTS sgd_select ON public.slip_gaji_detail;
+DROP POLICY IF EXISTS sgd_write  ON public.slip_gaji_detail;
 
 ALTER TABLE public.periode_payroll DROP CONSTRAINT IF EXISTS periode_payroll_unit_id_tahun_bulan_key;
 ALTER TABLE public.periode_payroll DROP COLUMN IF EXISTS unit_id;
