@@ -1,5 +1,11 @@
 // Basic Service Worker for PWA — Network-first strategy
-const CACHE_NAME = 'bimbel-app-cache-v3';
+// Naikkan versi ini setiap rilis yang mengubah cara aplikasi menulis data.
+// Handler 'activate' di bawah menghapus semua cache yang namanya != CACHE_NAME,
+// jadi menaikkan angkanya memaksa setiap perangkat membuang aset lamanya saat
+// service worker baru aktif. Selama nilainya tidak berubah, aset lama menumpuk
+// di perangkat tanpa pernah dibersihkan — itu yang bikin sebagian guru masih
+// memegang bundel JS lama berhari-hari setelah rilis 0017/0019.
+const CACHE_NAME = 'bimbel-app-cache-v4';
 const urlsToCache = [
     '/vite.svg'
 ];
