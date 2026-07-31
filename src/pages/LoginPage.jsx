@@ -13,9 +13,10 @@ export default function LoginPage() {
     const { login, signUp, loading } = useAuth();
     const navigate = useNavigate();
 
-    // Sign Up form (no status field — admin controls that)
+    // Sign Up form (tanpa field role & status — keduanya ditentukan server:
+    // trigger DB memaksa role 'Guru' + status 'Tidak Aktif', admin yang aktivasi)
     const [signUpData, setSignUpData] = useState({
-        email: '', password: '', nama: '', role: 'Guru',
+        email: '', password: '', nama: '',
         nowa: '', alamat: '', maps: '', tanggal_lahir: ''
     });
     const [signUpLoading, setSignUpLoading] = useState(false);
@@ -86,7 +87,9 @@ export default function LoginPage() {
             });
 
             if (!result.success) {
-                // Pesan umum agar tidak membocorkan email mana yang terdaftar
+                // Pesan ke layar sengaja umum; error asli tetap dicatat supaya
+                // kegagalan di sisi DB (mis. trigger profil) bisa ditelusuri.
+                console.error('Signup gagal:', result.error);
                 setErrorMsg(result.error?.includes('already')
                     ? 'Email sudah terdaftar. Silakan login atau gunakan email lain.'
                     : 'Gagal mendaftar. Silakan coba lagi.');
@@ -95,7 +98,7 @@ export default function LoginPage() {
             }
 
             setSuccessMsg('Pendaftaran berhasil! Akun Anda akan diaktifkan oleh admin terlebih dahulu sebelum bisa digunakan.');
-            setSignUpData({ email: '', password: '', nama: '', role: 'Guru', nowa: '', alamat: '', maps: '', tanggal_lahir: '' });
+            setSignUpData({ email: '', password: '', nama: '', nowa: '', alamat: '', maps: '', tanggal_lahir: '' });
             setTimeout(() => setActiveView('login'), 2000);
         } catch (error) {
             console.error('Error:', error.message);
