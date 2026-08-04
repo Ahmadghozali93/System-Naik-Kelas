@@ -21,7 +21,7 @@ export function dariSlipTersimpan(slip, detailRows, opts = {}) {
     potongan: map('potongan'),
     gaji_bersih: Number(slip.gaji_bersih),
     peringatan: slip.peringatan || [],
-    internal: !!opts.internal,      // tampilkan catatan internal? (admin ya, guru tidak)
+    internal: !!opts.internal,      // sudut pandang admin? (hanya mengubah judul blok catatan)
     // { nama, jabatan, ttd, tanggal } — snapshot penyetuju saat periode dikunci
     persetujuan: opts.persetujuan || null,
     mode: 'final',

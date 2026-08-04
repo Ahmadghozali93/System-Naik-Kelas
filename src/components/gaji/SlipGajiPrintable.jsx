@@ -110,11 +110,17 @@ export default function SlipGajiPrintable({ model }) {
         <span style={{ fontWeight:800, fontSize:'1.25rem', color:'#047857' }}>{formatRupiah(model.gaji_bersih)}</span>
       </div>
 
-      {/* CATATAN INTERNAL (tidak untuk guru) */}
-      {model.internal && (model.peringatan || []).length > 0 && (
+      {/* CATATAN PERHITUNGAN
+          Isinya menjelaskan kenapa sebuah komponen jadi 0 atau dipotong —
+          justru pertanyaan pertama guru saat angkanya terasa kurang, dan
+          semuanya tentang datanya sendiri. Sejak itu ikut ditampilkan ke
+          guru, hanya judulnya yang berbeda. Tetap `no-print`: ini anotasi
+          layar, bukan bagian dari slip resmi yang ditandatangani. */}
+      {(model.peringatan || []).length > 0 && (
         <div style={{ marginTop:'1rem', background:'#fef3c7', border:'1px solid #fcd34d', borderRadius:'0.5rem', padding:'0.7rem 0.85rem' }} className="no-print">
           <div style={{ display:'flex', alignItems:'center', gap:'0.35rem', fontWeight:700, fontSize:'0.8rem', color:'#92400e', marginBottom:'0.35rem' }}>
-            <AlertTriangle size={14}/> Catatan internal (tidak tampil di slip guru)
+            <AlertTriangle size={14}/>
+            {model.internal ? 'Catatan internal (tidak tampil di slip guru)' : 'Catatan perhitungan'}
           </div>
           <ul style={{ margin:0, paddingLeft:'1.1rem', fontSize:'0.78rem', color:'#92400e' }}>
             {model.peringatan.map((w, i) => <li key={i}>{w.komponen ? `${w.komponen}: ` : ''}{w.pesan}</li>)}
