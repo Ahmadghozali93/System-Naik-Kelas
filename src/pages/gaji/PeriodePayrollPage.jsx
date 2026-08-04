@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, Calculator, Lock, BadgeCheck, AlertTriangle, FileText, Printer, Eye } from 'lucide-react';
+import { Plus, X, Calculator, Lock, BadgeCheck, AlertTriangle, FileText, Printer, Eye, FileSpreadsheet } from 'lucide-react';
+import * as XLSX from 'xlsx';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import { formatRupiah } from '../../utils/formatRupiah';
@@ -33,6 +34,9 @@ export default function PeriodePayrollPage() {
   const [slipAktif, setSlipAktif] = useState(null);   // slip yang dilihat rinciannya
   const [detail, setDetail]       = useState([]);
   const [rincianJurnal, setRincianJurnal] = useState(null);
+  const [rincianNama, setRincianNama]     = useState('');   // nama komponen yang dibuka
+  const [rincianFilter, setRincianFilter] = useState('semua');
+  const [siswaNama, setSiswaNama]         = useState({});   // siswa_id → nama
 
   const [manualModal, setManualModal] = useState(false);
   const [manualForm, setManualForm]   = useState({ nama:'', kategori:'pendapatan', nominal:'', alasan:'' });
@@ -97,6 +101,48 @@ export default function PeriodePayrollPage() {
     });
     if (error) return alert('Gagal ambil rincian: ' + error.message);
     setRincianJurnal(data || []);
+    setRincianFilter('semua');
+    setRincianNama(d.nama_komponen);
+
+    // Jurnal hanya menyimpan siswa_id. Nama dicari terpisah supaya tabel dan
+    // file ekspor terbaca manusia — id mentah tidak berguna saat rincian ini
+    // dipakai menjelaskan potongan ke guru yang bersangkutan.
+    const ids = [...new Set((data || []).map(r => r.siswa_id).filter(Boolean))];
+    if (ids.length) {
+      const { data: sw } = await supabase.from('siswa').select('id, nama').in('id', ids);
+      setSiswaNama(Object.fromEntries((sw || []).map(s => [s.id, s.nama])));
+    } else {
+      setSiswaNama({});
+    }
+  };
+
+  // ── Penyaringan & ekspor rincian jurnal ──
+  // Duplikat dikenali dari alasan yang ditulis rincian_jurnal_fee: jurnal
+  // dengan siswa + tanggal + program sama hanya dibayar sekali.
+  const isDuplikat = (r) => (r.alasan || '').startsWith('Duplikat');
+  const SARINGAN = {
+    semua:        { label:'Semua',          uji: () => true },
+    duplikat:     { label:'Duplikat',       uji: isDuplikat },
+    tidak_dibayar:{ label:'Tidak dibayar',  uji: (r) => !r.dibayar },
+    dibayar:      { label:'Dibayar',        uji: (r) => r.dibayar },
+  };
+  const rincianTampil = (rincianJurnal || []).filter(SARINGAN[rincianFilter].uji);
+  const namaSiswa = (r) => siswaNama[r.siswa_id] || r.siswa_id || '-';
+
+  const exportRincian = () => {
+    const header = ['Tanggal','Program','ID Siswa','Nama Siswa','Dibayar','Tarif','Keterangan'];
+    const body = rincianTampil.map(r => [
+      r.tanggal, r.program || '', r.siswa_id || '', namaSiswa(r),
+      r.dibayar ? 'Ya' : 'Tidak', r.dibayar ? Number(r.tarif) : 0, r.alasan || '',
+    ]);
+    const total = ['', '', '', `TOTAL (${rincianTampil.length} jurnal)`, '',
+      rincianTampil.reduce((a, r) => a + (r.dibayar ? Number(r.tarif) : 0), 0), ''];
+    const ws = XLSX.utils.aoa_to_sheet([header, ...body, total]);
+    const wb = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(wb, ws, 'Rincian Jurnal');
+    const bersih = (s) => (s || '').replace(/[^a-zA-Z0-9]+/g, '_');
+    XLSX.writeFile(wb, `rincian_jurnal_${bersih(slipAktif?.gurus?.nama)}_${BULAN[aktif.bulan]}_${aktif.tahun}`
+      + (rincianFilter === 'semua' ? '' : `_${rincianFilter}`) + '.xlsx');
   };
 
   const tambahManual = async (e) => {
@@ -338,9 +384,34 @@ export default function PeriodePayrollPage() {
                   {rincianJurnal && (
                     <div className="no-print" style={{ marginTop:'1rem', border:'1px solid var(--glass-border)', borderRadius:'0.5rem', padding:'0.85rem' }}>
                       <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'0.6rem' }}>
-                        <strong style={{ fontSize:'0.85rem' }}>Rincian Jurnal Mengajar</strong>
+                        <strong style={{ fontSize:'0.85rem' }}>
+                          Rincian Jurnal Mengajar{rincianNama ? ` — ${rincianNama}` : ''}
+                        </strong>
                         <button onClick={()=>setRincianJurnal(null)} style={{ background:'none', border:'none', cursor:'pointer', color:'var(--text-secondary)' }}><X size={16}/></button>
                       </div>
+
+                      {/* Saringan + ekspor */}
+                      <div style={{ display:'flex', gap:'0.4rem', flexWrap:'wrap', alignItems:'center', marginBottom:'0.6rem' }}>
+                        {Object.entries(SARINGAN).map(([key, s]) => {
+                          const n = rincianJurnal.filter(s.uji).length;
+                          const dipilih = rincianFilter === key;
+                          return (
+                            <button key={key} onClick={()=>setRincianFilter(key)}
+                              style={{ border:'1px solid ' + (dipilih ? 'var(--primary)' : 'var(--glass-border)'),
+                                background: dipilih ? 'rgba(79,70,229,0.1)' : 'transparent',
+                                color: dipilih ? 'var(--primary)' : 'var(--text-secondary)',
+                                borderRadius:999, padding:'0.2rem 0.65rem', cursor:'pointer',
+                                fontFamily:'inherit', fontSize:'0.75rem', fontWeight: dipilih ? 700 : 500 }}>
+                              {s.label} ({n})
+                            </button>
+                          );
+                        })}
+                        <button className="btn" onClick={exportRincian} disabled={!rincianTampil.length}
+                          style={{ marginLeft:'auto', display:'flex', alignItems:'center', gap:'0.3rem', fontSize:'0.75rem' }}>
+                          <FileSpreadsheet size={13}/> Export Excel
+                        </button>
+                      </div>
+
                       <table style={{ width:'100%', borderCollapse:'collapse', fontSize:'0.78rem' }}>
                         <thead>
                           <tr style={{ borderBottom:'1px solid var(--glass-border)' }}>
@@ -350,11 +421,16 @@ export default function PeriodePayrollPage() {
                           </tr>
                         </thead>
                         <tbody>
-                          {rincianJurnal.map((r,i)=>(
-                            <tr key={i} style={{ borderBottom:'1px solid var(--glass-border)', opacity: r.dibayar ? 1 : 0.65 }}>
+                          {rincianTampil.length === 0 ? (
+                            <tr><td colSpan={5} style={{ padding:'0.9rem 0.4rem', textAlign:'center', color:'var(--text-secondary)' }}>
+                              Tidak ada jurnal pada saringan ini.
+                            </td></tr>
+                          ) : rincianTampil.map((r,i)=>(
+                            <tr key={i} style={{ borderBottom:'1px solid var(--glass-border)', opacity: r.dibayar ? 1 : 0.65,
+                              background: isDuplikat(r) ? 'rgba(185,28,28,0.05)' : 'transparent' }}>
                               <td style={{ padding:'0.35rem 0.4rem', whiteSpace:'nowrap' }}>{fmtTgl(r.tanggal)}</td>
                               <td style={{ padding:'0.35rem 0.4rem' }}>{r.program || '-'}</td>
-                              <td style={{ padding:'0.35rem 0.4rem' }}>{r.siswa_id}</td>
+                              <td style={{ padding:'0.35rem 0.4rem' }}>{namaSiswa(r)}</td>
                               <td style={{ padding:'0.35rem 0.4rem', whiteSpace:'nowrap' }}>
                                 {r.dibayar ? formatRupiah(r.tarif) : <span style={{ color:'#b91c1c' }}>tidak dibayar</span>}
                               </td>
@@ -362,9 +438,20 @@ export default function PeriodePayrollPage() {
                             </tr>
                           ))}
                         </tbody>
+                        {rincianTampil.length > 0 && (
+                          <tfoot>
+                            <tr style={{ fontWeight:700 }}>
+                              <td colSpan={3} style={{ padding:'0.45rem 0.4rem' }}>TOTAL ({rincianTampil.length} jurnal)</td>
+                              <td style={{ padding:'0.45rem 0.4rem', whiteSpace:'nowrap', color:'#047857' }}>
+                                {formatRupiah(rincianTampil.reduce((a,r)=>a + (r.dibayar ? Number(r.tarif) : 0), 0))}
+                              </td>
+                              <td/>
+                            </tr>
+                          </tfoot>
+                        )}
                       </table>
                       <p style={{ margin:'0.5rem 0 0', fontSize:'0.72rem', color:'var(--text-secondary)' }}>
-                        Baris yang redup tidak dibayar. Alasannya tertulis di kolom paling kanan.
+                        Baris yang redup tidak dibayar, yang berlatar merah adalah duplikat. Alasannya tertulis di kolom paling kanan.
                       </p>
                     </div>
                   )}
