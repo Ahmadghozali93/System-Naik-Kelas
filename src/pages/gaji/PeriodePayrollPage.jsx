@@ -148,8 +148,19 @@ export default function PeriodePayrollPage() {
     const { error } = await supabase.from('periode_payroll').update(patch).eq('id', aktif.id);
     if (error) return alert('Gagal: ' + error.message);
 
-    // Status slip mengikuti periode
-    await supabase.from('slip_gaji').update({ status }).eq('periode_payroll_id', aktif.id);
+    // Status slip mengikuti periode. Sejak 0026 propagasinya dikerjakan
+    // trigger DB dalam satu transaksi — dulu perintah terpisah dari sini
+    // bisa gagal diam-diam, periode tampak "Dibayar" tapi slip karyawan
+    // tetap 'terkunci' dan tidak pernah muncul di "Slip Gaji Saya".
+    const { count, error: eSlip } = await supabase.from('slip_gaji')
+      .select('id', { count:'exact', head:true })
+      .eq('periode_payroll_id', aktif.id).neq('status', status);
+    if (eSlip || count) {
+      alert('Periode sudah tersimpan, tetapi status slip karyawan belum ikut berubah'
+        + (count ? ` (${count} slip tertinggal).` : '.')
+        + '\n\nSlip belum akan muncul di halaman "Slip Gaji Saya". Hubungi admin sistem —'
+        + ' migrasi 0026 kemungkinan belum dijalankan di database.');
+    }
     const segar = { ...aktif, ...patch };
     setAktif(segar); loadAll(); bukaPeriode(segar);
   };
