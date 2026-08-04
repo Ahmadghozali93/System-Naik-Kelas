@@ -173,18 +173,22 @@ export default function KomponenGajiPage() {
     if (!ujiForm.guru_id) return alert('Pilih karyawan dulu.');
     setUjiLoading(true); setUjiHasil(null);
 
-    // Cari/siapkan periode draft untuk simulasi
+    // Cari/siapkan periode draft untuk simulasi. Sejak 0020 periode bersifat
+    // global — satu per bulan untuk seluruh perusahaan, tanpa unit_id — dan
+    // mesin hitung tidak lagi menyaring lewat guru_units.
     const guru = gurus.find(g => g.id === ujiForm.guru_id);
-    const { data: gu } = await supabase.from('guru_units').select('unit_id').eq('guru_id', ujiForm.guru_id).limit(1);
-    const unitId = gu?.[0]?.unit_id;
-    if (!unitId) { setUjiLoading(false); return alert(`${guru?.nama || 'Karyawan'} belum terdaftar di unit mana pun.`); }
 
     let { data: per } = await supabase.from('periode_payroll').select('id, status')
-      .eq('unit_id', unitId).eq('tahun', ujiForm.tahun).eq('bulan', ujiForm.bulan).maybeSingle();
+      .eq('tahun', ujiForm.tahun).eq('bulan', ujiForm.bulan).maybeSingle();
 
     if (!per) {
+      if (!window.confirm(`Belum ada periode ${BULAN[ujiForm.bulan]} ${ujiForm.tahun}.\n\n`
+        + 'Uji coba membutuhkan periode, jadi periode draft akan dibuat sekarang '
+        + 'dan tetap ada setelah uji coba selesai. Lanjutkan?')) {
+        setUjiLoading(false); return;
+      }
       const { data: baru, error } = await supabase.from('periode_payroll')
-        .insert({ unit_id: unitId, tahun: ujiForm.tahun, bulan: ujiForm.bulan, status: 'draft' })
+        .insert({ tahun: ujiForm.tahun, bulan: ujiForm.bulan, status: 'draft' })
         .select('id, status').single();
       if (error) { setUjiLoading(false); return alert('Gagal menyiapkan periode uji: ' + error.message); }
       per = baru;
