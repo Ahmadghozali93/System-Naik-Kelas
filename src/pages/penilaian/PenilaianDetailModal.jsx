@@ -1,8 +1,13 @@
-import { useState, useEffect } from 'react';
-import { X, Send, Lock, RotateCcw } from 'lucide-react';
+import { useState, useEffect, useRef } from 'react';
+import { X, Send, Lock, RotateCcw, Camera, Image, ImageOff } from 'lucide-react';
+import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 import { syncKualitasMengajar } from '../../utils/syncKualitasMengajar';
+
+const COMPRESS_OPTS = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true, initialQuality: 0.82 };
+const ALLOWED_TYPES = ['image/jpeg', 'image/jpg', 'image/png', 'image/webp'];
+const ALLOWED_EXT   = ['jpg', 'jpeg', 'png', 'webp'];
 
 const BULAN = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
 const THIS_YEAR  = new Date().getFullYear();
@@ -25,6 +30,7 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
   const { user } = useAuth();
   const isNew = !assessmentId;
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
+  const photoInputRef = useRef();
 
   const [loading, setLoading]   = useState(!isNew);
   const [saving, setSaving]     = useState(false);
@@ -33,9 +39,13 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
   const [gurus, setGurus]       = useState([]);
   const [labels, setLabels]     = useState([]);
   const [comments, setComments] = useState([]);
+  const [attachments, setAttachments] = useState([]);
+  const [signedUrls, setSignedUrls]   = useState({});
 
   const [newComment, setNewComment]     = useState('');
   const [sendingComment, setSendingComment] = useState(false);
+  const [commentPhoto, setCommentPhoto]               = useState(null);
+  const [commentPhotoPreview, setCommentPhotoPreview] = useState(null);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
@@ -56,13 +66,15 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
 
   const loadRow = async () => {
     setLoading(true);
-    const [rRes, cRes] = await Promise.all([
+    const [rRes, cRes, aRes] = await Promise.all([
       supabase.from('teaching_assessments')
         .select('*, gurus:assignee_id(id, nama), task_labels(id, nama, warna), units:unit_id(id, nama)')
         .eq('id', assessmentId).single(),
       supabase.from('teaching_assessment_comments')
         .select('*, gurus(id, nama)').eq('assessment_id', assessmentId)
         .order('created_at', { ascending: false }),
+      supabase.from('teaching_assessment_attachments')
+        .select('*').eq('assessment_id', assessmentId).order('uploaded_at'),
     ]);
     const r = rRes.data;
     if (r) {
@@ -75,7 +87,14 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
       });
     }
     setComments(cRes.data || []);
+    setAttachments(aRes.data || []);
     setLoading(false);
+  };
+
+  const getSignedUrl = async (path, id) => {
+    if (signedUrls[id] || !path) return;
+    const { data } = await supabase.storage.from('task-photos').createSignedUrl(path, 3600);
+    if (data?.signedUrl) setSignedUrls(prev => ({ ...prev, [id]: data.signedUrl }));
   };
 
   // ── Load master data + entri ──
@@ -187,18 +206,97 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
     await changeStatus('Revisi');
   };
 
+  // ── Foto komentar ──
+  const handleCommentPhotoSelect = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    if (!ALLOWED_TYPES.includes(file.type) || !ALLOWED_EXT.includes(ext)) {
+      alert('Hanya JPG, PNG, atau WebP.'); e.target.value = ''; return;
+    }
+    setCommentPhoto(file);
+    setCommentPhotoPreview(URL.createObjectURL(file));
+    e.target.value = '';
+  };
+  const clearCommentPhoto = () => {
+    if (commentPhotoPreview) URL.revokeObjectURL(commentPhotoPreview);
+    setCommentPhoto(null); setCommentPhotoPreview(null);
+  };
+
   // ── Komentar ──
   const addComment = async () => {
     const txt = newComment.trim();
-    if (!txt) return;
+    if (!txt && !commentPhoto) return;
     setSendingComment(true);
-    const { data, error } = await supabase.from('teaching_assessment_comments')
-      .insert({ assessment_id: assessmentId, guru_id: user?.id, isi: txt })
-      .select('*, gurus(id, nama)').single();
-    setSendingComment(false);
-    if (error) return alert('Gagal kirim komentar: ' + error.message);
-    setComments(prev => [data, ...prev]);
-    setNewComment('');
+    try {
+      const { data, error } = await supabase.from('teaching_assessment_comments')
+        .insert({ assessment_id: assessmentId, guru_id: user?.id, isi: txt })
+        .select('*, gurus(id, nama)').single();
+      if (error) throw new Error(error.message);
+
+      if (commentPhoto) {
+        const ext = commentPhoto.name.split('.').pop()?.toLowerCase();
+        const compressed = await imageCompression(commentPhoto, COMPRESS_OPTS);
+        const path = `assessments/${assessmentId}/${crypto.randomUUID()}.${ext}`;
+        const { error: sErr } = await supabase.storage
+          .from('task-photos').upload(path, compressed, { contentType: compressed.type || commentPhoto.type });
+        if (sErr) throw new Error(sErr.message);
+        const { data: attRec, error: dErr } = await supabase.from('teaching_assessment_attachments')
+          .insert({
+            assessment_id: assessmentId, comment_id: data.id, guru_id: user?.id,
+            storage_path: path, original_name: commentPhoto.name,
+            mime_type: compressed.type || commentPhoto.type, size_bytes: compressed.size,
+          })
+          .select().single();
+        if (dErr) throw new Error(dErr.message);
+        setAttachments(prev => [...prev, attRec]);
+      }
+
+      setComments(prev => [data, ...prev]);
+      setNewComment(''); clearCommentPhoto();
+    } catch (err) {
+      alert('Gagal kirim komentar: ' + err.message);
+    } finally {
+      setSendingComment(false);
+    }
+  };
+
+  const deleteAttachment = async (att) => {
+    if (!window.confirm('Hapus foto ini?')) return;
+    if (att.storage_path) await supabase.storage.from('task-photos').remove([att.storage_path]);
+    const { error } = await supabase.from('teaching_assessment_attachments').delete().eq('id', att.id);
+    if (error) return alert('Gagal hapus: ' + error.message);
+    setAttachments(prev => prev.filter(a => a.id !== att.id));
+  };
+
+  // ── Foto di komentar ──
+  const CommentPhoto = ({ att }) => {
+    if (!signedUrls[att.id] && att.storage_path && !att.is_expired) getSignedUrl(att.storage_path, att.id);
+    if (att.is_expired || att.storage_deleted_at) return (
+      <div style={{ display: 'flex', alignItems: 'center', gap: '0.3rem', color: 'var(--text-secondary)', fontSize: '0.72rem', padding: '0.3rem 0.5rem', border: '1px solid var(--glass-border)', borderRadius: '0.375rem' }}>
+        <ImageOff size={13} /> Kedaluwarsa
+      </div>
+    );
+    return (
+      <div style={{ position: 'relative', display: 'inline-block' }}>
+        {signedUrls[att.id] ? (
+          <a href={signedUrls[att.id]} target="_blank" rel="noreferrer">
+            <img src={signedUrls[att.id]} alt={att.original_name}
+              style={{ width: 150, height: 105, objectFit: 'cover', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', display: 'block', cursor: 'zoom-in' }} />
+          </a>
+        ) : (
+          <div style={{ width: 150, height: 105, borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <Image size={20} style={{ color: 'var(--text-secondary)' }} />
+          </div>
+        )}
+        {(isAdmin || att.guru_id === user?.id) && (
+          <button type="button" onClick={() => deleteAttachment(att)}
+            style={{ position: 'absolute', top: 4, right: 4, background: 'rgba(0,0,0,0.55)', border: 'none', borderRadius: '50%', width: 20, height: 20, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+            <X size={11} color="#fff" />
+          </button>
+        )}
+      </div>
+    );
   };
 
   const ph = isMobile ? '1rem' : '1.75rem';
@@ -359,6 +457,19 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
 
                 {/* Compose */}
                 <div style={{ border: '1px solid var(--glass-border)', borderRadius: '0.6rem', overflow: 'hidden', background: 'var(--surface-color)' }}>
+                  {commentPhotoPreview && (
+                    <div style={{ padding: '0.5rem 0.65rem', borderBottom: '1px solid var(--glass-border)', display: 'flex', alignItems: 'flex-start', gap: '0.5rem' }}>
+                      <div style={{ position: 'relative' }}>
+                        <img src={commentPhotoPreview} alt="preview"
+                          style={{ width: 68, height: 52, objectFit: 'cover', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', display: 'block' }} />
+                        <button type="button" onClick={clearCommentPhoto}
+                          style={{ position: 'absolute', top: -5, right: -5, background: '#ef4444', border: 'none', borderRadius: '50%', width: 16, height: 16, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 0 }}>
+                          <X size={9} color="#fff" />
+                        </button>
+                      </div>
+                      <span style={{ fontSize: '0.72rem', color: 'var(--text-secondary)', paddingTop: '0.2rem' }}>{commentPhoto?.name}</span>
+                    </div>
+                  )}
                   <textarea rows={2}
                     style={{ width: '100%', padding: '0.6rem 0.75rem', border: 'none', background: 'transparent', fontFamily: 'inherit', fontSize: '0.875rem', color: 'var(--text-primary)', resize: 'none', outline: 'none', boxSizing: 'border-box' }}
                     placeholder="Tulis komentar... (Enter untuk kirim)"
@@ -366,8 +477,15 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
                     onChange={e => setNewComment(e.target.value)}
                     onKeyDown={e => e.key === 'Enter' && !e.shiftKey && (e.preventDefault(), addComment())}
                   />
-                  <div style={{ display: 'flex', justifyContent: 'flex-end', alignItems: 'center', padding: '0.35rem 0.65rem', borderTop: '1px solid var(--glass-border)' }}>
-                    <button type="button" onClick={addComment} disabled={sendingComment || !newComment.trim()}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.35rem 0.65rem', borderTop: '1px solid var(--glass-border)' }}>
+                    <div>
+                      <input ref={photoInputRef} type="file" accept="image/jpeg,image/jpg,image/png,image/webp" onChange={handleCommentPhotoSelect} style={{ display: 'none' }} />
+                      <button type="button" onClick={() => photoInputRef.current?.click()} title="Lampirkan foto"
+                        style={{ background: commentPhotoPreview ? 'rgba(79,70,229,0.1)' : 'none', border: 'none', cursor: 'pointer', padding: '0.3rem', borderRadius: '0.375rem', color: commentPhotoPreview ? 'var(--primary)' : 'var(--text-secondary)', display: 'flex', alignItems: 'center' }}>
+                        <Camera size={15} />
+                      </button>
+                    </div>
+                    <button type="button" onClick={addComment} disabled={sendingComment || (!newComment.trim() && !commentPhoto)}
                       className="btn btn-primary"
                       style={{ padding: '0.3rem 0.85rem', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
                       <Send size={13} /> {sendingComment ? 'Mengirim...' : 'Kirim'}
@@ -378,15 +496,33 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
                 {/* List komentar — terbaru di atas */}
                 {comments.length > 0 && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: '0.55rem', maxHeight: 240, overflowY: 'auto' }}>
-                    {comments.map(c => (
-                      <div key={c.id} style={{ background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
-                          <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
-                          <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
+                    {comments.map(c => {
+                      const commentAtts = attachments.filter(a => a.comment_id === c.id);
+                      return (
+                        <div key={c.id} style={{ background: 'var(--surface-color)', border: '1px solid var(--glass-border)', borderRadius: '0.5rem', padding: '0.6rem 0.75rem' }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '0.2rem' }}>
+                            <span style={{ fontWeight: 600, fontSize: '0.8rem', color: 'var(--primary)' }}>{c.gurus?.nama}</span>
+                            <span style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>{fmtDT(c.created_at)}</span>
+                          </div>
+                          {c.isi && <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: 1.55, color: 'var(--text-primary)' }}>{c.isi}</p>}
+                          {commentAtts.length > 0 && (
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem', marginTop: '0.45rem' }}>
+                              {commentAtts.map(att => <CommentPhoto key={att.id} att={att} />)}
+                            </div>
+                          )}
                         </div>
-                        <p style={{ margin: 0, fontSize: '0.875rem', whiteSpace: 'pre-wrap', lineHeight: 1.55, color: 'var(--text-primary)' }}>{c.isi}</p>
-                      </div>
-                    ))}
+                      );
+                    })}
+                  </div>
+                )}
+
+                {/* Lampiran tanpa komentar (bila ada) */}
+                {attachments.filter(a => !a.comment_id && !a.is_expired).length > 0 && (
+                  <div>
+                    <p style={{ margin: '0 0 0.4rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Lampiran</p>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.4rem' }}>
+                      {attachments.filter(a => !a.comment_id && !a.is_expired).map(att => <CommentPhoto key={att.id} att={att} />)}
+                    </div>
                   </div>
                 )}
               </div>
