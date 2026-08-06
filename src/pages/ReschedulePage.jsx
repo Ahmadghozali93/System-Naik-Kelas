@@ -216,17 +216,25 @@ export default function ReschedulePage() {
 
     const selectStyle = { padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem', minWidth: '130px' };
 
+    // Identitas jadwal untuk sebuah baris riwayat.
+    // Jadwal yang masih ada dibaca langsung supaya perubahan guru/jam ikut
+    // terlihat; kalau jadwalnya sudah dihapus, penunjuknya NULL dan yang
+    // dipakai salinan yang tersimpan di baris reschedule itu sendiri
+    // (detail_asal / detail_tujuan, lihat migrasi 0027).
+    const jadwalDari = (jadwalId, snapshot) =>
+        jadwals.find(x => x.id === jadwalId) || snapshot || {};
+
     // Helper to get jadwal info string
-    const jadwalInfo = (jadwalId) => {
-        const j = jadwals.find(x => x.id === jadwalId);
-        if (!j) return '-';
+    const jadwalInfo = (jadwalId, snapshot) => {
+        const j = jadwalDari(jadwalId, snapshot);
+        if (!j.nama_program && !j.nama_guru) return '-';
         return `${j.nama_program} - ${j.nama_guru} (${j.hari || '-'} ${j.jam || '-'}) [${j.unit}]`;
     };
 
     // Helper to build WA text for reschedule
     const buildWaText = (r) => {
-        const jAsal = jadwals.find(x => x.id === r.jadwal_asal_id) || {};
-        const jTuj = jadwals.find(x => x.id === r.jadwal_tujuan_id) || {};
+        const jAsal = jadwalDari(r.jadwal_asal_id, r.detail_asal);
+        const jTuj = jadwalDari(r.jadwal_tujuan_id, r.detail_tujuan);
         const fTgl = (t) => {
             if (!t) return '-';
             const d = new Date(t);
@@ -485,10 +493,10 @@ export default function ReschedulePage() {
                                         >
                                             <td style={{ padding: '1rem', color: 'var(--text-secondary)' }}>{idx + 1}</td>
                                             <td style={{ padding: '1rem', fontWeight: 600 }}>{r.nama_siswa}</td>
-                                            <td style={{ padding: '1rem', fontSize: '0.8rem' }}>{jadwalInfo(r.jadwal_asal_id)}</td>
+                                            <td style={{ padding: '1rem', fontSize: '0.8rem' }}>{jadwalInfo(r.jadwal_asal_id, r.detail_asal)}</td>
                                             <td style={{ padding: '1rem' }}>{r.tanggal_asal}</td>
                                             <td style={{ padding: '1rem', textAlign: 'center', fontSize: '1.2rem', color: 'var(--primary)' }}>→</td>
-                                            <td style={{ padding: '1rem', fontSize: '0.8rem' }}>{jadwalInfo(r.jadwal_tujuan_id)}</td>
+                                            <td style={{ padding: '1rem', fontSize: '0.8rem' }}>{jadwalInfo(r.jadwal_tujuan_id, r.detail_tujuan)}</td>
                                             <td style={{ padding: '1rem' }}>{r.tanggal_tujuan}</td>
                                             <td style={{ padding: '1rem' }}>
                                                 <span className="badge" style={{ background: getStatusStyle(r.status).bg, color: getStatusStyle(r.status).text }}>
