@@ -172,27 +172,61 @@ export default function JadwalMasterPage() {
         }
     };
 
+    // Siapa saja yang masih memegang jadwal ini. Dihitung langsung ke database,
+    // bukan dari data yang sudah termuat di layar, supaya angkanya tidak basi.
+    // Tabel yang gagal dihitung dilewati diam-diam: penjagaan sebenarnya tetap
+    // ada di database (FK dan trigger), pemeriksaan ini hanya agar pesannya
+    // bisa menyebut penyebab yang benar sebelum penghapusan dicoba.
+    const cariPenahanJadwal = async (id) => {
+        const [aktRes, apptRes, rescRes] = await Promise.all([
+            supabase.from('aktivasi_siswa').select('id', { count: 'exact', head: true }).eq('jadwal_id', id),
+            supabase.from('appointment').select('id', { count: 'exact', head: true }).eq('jadwal_id', id),
+            supabase.from('reschedules').select('id', { count: 'exact', head: true })
+                .in('status', ['Pending', 'Approved'])
+                .or(`jadwal_asal_id.eq.${id},jadwal_tujuan_id.eq.${id}`)
+        ]);
+
+        const penahan = [];
+        if (!aktRes.error && aktRes.count > 0) {
+            penahan.push(`${aktRes.count} data Aktivasi Siswa — hapus dulu di halaman Aktivasi Siswa (Rutin/Harian).`);
+        }
+        if (!apptRes.error && apptRes.count > 0) {
+            penahan.push(`${apptRes.count} data Appointment (trial) — hapus atau batalkan dulu di halaman Appointment.`);
+        }
+        if (!rescRes.error && rescRes.count > 0) {
+            penahan.push(`${rescRes.count} pengajuan Reschedule berstatus Pending/Approved — selesaikan atau batalkan dulu di halaman Reschedule.`);
+        }
+        return penahan;
+    };
+
     const handleDelete = async (id) => {
-        if (window.confirm("Apakah Anda yakin ingin menghapus jadwal ini?")) {
-            try {
-                const { error } = await supabase
-                    .from('jadwal_master')
-                    .delete()
-                    .eq('id', id);
+        if (!window.confirm("Apakah Anda yakin ingin menghapus jadwal ini?")) return;
 
-                if (error) {
-                    if (error.code === '23503') {
-                        alert('Tidak bisa menghapus jadwal ini karena sudah ada siswa yang terdaftar di dalamnya (Aktivasi Siswa). Silakan hapus data aktivasi siswa terlebih dahulu.');
-                        return;
-                    }
-                    throw error;
-                }
-
-                setJadwals(jadwals.filter(j => j.id !== id));
-            } catch (error) {
-                console.error('Error deleting jadwal:', error.message);
-                alert('Gagal menghapus data dari database.');
+        try {
+            const penahan = await cariPenahanJadwal(id);
+            if (penahan.length > 0) {
+                alert('Jadwal ini belum bisa dihapus karena masih dipakai:\n\n• ' + penahan.join('\n• '));
+                return;
             }
+
+            const { error } = await supabase
+                .from('jadwal_master')
+                .delete()
+                .eq('id', id);
+
+            if (error) {
+                // Jaring pengaman: sesuatu yang lolos dari pemeriksaan di atas —
+                // data yang masuk sesaat setelahnya, atau tabel yang gagal dihitung.
+                // Sebutkan keterangan aslinya, jangan menebak tabel penyebabnya.
+                console.error('Error deleting jadwal:', error);
+                alert('Jadwal tidak bisa dihapus karena masih dipakai data lain.\n\n' + (error.details || error.message || ''));
+                return;
+            }
+
+            setJadwals(jadwals.filter(j => j.id !== id));
+        } catch (error) {
+            console.error('Error deleting jadwal:', error.message);
+            alert('Gagal menghapus data dari database.');
         }
     };
 
