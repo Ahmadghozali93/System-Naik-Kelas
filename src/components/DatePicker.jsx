@@ -49,18 +49,13 @@ export default function DatePicker({ name, value, onChange, required, disabled }
     emit(newParts);
   };
 
+  // Tampilannya ikut .form-input supaya tinggi dan hurufnya sama persis
+  // dengan kolom isian lain di formulir yang sama — hanya lebar kolomnya
+  // yang diatur di sini.
   const sel = {
     flex: 1,
-    padding: '0.5rem 0.4rem',
-    borderRadius: '0.5rem',
-    border: '1px solid var(--glass-border)',
-    background: 'var(--surface-color)',
-    fontFamily: 'inherit',
-    fontSize: '0.88rem',
-    outline: 'none',
     cursor: disabled ? 'default' : 'pointer',
     opacity: disabled ? 0.6 : 1,
-    color: 'var(--text-color)',
   };
 
   const hiddenVal = parts.year && parts.month && parts.day
@@ -78,17 +73,17 @@ export default function DatePicker({ name, value, onChange, required, disabled }
         style={{ position: 'absolute', opacity: 0, width: 0, height: 0, pointerEvents: 'none' }}
       />
 
-      <select value={parts.day} onChange={e => handleChange('day', e.target.value)} disabled={disabled} style={sel}>
+      <select className="form-input" value={parts.day} onChange={e => handleChange('day', e.target.value)} disabled={disabled} style={sel}>
         <option value="">Tgl</option>
         {days.map(d => <option key={d} value={String(d)}>{d}</option>)}
       </select>
 
-      <select value={parts.month} onChange={e => handleChange('month', e.target.value)} disabled={disabled} style={{ ...sel, flex: 1.6 }}>
+      <select className="form-input" value={parts.month} onChange={e => handleChange('month', e.target.value)} disabled={disabled} style={{ ...sel, flex: 1.6 }}>
         <option value="">Bulan</option>
         {MONTHS.map((m, i) => <option key={i} value={String(i + 1)}>{m}</option>)}
       </select>
 
-      <select value={parts.year} onChange={e => handleChange('year', e.target.value)} disabled={disabled} style={{ ...sel, flex: 1.3 }}>
+      <select className="form-input" value={parts.year} onChange={e => handleChange('year', e.target.value)} disabled={disabled} style={{ ...sel, flex: 1.3 }}>
         <option value="">Tahun</option>
         {years.map(y => <option key={y} value={String(y)}>{y}</option>)}
       </select>
