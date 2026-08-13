@@ -17,6 +17,11 @@
   --surface-solid:  #ffffff;
   --glass-border:   rgba(148, 163, 184, 0.3);
   --border:         #e2e8f0;
+  /* Kotak isian: sedikit lebih gelap dari kartu, supaya batas ruas terbaca
+     tanpa mengandalkan garis tepi tipis saja. --surface-locked untuk ruas
+     yang sengaja tidak bisa diubah. */
+  --surface-input:  #f8fafc;
+  --surface-locked: #f1f5f9;
 
   /* Text */
   --text-primary:   #0f172a;
@@ -220,13 +225,28 @@ body {
 /* ================================================================
    FORM INPUTS
    ================================================================ */
+
+/* Elemen form bawaan browser tidak mewarisi font dari body — tanpa aturan
+   ini, isi kotak tampil dengan font sistem sementara labelnya memakai Inter,
+   dan tinggi hurufnya tidak sepadan. Ini menyentuh seluruh aplikasi, bukan
+   cuma formulir di modal. */
+input, select, textarea, button {
+  font-family: inherit;
+}
+
+/* Ukuran dasar untuk kontrol yang tidak menyetel ukurannya sendiri.
+   Sepadan dengan .form-input di bawah. */
+input, select, textarea {
+  font-size: 0.875rem;
+}
+
 .form-input {
   display: block;
   width: 100%;
   padding: 0.5rem 0.75rem;
   border-radius: var(--radius-md);
-  border: 1px solid var(--glass-border);
-  background: var(--surface-color);
+  border: 1px solid var(--border);
+  background: var(--surface-input);
   font-family: inherit;
   font-size: 0.875rem;
   color: var(--text-primary);
@@ -235,6 +255,43 @@ body {
 }
 .form-input:focus {
   border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
+}
+
+/* ── Penyeragaman kotak isian di dalam modal ──
+   Sebagian besar kontrol menyetel latar & garis tepinya lewat gaya inline,
+   yang tidak bisa dikalahkan stylesheet tanpa !important. Aturan ini sengaja
+   dibatasi pada isi modal supaya jangkauannya jelas, dan berhenti begitu
+   gaya inline itu dibersihkan (Lapis 2).
+   Kotak isian di atas modal putih tadinya nyaris putih juga — hanya
+   dibedakan garis beralfa 30%. */
+.modal-content input:not([type="checkbox"]):not([type="radio"]):not(:disabled):not([readonly]),
+.modal-content select:not(:disabled),
+.modal-content textarea:not(:disabled):not([readonly]) {
+  background: var(--surface-input) !important;
+  border-color: var(--border) !important;
+  color: var(--text-primary);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+/* Ruas terkunci tetap terbaca sebagai terkunci. */
+.modal-content input:disabled,
+.modal-content select:disabled,
+.modal-content textarea:disabled,
+.modal-content input[readonly],
+.modal-content textarea[readonly] {
+  background: var(--surface-locked) !important;
+  border-color: var(--border) !important;
+  color: var(--text-secondary) !important;
+  cursor: not-allowed;
+}
+
+/* Cincin fokus yang sama untuk semua kontrol, bukan hanya .form-input. */
+.modal-content input:focus,
+.modal-content select:focus,
+.modal-content textarea:focus {
+  border-color: var(--primary) !important;
   box-shadow: 0 0 0 3px rgba(79,70,229,0.1);
 }
 
@@ -583,6 +640,22 @@ body {
     border-radius: var(--radius-xl) var(--radius-xl) 0 0;
     max-width: 100%;
     padding: 1.25rem 1rem;
+  }
+
+  /* Formulir modal jadi satu kolom. Grid dua kolomnya disetel lewat gaya
+     inline di tiap halaman, jadi hanya !important yang bisa mengalahkannya.
+     Tanpa ini, di layar 360px tiap kolom hanya selebar ~160px. */
+  .modal-content form {
+    grid-template-columns: 1fr !important;
+  }
+
+  /* Safari iOS memperbesar seluruh halaman saat kontrol ber-font di bawah
+     16px disentuh, dan tidak mengembalikannya. Kontrol di sini memakai
+     0,85–0,875rem lewat gaya inline, jadi harus dipaksa dari sini. */
+  input:not([type="checkbox"]):not([type="radio"]),
+  select,
+  textarea {
+    font-size: 16px !important;
   }
 
   /* Kanban columns smaller */
