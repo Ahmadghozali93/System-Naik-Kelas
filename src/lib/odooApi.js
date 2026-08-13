@@ -71,6 +71,70 @@ export async function getOrCreatePartner(apiKey, email, name) {
   return id;
 }
 
+// ─── Kontak siswa ────────────────────────────────────────────────────────────
+// Dipakai halaman Siswa. Berbeda dari getOrCreatePartner() di atas yang
+// mencocokkan nama SAMA PERSIS lalu langsung membuat kalau tidak ketemu —
+// di sini pencariannya longgar dan hasilnya dikembalikan ke pemanggil supaya
+// operator bisa memutuskan, sebab siswa yang pernah difakturkan sudah punya
+// kontak dan tidak boleh dibuat dua kali.
+
+const angkaSaja = (v) => String(v || '').replace(/\D/g, '');
+
+// 08xx / 62xx / +62xx → +62xx
+export function nomorInternasional(nowa) {
+  const a = angkaSaja(nowa);
+  if (!a) return '';
+  if (a.startsWith('62')) return '+' + a;
+  if (a.startsWith('0'))  return '+62' + a.slice(1);
+  return '+' + a;
+}
+
+// Dua nomor dianggap sama bila sembilan angka terakhirnya sama — cukup untuk
+// mengabaikan beda awalan 0/62/+62 tanpa menyamakan nomor yang benar-benar beda.
+const nomorSama = (a, b) => {
+  const x = angkaSaja(a), y = angkaSaja(b);
+  return x.length >= 9 && y.length >= 9 && x.slice(-9) === y.slice(-9);
+};
+
+const keteranganKontak = (siswa) => {
+  const baris = [];
+  if (siswa.nama_ortu) baris.push(`Orang tua/wali: ${siswa.nama_ortu}`);
+  if (siswa.unit)      baris.push(`Unit: ${siswa.unit}`);
+  return baris.join('\n');
+};
+
+// Kandidat kontak yang mungkin sudah mewakili siswa ini.
+// cocokTelepon = nomornya juga sama, jadi hampir pasti orang yang sama.
+export async function cariKontakSiswa(apiKey, email, { nama, nowa }) {
+  if (!nama) return [];
+  const rows = await rpc('res.partner', 'search_read',
+    [[['name', 'ilike', nama]]],
+    { fields: ['id', 'name', 'mobile', 'phone', 'street'], limit: 10, order: 'id asc' },
+    apiKey, email
+  );
+  return rows.map(r => ({
+    ...r,
+    cocokTelepon: nomorSama(nowa, r.mobile) || nomorSama(nowa, r.phone),
+  }));
+}
+
+// Kontak sengaja dibuat tanpa company_id supaya menjadi milik bersama:
+// siswa yang pindah cabang tetap bisa ditagih dari cabang mana pun.
+export async function buatKontakSiswa(apiKey, email, siswa) {
+  const id = await rpc('res.partner', 'create',
+    [{
+      name:          siswa.nama,
+      customer_rank: 1,
+      mobile:        nomorInternasional(siswa.nowa) || false,
+      street:        siswa.alamat || false,
+      comment:       keteranganKontak(siswa) || false,
+    }],
+    {},
+    apiKey, email
+  );
+  return { id, name: siswa.nama };
+}
+
 // ─── Product ─────────────────────────────────────────────────────────────────
 
 export async function findProduct(apiKey, email, productName, companyId) {

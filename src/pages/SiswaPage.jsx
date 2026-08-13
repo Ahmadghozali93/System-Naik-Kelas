@@ -1,8 +1,10 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, Edit, Trash2, X, MapPin, MessageCircle, Eye, Instagram, Facebook } from 'lucide-react';
+import { GraduationCap, Edit, Trash2, X, MapPin, MessageCircle, Eye, Instagram, Facebook, Link2, Check, AlertTriangle, Loader2 } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DatePicker from '../components/DatePicker';
 import { toProperCase } from '../utils/formatRupiah';
+import { useAuth } from '../context/authStore';
+import { loadOdooSettings, configureOdoo, cariKontakSiswa, buatKontakSiswa } from '../lib/odooApi';
 
 // Ikona kustom sederhana untuk TikTok karena tidak ada di lucid default
 const TikTokIcon = ({ size }) => (
@@ -12,6 +14,15 @@ const TikTokIcon = ({ size }) => (
 );
 
 export default function SiswaPage() {
+    const { user, permissions } = useAuth();
+    // Tombol Odoo mengikuti izin halaman Faktur Odoo — pengelolanya sama.
+    const bolehOdoo = user?.role === 'Owner' || (permissions || []).includes('/spp/faktur-odoo');
+
+    const [odooKey, setOdooKey]     = useState('');
+    const [odooEmail, setOdooEmail] = useState('');
+    const [prosesOdoo, setProsesOdoo] = useState(new Set());   // id siswa yang sedang diproses
+    const [konfirmasiOdoo, setKonfirmasiOdoo] = useState(null); // { siswa, kandidat: [] }
+
     const [siswas, setSiswas] = useState([]); // Changed from siswaList to siswas
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingId, setEditingId] = useState(null);
@@ -80,6 +91,100 @@ export default function SiswaPage() {
     useEffect(() => {
         fetchData();
     }, []);
+
+    // Kredensial Odoo dikelola di halaman Faktur Odoo; di sini cukup dibaca.
+    useEffect(() => {
+        if (!bolehOdoo) return;
+        loadOdooSettings(supabase).then(s => {
+            if (s.odoo_api_key) setOdooKey(s.odoo_api_key);
+            if (s.odoo_email)   setOdooEmail(s.odoo_email);
+            configureOdoo({ odooUrl: s.odoo_url, odooDb: s.odoo_db });
+        });
+    }, [bolehOdoo]);
+
+    // ─── Kontak Odoo ─────────────────────────────────────────────────────────
+    // Siswa yang pernah difakturkan sudah punya kontak di Odoo, jadi selalu
+    // dicari dulu sebelum membuat. Kalau nomor WA-nya ikut cocok, kontaknya
+    // hampir pasti orang yang sama dan langsung ditautkan; kalau hanya namanya
+    // yang mirip, operator yang memutuskan.
+    const simpanTautan = async (siswa, partner) => {
+        const { error } = await supabase.from('siswa').update({
+            odoo_partner_id:   partner.id,
+            odoo_partner_name: partner.name,
+            odoo_synced_at:    new Date().toISOString(),
+            odoo_error:        null,
+        }).eq('id', siswa.id);
+        if (error) throw error;
+        setSiswas(prev => prev.map(s => s.id === siswa.id
+            ? { ...s, odoo_partner_id: partner.id, odoo_partner_name: partner.name, odoo_error: null }
+            : s));
+    };
+
+    const catatGagal = async (siswa, pesan) => {
+        await supabase.from('siswa').update({
+            odoo_error: pesan, odoo_synced_at: new Date().toISOString(),
+        }).eq('id', siswa.id);
+        setSiswas(prev => prev.map(s => s.id === siswa.id ? { ...s, odoo_error: pesan } : s));
+    };
+
+    const tandaiProses = (id, aktif) => setProsesOdoo(prev => {
+        const s = new Set(prev);
+        if (aktif) s.add(id); else s.delete(id);
+        return s;
+    });
+
+    const handleBuatKontak = async (siswa) => {
+        if (!odooKey || !odooEmail) {
+            alert('Kredensial Odoo belum diisi. Buka SPP → Faktur Odoo, lalu isi panel Pengaturan Odoo.');
+            return;
+        }
+        tandaiProses(siswa.id, true);
+        try {
+            const kandidat = await cariKontakSiswa(odooKey, odooEmail, { nama: siswa.nama, nowa: siswa.nowa });
+            const pasti = kandidat.find(k => k.cocokTelepon);
+
+            if (pasti) {
+                await simpanTautan(siswa, pasti);
+            } else if (kandidat.length > 0) {
+                setKonfirmasiOdoo({ siswa, kandidat });
+            } else {
+                const baru = await buatKontakSiswa(odooKey, odooEmail, siswa);
+                await simpanTautan(siswa, baru);
+            }
+        } catch (e) {
+            await catatGagal(siswa, e.message);
+            alert(`Gagal membuat kontak untuk ${siswa.nama}:\n${e.message}`);
+        }
+        tandaiProses(siswa.id, false);
+    };
+
+    // Dipanggil dari dialog konfirmasi
+    const handlePilihKandidat = async (partner) => {
+        const { siswa } = konfirmasiOdoo;
+        setKonfirmasiOdoo(null);
+        tandaiProses(siswa.id, true);
+        try {
+            await simpanTautan(siswa, partner);
+        } catch (e) {
+            await catatGagal(siswa, e.message);
+            alert(`Gagal menautkan: ${e.message}`);
+        }
+        tandaiProses(siswa.id, false);
+    };
+
+    const handleBuatBaruSaja = async () => {
+        const { siswa } = konfirmasiOdoo;
+        setKonfirmasiOdoo(null);
+        tandaiProses(siswa.id, true);
+        try {
+            const baru = await buatKontakSiswa(odooKey, odooEmail, siswa);
+            await simpanTautan(siswa, baru);
+        } catch (e) {
+            await catatGagal(siswa, e.message);
+            alert(`Gagal membuat kontak: ${e.message}`);
+        }
+        tandaiProses(siswa.id, false);
+    };
 
     const handleOpenModal = (siswa = null, viewOnly = false) => {
         setIsViewing(viewOnly);
@@ -264,13 +369,14 @@ export default function SiswaPage() {
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Unit</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Sosial Media</th>
+                                {bolehOdoo && <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Odoo</th>}
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan="6" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                    <td colSpan={bolehOdoo ? 7 : 6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
                                         Memuat data...
                                     </td>
                                 </tr>
@@ -294,7 +400,7 @@ export default function SiswaPage() {
 
                                     return filteredSiswas.length === 0 ? (
                                         <tr>
-                                            <td colSpan="7" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>
+                                            <td colSpan={bolehOdoo ? 7 : 6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
                                                 Tidak ada siswa yang cocok.
                                             </td>
                                         </tr>
@@ -375,6 +481,38 @@ export default function SiswaPage() {
                                                     )}
                                                 </div>
                                             </td>
+                                            {bolehOdoo && (
+                                                <td style={{ padding: '1rem' }}>
+                                                    {s.odoo_partner_id ? (
+                                                        <span className="badge"
+                                                            style={{ background: '#d1fae5', color: '#047857', display: 'inline-flex', alignItems: 'center', gap: '0.3rem' }}
+                                                            title={`Kontak Odoo #${s.odoo_partner_id}${s.odoo_partner_name ? ' — ' + s.odoo_partner_name : ''}`}>
+                                                            <Check size={13} /> Tersinkron
+                                                        </span>
+                                                    ) : prosesOdoo.has(s.id) ? (
+                                                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                                                            <Loader2 size={14} style={{ animation: "spin 1s linear infinite" }} /> Memproses…
+                                                        </span>
+                                                    ) : (
+                                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                                                            <button onClick={() => handleBuatKontak(s)} disabled={!odooKey}
+                                                                title={odooKey ? 'Buat / tautkan kontak di Odoo' : 'Kredensial Odoo belum diisi (SPP → Faktur Odoo)'}
+                                                                style={{
+                                                                    display: 'inline-flex', alignItems: 'center', gap: '0.3rem',
+                                                                    background: 'rgba(79,70,229,0.1)', color: 'var(--primary)', border: 'none',
+                                                                    padding: '0.35rem 0.6rem', borderRadius: '0.4rem', fontSize: '0.78rem',
+                                                                    fontWeight: 600, fontFamily: 'inherit',
+                                                                    cursor: odooKey ? 'pointer' : 'not-allowed', opacity: odooKey ? 1 : 0.5,
+                                                                }}>
+                                                                <Link2 size={13} /> {s.odoo_error ? 'Coba Lagi' : 'Buat Kontak'}
+                                                            </button>
+                                                            {s.odoo_error && (
+                                                                <AlertTriangle size={14} style={{ color: '#b91c1c', flexShrink: 0 }} title={s.odoo_error} />
+                                                            )}
+                                                        </div>
+                                                    )}
+                                                </td>
+                                            )}
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     <button
@@ -718,6 +856,60 @@ export default function SiswaPage() {
                                 )}
                             </div>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {/* Konfirmasi kontak Odoo — muncul saat ada kontak bernama mirip
+                tapi nomornya tidak cocok, sehingga belum tentu orang yang sama. */}
+            {konfirmasiOdoo && (
+                <div className="modal-overlay">
+                    <div className="modal-content" style={{ maxWidth: '560px' }} onClick={e => e.stopPropagation()}>
+                        <div className="modal-header">
+                            <div>
+                                <p className="modal-eyebrow">Kontak Odoo</p>
+                                <h2 className="modal-title">{konfirmasiOdoo.siswa.nama}</h2>
+                            </div>
+                            <button className="modal-close" onClick={() => setKonfirmasiOdoo(null)}><X size={20} /></button>
+                        </div>
+
+                        <p style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginBottom: '1rem' }}>
+                            Di Odoo sudah ada {konfirmasiOdoo.kandidat.length} kontak dengan nama mirip, tapi
+                            nomor WA-nya tidak cocok — jadi belum tentu orang yang sama. Tautkan ke salah satunya,
+                            atau buat kontak baru.
+                        </p>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginBottom: '1.25rem' }}>
+                            {konfirmasiOdoo.kandidat.map(k => (
+                                <button key={k.id} onClick={() => handlePilihKandidat(k)}
+                                    style={{
+                                        display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: '1rem',
+                                        textAlign: 'left', padding: '0.7rem 0.9rem', borderRadius: '0.5rem',
+                                        border: '1px solid var(--border)', background: 'var(--surface-input)',
+                                        cursor: 'pointer', fontFamily: 'inherit',
+                                    }}>
+                                    <span>
+                                        <span style={{ fontWeight: 600, display: 'block' }}>{k.name}</span>
+                                        <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
+                                            #{k.id}{(k.mobile || k.phone) ? ` · ${k.mobile || k.phone}` : ' · tanpa nomor'}
+                                            {k.street ? ` · ${k.street}` : ''}
+                                        </span>
+                                    </span>
+                                    <span style={{ color: 'var(--primary)', fontSize: '0.78rem', fontWeight: 600, whiteSpace: 'nowrap' }}>
+                                        Tautkan
+                                    </span>
+                                </button>
+                            ))}
+                        </div>
+
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.75rem' }}>
+                            <button className="btn" onClick={() => setKonfirmasiOdoo(null)} style={{ background: 'var(--surface-color)' }}>
+                                Batal
+                            </button>
+                            <button className="btn btn-primary" onClick={handleBuatBaruSaja}>
+                                Buat Kontak Baru
+                            </button>
+                        </div>
                     </div>
                 </div>
             )}
