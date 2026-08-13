@@ -156,6 +156,7 @@ export default function AktivasiHarianPage() {
                     detail_jadwal: detailJadwal,
                     tgl_mulai: p.tanggal,
                     spp: parseFloat(formData.spp) || 0,
+                    siklus: 'sekali',   // paket harian ditagih sekali, tidak berulang bulanan
                     catatan: formData.catatan,
                     status: formData.status
                 };
@@ -191,6 +192,7 @@ export default function AktivasiHarianPage() {
                         detail_jadwal: detailJadwal,
                         tgl_mulai: p.tanggal,
                         spp: parseFloat(formData.spp) || 0,
+                        siklus: 'sekali',   // paket harian ditagih sekali, tidak berulang bulanan
                         catatan: formData.catatan,
                         status: formData.status
                     };
@@ -423,13 +425,19 @@ export default function AktivasiHarianPage() {
                             return <div style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Belum ada data aktivasi siswa harian.</div>;
                         }
 
-                        // Group by assign_id_induk (fallback to individual id)
+                        // Group by assign_id_induk (fallback to individual id).
+                        // Di dalam paket, pertemuan diurutkan menurut tanggalnya — data
+                        // datang terurut created_at, dan satu paket di-insert sekaligus
+                        // sehingga urutannya tidak mencerminkan jalannya pertemuan.
                         const groups = {};
                         harianList.forEach(a => {
                             const key = a.assign_id_induk || a.id;
                             if (!groups[key]) groups[key] = [];
                             groups[key].push(a);
                         });
+                        Object.values(groups).forEach(entries =>
+                            entries.sort((a, b) => (a.tgl_mulai || '').localeCompare(b.tgl_mulai || ''))
+                        );
 
                         return Object.entries(groups).map(([indukId, entries]) => {
                             const first = entries[0];
@@ -719,7 +727,7 @@ export default function AktivasiHarianPage() {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nominal SPP (Rp)</label>
+                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nominal SPP per Pertemuan (Rp)</label>
                                 <input
                                     type="number"
                                     name="spp"
@@ -734,6 +742,15 @@ export default function AktivasiHarianPage() {
                                     style={{ fontFamily: 'inherit', width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
                                     required
                                 />
+                                {!editingId && (
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                        {formData.pertemuan.length} pertemuan × {formatCurrency(parseFloat(formData.spp) || 0)} ={' '}
+                                        <strong style={{ color: 'var(--text-primary)' }}>
+                                            {formatCurrency((parseFloat(formData.spp) || 0) * formData.pertemuan.length)}
+                                        </strong>{' '}
+                                        — inilah yang ditagih sekali di Tagihan Siswa.
+                                    </p>
+                                )}
                             </div>
 
                             <div>

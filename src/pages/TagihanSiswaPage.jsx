@@ -3,6 +3,7 @@ import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, Messag
 import { supabase } from '../lib/supabase';
 import { formatRupiah, toProperCase } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
+import { buildTagihan, addOneMonth } from '../utils/tagihan';
 
 const genId    = () => 'TG-'  + Math.random().toString(36).substr(2,6).toUpperCase();
 const genPayId = () => 'PAY-' + Math.random().toString(36).substr(2,6).toUpperCase();
@@ -10,6 +11,14 @@ const METODE   = ['Tunai','BNI','Xendit'];
 const PER_PAGE = 20;
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+const fmtPendek = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short'}) : '-';
+
+// "05 Agu – 30 Sep 2026" — tahun cukup ditulis sekali di ujung.
+const rentangPaket = (t) => {
+  if (!t?.tgl_mulai) return '';
+  if (!t.tgl_selesai || t.tgl_selesai === t.tgl_mulai) return fmt(t.tgl_mulai);
+  return `${fmtPendek(t.tgl_mulai)} – ${fmt(t.tgl_selesai)}`;
+};
 
 const waLink = (nowa) => {
   if (!nowa) return null;
@@ -27,7 +36,8 @@ const notaUrl = (p) =>
 // tapi linknya sudah mati — jangan ditawarkan lagi untuk dibagikan.
 const notaAktif = (p) => sudahTerverifikasi(p) && !!p.nota_token && !p.nota_dicabut;
 
-const buildBroadcastUrl = (nowa, p) => {
+// paket = { jumlah_sesi, rentang } bila transaksi ini melunasi paket harian.
+const buildBroadcastUrl = (nowa, p, paket = null) => {
   if (!nowa || !sudahTerverifikasi(p)) return null;
   const num    = nowa.replace(/\D/g,'').replace(/^0/,'62');
   const bulan  = p.jatuh_tempo
@@ -39,25 +49,13 @@ const buildBroadcastUrl = (nowa, p) => {
   const nominal = (p.nominal||0).toLocaleString('id-ID');
   const link    = notaAktif(p) ? notaUrl(p) : null;
   const nota    = link ? `\n\nNota${p.nomor_nota ? ' ' + p.nomor_nota : ''} :\n${link}` : '';
-  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nTerima kasih, pembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\nSPP bulan : ${bulan}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}${nota}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
+  // Paket harian dibayar sekali untuk seluruh pertemuan — menyebut "SPP bulan"
+  // di situ menyesatkan, seolah bulan depan ada tagihan lagi.
+  const periode = paket
+    ? `Paket :  ${paket.jumlah_sesi} pertemuan${paket.rentang ? ' (' + paket.rentang + ')' : ''}`
+    : `SPP bulan : ${bulan}`;
+  const msg = `Assalamualaikum..\n\nSelamat Pagi Bunda,\nTerima kasih, pembayaran spp ${p.nama_siswa||''} sudah kami terima.\n\nProgram :  ${p.nama_program||'-'}\n${periode}\nTanggal bayar :  ${tglBayar} LUNAS\nNominal :  Rp ${nominal}${nota}\n\nSemoga proses belajar ananda semakin lancar bersama Ahe Naik Kelas`;
   return `https://wa.me/${num}?text=${encodeURIComponent(msg)}`;
-};
-
-const addOneMonth = (dateStr) => {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().split('T')[0];
-};
-
-// currentJT = periode jatuh tempo yang sedang berjalan (dihitung dari jatuh_tempo pembayaran terakhir)
-// hasPayment = apakah sudah ada pembayaran sama sekali
-const computeStatus = (hasPayment, currentJT) => {
-  if (!currentJT) return 'Belum Bayar';
-  const now = new Date(); now.setHours(0,0,0,0);
-  if (new Date(currentJT) < now) return 'Terlambat';
-  if (hasPayment) return 'Lunas';
-  return 'Belum Bayar';
 };
 
 const statusBadge = (s) => {
@@ -91,6 +89,8 @@ export default function TagihanSiswaPage() {
   const [filterUnit, setFilterUnit]   = useState('');
   const [filterProg, setFilterProg]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
+  const [filterJenis, setFilterJenis]   = useState('');   // '', 'bulanan', 'sekali'
+  const [showPaketLunas, setShowPaketLunas] = useState(false);
   const [page, setPage]               = useState(1);
 
   // Filter transaksi
@@ -122,8 +122,11 @@ export default function TagihanSiswaPage() {
 
   useEffect(() => { fetchAll(); }, []);
 
-  const allUnits    = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.unit).filter(Boolean))].sort(), [aktivasis]);
-  const allPrograms = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.nama_program).filter(Boolean))].sort(), [aktivasis]);
+  // Satu baris = satu aktivasi rutin, atau satu paket harian utuh. Lihat utils/tagihan.js.
+  const tagihan = useMemo(() => buildTagihan(aktivasis, transaksis), [aktivasis, transaksis]);
+
+  const allUnits    = useMemo(() => [...new Set(tagihan.map(t=>t.unit).filter(Boolean))].sort(), [tagihan]);
+  const allPrograms = useMemo(() => [...new Set(tagihan.map(t=>t.nama_program).filter(Boolean))].sort(), [tagihan]);
 
   // Lookup nowa dari aktivasis berdasarkan siswa_id (untuk Daftar Transaksi)
   const nowaMap = useMemo(() => {
@@ -132,31 +135,14 @@ export default function TagihanSiswaPage() {
     return m;
   }, [aktivasis]);
 
-  // Filter by aktivasi_id (primary) — fallback ke siswa_id+program+unit untuk payment lama
-  const getLastPayment = (aktivasiId, siswaId, namaProgram, unit) =>
-    transaksis
-      .filter(p =>
-        p.aktivasi_id
-          ? p.aktivasi_id === aktivasiId
-          : p.siswa_id === siswaId && p.nama_program === namaProgram && p.unit === unit
-      )
-      .sort((a,b) => new Date(b.tanggal_bayar||b.created_at) - new Date(a.tanggal_bayar||a.created_at))[0];
-
-  const getJatuhTempo = (aktivasi) => {
-    const dj_  = aktivasi.detail_jadwal || {};
-    const last = getLastPayment(aktivasi.id, aktivasi.siswa_id, dj_.nama_program, dj_.unit);
-    if (last?.jatuh_tempo) {
-      const nextJT = addOneMonth(last.jatuh_tempo);
-      // Jika siswa re-enroll (tgl_mulai baru lebih baru dari next JT lama), pakai tgl_mulai
-      if (nextJT && aktivasi.tgl_mulai && nextJT < aktivasi.tgl_mulai) {
-        return aktivasi.tgl_mulai;
-      }
-      return nextJT;
-    }
-    return aktivasi.tgl_mulai;
-  };
-
-  const getNominal = (aktivasi) => Number(aktivasi.spp) || 0;
+  // Keterangan paket untuk transaksi yang melunasi paket harian (dipakai teks WA)
+  const paketMap = useMemo(() => {
+    const m = {};
+    tagihan.filter(t => t.siklus === 'sekali' && t.induk_id).forEach(t => {
+      m[t.induk_id] = { jumlah_sesi: t.jumlah_sesi, rentang: rentangPaket(t) };
+    });
+    return m;
+  }, [tagihan]);
 
   const salinNota = async (p) => {
     const url = notaUrl(p);
@@ -208,17 +194,23 @@ export default function TagihanSiswaPage() {
   };
 
   // Filter & paginate tagihan
-  const filteredAll = useMemo(() => aktivasis.filter(a => {
-    const dj     = a.detail_jadwal || {};
-    const last   = getLastPayment(a.id, a.siswa_id, dj.nama_program, dj.unit);
-    const status = computeStatus(!!last, getJatuhTempo(a));
-    const q      = search.toLowerCase();
-    if (search && !a.nama_siswa?.toLowerCase().includes(q) && !dj.nama_program?.toLowerCase().includes(q)) return false;
-    if (filterUnit   && dj.unit         !== filterUnit)   return false;
-    if (filterProg   && dj.nama_program !== filterProg)   return false;
-    if (filterStatus && status          !== filterStatus) return false;
+  const filteredAll = useMemo(() => tagihan.filter(t => {
+    const q = search.toLowerCase();
+    // Paket yang sudah lunas tidak akan menagih apa-apa lagi — disembunyikan
+    // supaya daftar hanya berisi yang benar-benar perlu ditindaklanjuti.
+    if (t.siklus === 'sekali' && t.status === 'Lunas' && !showPaketLunas) return false;
+    if (search && !t.nama_siswa?.toLowerCase().includes(q) && !t.nama_program?.toLowerCase().includes(q)) return false;
+    if (filterUnit   && t.unit         !== filterUnit)   return false;
+    if (filterProg   && t.nama_program !== filterProg)   return false;
+    if (filterStatus && t.status       !== filterStatus) return false;
+    if (filterJenis  && t.siklus       !== filterJenis)  return false;
     return true;
-  }), [aktivasis, transaksis, search, filterUnit, filterProg, filterStatus]);
+  }), [tagihan, search, filterUnit, filterProg, filterStatus, filterJenis, showPaketLunas]);
+
+  const paketLunasTersembunyi = useMemo(
+    () => tagihan.filter(t => t.siklus === 'sekali' && t.status === 'Lunas').length,
+    [tagihan]
+  );
 
   const totalPages = Math.max(1, Math.ceil(filteredAll.length / PER_PAGE));
   const safePage   = Math.min(page, totalPages);
@@ -246,34 +238,36 @@ export default function TagihanSiswaPage() {
   const trAllUnits    = useMemo(() => [...new Set(transaksis.map(p=>p.unit).filter(Boolean))].sort(), [transaksis]);
   const trAllPrograms = useMemo(() => [...new Set(transaksis.map(p=>p.nama_program).filter(Boolean))].sort(), [transaksis]);
 
-  const openModal = (aktivasi) => {
+  const openModal = (t) => {
     const today = new Date().toISOString().split('T')[0];
-    setModal({ aktivasi });
+    setModal({ t });
     setModalForm({ tanggal_bayar:today, metode:'Tunai', catatan:'', diskon:'0' });
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { aktivasi } = modal;
-    const dj        = aktivasi.detail_jadwal || {};
-    const nominal   = getNominal(aktivasi);
+    const { t }     = modal;
+    const isPaket   = t.siklus === 'sekali';
     const diskon    = Number(modalForm.diskon) || 0;
-    const bayar     = Math.max(nominal - diskon, 0);
-    const currentJT = getJatuhTempo(aktivasi); // periode yg sedang dibayar
+    const bayar     = Math.max(t.nominal - diskon, 0);
 
     const { error } = await supabase.from('pembayaran_spp').insert([{
       id: genPayId(),
-      aktivasi_id: aktivasi.id,
-      siswa_id: aktivasi.siswa_id,
-      nama_siswa: toProperCase(aktivasi.nama_siswa || ''),
-      nama_program: dj.nama_program || '',
-      unit: dj.unit || '',
+      // Paket tetap menunjuk pertemuan pertama supaya relasi lama tidak putus;
+      // yang mengikat ke seluruh paket adalah induk_id.
+      aktivasi_id: t.aktivasi_ids[0],
+      induk_id: isPaket ? t.induk_id : null,
+      siswa_id: t.siswa_id,
+      nama_siswa: toProperCase(t.nama_siswa || ''),
+      nama_program: t.nama_program || '',
+      unit: t.unit || '',
       nominal: bayar,
       diskon,
       metode: modalForm.metode,
       tanggal_bayar: modalForm.tanggal_bayar || null,
-      jatuh_tempo: currentJT,   // simpan periode yg dibayar, bukan tanggal transaksi
-      keterangan: modalForm.catatan,
+      jatuh_tempo: t.jatuh_tempo,   // simpan periode yg dibayar, bukan tanggal transaksi
+      keterangan: modalForm.catatan
+        || (isPaket ? `Paket ${t.jumlah_sesi} pertemuan (${rentangPaket(t)})` : ''),
       dicatat_oleh: user?.nama || user?.email || '-'
     }]);
 
@@ -353,6 +347,18 @@ export default function TagihanSiswaPage() {
               <option value="Terlambat">Terlambat</option>
               <option value="Belum Bayar">Belum Bayar</option>
             </select>
+            <select style={sel} value={filterJenis} onChange={e=>{setFilterJenis(e.target.value);setPage(1);}}>
+              <option value="">Semua Jenis</option>
+              <option value="bulanan">SPP Rutin</option>
+              <option value="sekali">Paket Harian</option>
+            </select>
+            {paketLunasTersembunyi > 0 && (
+              <label style={{display:'flex',alignItems:'center',gap:'0.4rem',fontSize:'0.82rem',color:'var(--text-secondary)',cursor:'pointer',whiteSpace:'nowrap'}}>
+                <input type="checkbox" checked={showPaketLunas}
+                  onChange={e=>{setShowPaketLunas(e.target.checked);setPage(1);}}/>
+                Tampilkan paket lunas ({paketLunasTersembunyi})
+              </label>
+            )}
           </div>
 
           <div className="glass-card" style={{padding:'1.5rem'}}>
@@ -372,45 +378,55 @@ export default function TagihanSiswaPage() {
                       </tr>
                     </thead>
                     <tbody>
-                      {filtered.map((a,idx)=>{
-                        const dj      = a.detail_jadwal || {};
-                        const last    = getLastPayment(a.id, a.siswa_id, dj.nama_program, dj.unit);
-                        const jt      = getJatuhTempo(a);
-                        const status  = computeStatus(!!last, jt);
-                        const nominal = getNominal(a);
-                        const isTerlambat = status === 'Terlambat';
+                      {filtered.map((t,idx)=>{
+                        const isPaket     = t.siklus === 'sekali';
+                        const isTerlambat = t.status === 'Terlambat';
 
                         return (
-                          <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
+                          <tr key={t.key} style={{borderBottom:'1px solid var(--glass-border)'}}
                             onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
                             onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                             <td style={{padding:'0.75rem',textAlign:'center',color:'var(--text-secondary)',fontSize:'0.8rem'}}>{(safePage-1)*PER_PAGE+idx+1}</td>
-                            <td style={{padding:'0.75rem',fontWeight:600,whiteSpace:'nowrap'}}>{a.nama_siswa}</td>
+                            <td style={{padding:'0.75rem',fontWeight:600,whiteSpace:'nowrap'}}>{t.nama_siswa}</td>
                             <td style={{padding:'0.75rem',textAlign:'center'}}>
-                              {waLink(a.siswa?.nowa) ? (
-                                <a href={waLink(a.siswa?.nowa)} target="_blank" rel="noreferrer"
+                              {waLink(t.nowa) ? (
+                                <a href={waLink(t.nowa)} target="_blank" rel="noreferrer"
                                   style={{color:'#25D366',display:'inline-flex',alignItems:'center',gap:'4px',textDecoration:'none',fontWeight:500,whiteSpace:'nowrap',fontSize:'0.8rem'}}>
                                   <MessageCircle size={14}/> Chat
                                 </a>
                               ) : '-'}
                             </td>
-                            <td style={{padding:'0.75rem',color:'var(--primary)',fontWeight:500}}>{dj.nama_program||'-'}</td>
-                            <td style={{padding:'0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
-                            <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem'}}>{fmt(a.tgl_mulai)}</td>
+                            <td style={{padding:'0.75rem',color:'var(--primary)',fontWeight:500}}>
+                              {t.nama_program||'-'}
+                              {isPaket && (
+                                <span style={{marginLeft:'0.4rem',background:'rgba(79,70,229,0.1)',color:'var(--primary)',
+                                  padding:'0.1rem 0.4rem',borderRadius:'0.4rem',fontSize:'0.7rem',fontWeight:700,whiteSpace:'nowrap'}}>
+                                  {t.jumlah_sesi} pertemuan
+                                </span>
+                              )}
+                            </td>
+                            <td style={{padding:'0.75rem',color:'var(--text-secondary)'}}>{t.unit||'-'}</td>
+                            <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem'}}>
+                              {isPaket ? rentangPaket(t) : fmt(t.tgl_mulai)}
+                            </td>
                             <td style={{padding:'0.75rem',whiteSpace:'nowrap',fontSize:'0.82rem',fontWeight:isTerlambat?700:400,color:isTerlambat?'#b91c1c':'inherit'}}>
-                              {fmt(jt)}
+                              {fmt(t.jatuh_tempo)}
                             </td>
                             <td style={{padding:'0.75rem',textAlign:'right',fontWeight:700}}>
-                              {nominal>0 ? formatRupiah(nominal) : <span style={{color:'#d97706',fontSize:'0.78rem'}}>Belum diset</span>}
+                              {t.nominal>0 ? formatRupiah(t.nominal) : <span style={{color:'#d97706',fontSize:'0.78rem'}}>Belum diset</span>}
                             </td>
-                            <td style={{padding:'0.75rem',textAlign:'center'}}>{statusBadge(status)}</td>
+                            <td style={{padding:'0.75rem',textAlign:'center'}}>{statusBadge(t.status)}</td>
                             <td style={{padding:'0.75rem',textAlign:'right'}}>
-                              <button onClick={()=>openModal(a)} disabled={nominal===0}
-                                style={{background:'var(--primary)',color:'#fff',border:'none',borderRadius:'0.4rem',
-                                  padding:'0.35rem 0.85rem',cursor:nominal===0?'not-allowed':'pointer',
-                                  fontSize:'0.82rem',fontWeight:600,whiteSpace:'nowrap',opacity:nominal===0?0.4:1}}>
-                                Bayar SPP
-                              </button>
+                              {isPaket && t.status === 'Lunas' ? (
+                                <span style={{color:'var(--text-secondary)',fontSize:'0.78rem',whiteSpace:'nowrap'}}>Paket selesai</span>
+                              ) : (
+                                <button onClick={()=>openModal(t)} disabled={t.nominal===0}
+                                  style={{background:'var(--primary)',color:'#fff',border:'none',borderRadius:'0.4rem',
+                                    padding:'0.35rem 0.85rem',cursor:t.nominal===0?'not-allowed':'pointer',
+                                    fontSize:'0.82rem',fontWeight:600,whiteSpace:'nowrap',opacity:t.nominal===0?0.4:1}}>
+                                  {isPaket ? 'Bayar Paket' : 'Bayar SPP'}
+                                </button>
+                              )}
                             </td>
                           </tr>
                         );
@@ -422,10 +438,10 @@ export default function TagihanSiswaPage() {
                 {/* Footer */}
                 <div style={{marginTop:'0.75rem',display:'flex',justifyContent:'space-between',alignItems:'center',flexWrap:'wrap',gap:'0.5rem'}}>
                   <div style={{display:'flex',gap:'1rem',fontSize:'0.82rem',flexWrap:'wrap'}}>
-                    <span style={{color:'var(--text-secondary)'}}>{filteredAll.length} siswa</span>
-                    <span style={{color:'#047857',fontWeight:600}}>Lunas: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.id,a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Lunas';}).length}</span>
-                    <span style={{color:'#b91c1c',fontWeight:600}}>Terlambat: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.id,a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Terlambat';}).length}</span>
-                    <span style={{color:'#92400e',fontWeight:600}}>Belum Bayar: {filteredAll.filter(a=>{const dj_=a.detail_jadwal||{};return computeStatus(!!getLastPayment(a.id,a.siswa_id,dj_.nama_program,dj_.unit),getJatuhTempo(a))==='Belum Bayar';}).length}</span>
+                    <span style={{color:'var(--text-secondary)'}}>{filteredAll.length} tagihan</span>
+                    <span style={{color:'#047857',fontWeight:600}}>Lunas: {filteredAll.filter(t=>t.status==='Lunas').length}</span>
+                    <span style={{color:'#b91c1c',fontWeight:600}}>Terlambat: {filteredAll.filter(t=>t.status==='Terlambat').length}</span>
+                    <span style={{color:'#92400e',fontWeight:600}}>Belum Bayar: {filteredAll.filter(t=>t.status==='Belum Bayar').length}</span>
                   </div>
                   <Pager cur={safePage} total={totalPages} onChange={setPage}/>
                 </div>
@@ -553,8 +569,8 @@ export default function TagihanSiswaPage() {
                               )}
                             </td>
                             <td style={{padding:'0.75rem',textAlign:'center'}}>
-                              {buildBroadcastUrl(nowaMap[p.siswa_id], p) ? (
-                                <a href={buildBroadcastUrl(nowaMap[p.siswa_id], p)} target="_blank" rel="noreferrer"
+                              {buildBroadcastUrl(nowaMap[p.siswa_id], p, paketMap[p.induk_id]) ? (
+                                <a href={buildBroadcastUrl(nowaMap[p.siswa_id], p, paketMap[p.induk_id])} target="_blank" rel="noreferrer"
                                   style={{display:'inline-flex',alignItems:'center',gap:'5px',background:'#25D366',color:'#fff',
                                     padding:'0.3rem 0.7rem',borderRadius:'0.4rem',textDecoration:'none',
                                     fontWeight:600,whiteSpace:'nowrap',fontSize:'0.78rem'}}>
@@ -612,35 +628,34 @@ export default function TagihanSiswaPage() {
 
       {/* ── MODAL BAYAR ── */}
       {modal && (() => {
-        const { aktivasi } = modal;
-        const dj         = aktivasi.detail_jadwal || {};
-        const nominal    = getNominal(aktivasi);
+        const { t }      = modal;
+        const isPaket    = t.siklus === 'sekali';
+        const nominal    = t.nominal;
         const diskon     = Number(modalForm.diskon) || 0;
         const yg_dibayar = Math.max(nominal - diskon, 0);
-        const dj_modal   = aktivasi.detail_jadwal || {};
-        const last       = getLastPayment(aktivasi.id, aktivasi.siswa_id, dj_modal.nama_program, dj_modal.unit);
-        const lastDate   = last?.tanggal_bayar || last?.created_at?.split('T')[0];
-        const jt         = getJatuhTempo(aktivasi);
+        const jt         = t.jatuh_tempo;
 
         return (
           <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'1rem'}}>
             <div className="glass-card" style={{width:'100%',maxWidth:460,padding:'1.5rem',maxHeight:'90vh',overflowY:'auto'}}>
               <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-                <h3 style={{margin:0,fontWeight:700}}>Bayar SPP</h3>
+                <h3 style={{margin:0,fontWeight:700}}>{isPaket ? 'Bayar Paket' : 'Bayar SPP'}</h3>
                 <button onClick={()=>setModal(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-secondary)'}}><X size={18}/></button>
               </div>
 
               {/* Info siswa */}
               <div style={{background:'rgba(79,70,229,0.06)',border:'1px solid rgba(79,70,229,0.15)',borderRadius:'0.5rem',padding:'0.85rem 1rem',marginBottom:'1.25rem'}}>
-                <div style={{fontWeight:700,fontSize:'1rem'}}>{aktivasi.nama_siswa}</div>
+                <div style={{fontWeight:700,fontSize:'1rem'}}>{t.nama_siswa}</div>
                 <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem 1rem',fontSize:'0.82rem',color:'var(--text-secondary)',marginTop:'0.35rem'}}>
-                  <span><b style={{color:'var(--text-primary)'}}>Program:</b> {dj.nama_program||'-'}</span>
-                  <span><b style={{color:'var(--text-primary)'}}>Unit:</b> {dj.unit||'-'}</span>
-                  <span><b style={{color:'var(--text-primary)'}}>Mulai Les:</b> {fmt(aktivasi.tgl_mulai)}</span>
+                  <span><b style={{color:'var(--text-primary)'}}>Program:</b> {t.nama_program||'-'}</span>
+                  <span><b style={{color:'var(--text-primary)'}}>Unit:</b> {t.unit||'-'}</span>
+                  <span><b style={{color:'var(--text-primary)'}}>{isPaket ? 'Pertemuan:' : 'Mulai Les:'}</b> {isPaket ? rentangPaket(t) : fmt(t.tgl_mulai)}</span>
                   <span><b style={{color:'var(--text-primary)'}}>Jatuh Tempo:</b> {fmt(jt)}</span>
                 </div>
                 <div style={{marginTop:'0.6rem',paddingTop:'0.5rem',borderTop:'1px solid rgba(79,70,229,0.15)',fontWeight:700,fontSize:'0.95rem'}}>
-                  Nominal SPP: {formatRupiah(nominal)}
+                  {isPaket
+                    ? `Total paket (${t.jumlah_sesi} pertemuan): ${formatRupiah(nominal)}`
+                    : `Nominal SPP: ${formatRupiah(nominal)}`}
                 </div>
               </div>
 
@@ -679,7 +694,7 @@ export default function TagihanSiswaPage() {
                 {/* Ringkasan */}
                 <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:'0.5rem',padding:'0.7rem 1rem',fontSize:'0.85rem'}}>
                   <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.25rem'}}>
-                    <span style={{color:'var(--text-secondary)'}}>Nominal SPP</span>
+                    <span style={{color:'var(--text-secondary)'}}>{isPaket ? `Total ${t.jumlah_sesi} pertemuan` : 'Nominal SPP'}</span>
                     <span style={{fontWeight:600}}>{formatRupiah(nominal)}</span>
                   </div>
                   {diskon>0&&(
@@ -693,12 +708,18 @@ export default function TagihanSiswaPage() {
                     <span style={{color:'#047857'}}>{formatRupiah(yg_dibayar)}</span>
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.3rem',fontSize:'0.78rem',color:'var(--text-secondary)'}}>
-                    <span>Periode dibayar</span>
-                    <span style={{fontWeight:600}}>{fmt(jt)}</span>
+                    <span>{isPaket ? 'Paket' : 'Periode dibayar'}</span>
+                    <span style={{fontWeight:600}}>{isPaket ? rentangPaket(t) : fmt(jt)}</span>
                   </div>
                   <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.2rem',fontSize:'0.78rem',color:'var(--text-secondary)'}}>
-                    <span>Jatuh tempo berikutnya</span>
-                    <span style={{fontWeight:600,color:'#047857'}}>{fmt(addOneMonth(jt))}</span>
+                    {isPaket ? (
+                      <span style={{fontWeight:600,color:'#047857'}}>Pelunasan paket — tidak ada tagihan lanjutan.</span>
+                    ) : (
+                      <>
+                        <span>Jatuh tempo berikutnya</span>
+                        <span style={{fontWeight:600,color:'#047857'}}>{fmt(addOneMonth(jt))}</span>
+                      </>
+                    )}
                   </div>
                 </div>
 

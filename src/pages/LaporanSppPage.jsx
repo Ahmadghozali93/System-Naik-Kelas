@@ -3,6 +3,7 @@ import { Search, X, FileDown } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import { supabase } from '../lib/supabase';
 import { formatRupiah } from '../utils/formatRupiah';
+import { buildTagihan } from '../utils/tagihan';
 
 const BULAN = ['Jan','Feb','Mar','Apr','Mei','Jun','Jul','Agt','Sep','Okt','Nov','Des'];
 const fmt   = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
@@ -23,19 +24,12 @@ const useIsMobile = () => {
   return mobile;
 };
 
-const addOneMonth = (dateStr) => {
-  if (!dateStr) return null;
-  const d = new Date(dateStr);
-  d.setMonth(d.getMonth() + 1);
-  return d.toISOString().split('T')[0];
-};
-
-const computeStatus = (hasPayment, currentJT) => {
-  if (!currentJT) return 'Belum Bayar';
-  const now = new Date(); now.setHours(0,0,0,0);
-  if (new Date(currentJT) < now) return 'Terlambat';
-  if (hasPayment) return 'Lunas';
-  return 'Belum Bayar';
+// "05 Agu – 30 Sep 2026" untuk paket harian; tanggal tunggal untuk SPP rutin.
+const fmtPendek = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short'}) : '-';
+const periodeTagihan = (t) => {
+  if (t.siklus !== 'sekali') return fmt(t.tgl_mulai);
+  if (!t.tgl_selesai || t.tgl_selesai === t.tgl_mulai) return fmt(t.tgl_mulai);
+  return `${fmtPendek(t.tgl_mulai)} – ${fmt(t.tgl_selesai)}`;
 };
 
 const statusBadge = (s) => {
@@ -77,19 +71,22 @@ const Pager = ({ cur, total, onChange, total_items, per_page }) => {
 
 // Card untuk 1 siswa di tab Tunggakan & Belum JT
 const SiswaCard = ({ a, idx, isTunggakan }) => {
-  const dj = a.detail_jadwal||{};
+  const isPaket = a.siklus === 'sekali';
   return (
     <div style={{border:'1px solid var(--glass-border)',borderRadius:'0.75rem',padding:'1rem',marginBottom:'0.65rem',background:'var(--surface-color)'}}>
       <div style={{display:'flex',justifyContent:'space-between',alignItems:'flex-start',marginBottom:'0.5rem'}}>
         <div>
           <div style={{fontWeight:700,fontSize:'0.95rem'}}>{a.nama_siswa}</div>
-          <div style={{fontSize:'0.78rem',color:'var(--primary)',marginTop:'0.1rem'}}>{dj.nama_program||'-'}</div>
-          <div style={{fontSize:'0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</div>
+          <div style={{fontSize:'0.78rem',color:'var(--primary)',marginTop:'0.1rem'}}>
+            {a.nama_program||'-'}
+            {isPaket && <span style={{color:'var(--text-secondary)'}}> · paket {a.jumlah_sesi} pertemuan</span>}
+          </div>
+          <div style={{fontSize:'0.75rem',color:'var(--text-secondary)'}}>{a.unit||'-'}</div>
         </div>
         {statusBadge(a._status)}
       </div>
       <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.4rem 1rem',fontSize:'0.78rem',marginTop:'0.5rem'}}>
-        <div><span style={{color:'var(--text-secondary)'}}>Mulai Les: </span>{fmt(a.tgl_mulai)}</div>
+        <div><span style={{color:'var(--text-secondary)'}}>{isPaket?'Pertemuan: ':'Mulai Les: '}</span>{periodeTagihan(a)}</div>
         <div><span style={{color:'var(--text-secondary)'}}>Jatuh Tempo: </span>
           <span style={{color:isTunggakan?'#b91c1c':'inherit',fontWeight:isTunggakan?700:400}}>{fmt(a._jt)}</span>
         </div>
@@ -105,11 +102,11 @@ const SiswaCard = ({ a, idx, isTunggakan }) => {
             {a._nominal>0?formatRupiah(a._nominal):'Belum diset'}
           </span>
         </div>
-        {a.siswa?.nowa && (
+        {a.nowa && (
           <div style={{gridColumn:'1/-1'}}>
             <span style={{color:'var(--text-secondary)'}}>No WA: </span>
-            <a href={waLink(a.siswa.nowa)} target="_blank" rel="noreferrer"
-              style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.siswa.nowa}</a>
+            <a href={waLink(a.nowa)} target="_blank" rel="noreferrer"
+              style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.nowa}</a>
           </div>
         )}
       </div>
@@ -184,30 +181,23 @@ export default function LaporanSppPage() {
   useEffect(() => { fetchAll(); }, []);
   useEffect(() => { if (tab === 'Rekap Bulanan') fetchAll(); }, [tab]);
 
-  const getLastPayment = (siswaId) =>
-    pembayarans
-      .filter(p => p.siswa_id === siswaId)
-      .sort((a,b) => new Date(b.tanggal_bayar||b.created_at) - new Date(a.tanggal_bayar||a.created_at))[0];
+  // Satu baris = satu aktivasi rutin, atau satu paket harian utuh. Pencocokan
+  // pembayarannya juga dipakai halaman Tagihan Siswa — lihat utils/tagihan.js.
+  // Sebelumnya di sini pembayaran dicocokkan hanya lewat siswa_id, sehingga
+  // siswa yang punya dua program saling mencemari jatuh temponya.
+  const enriched = useMemo(
+    () => buildTagihan(aktivasis, pembayarans).map(t => ({
+      ...t,
+      _last: t.pembayaran_terakhir,
+      _jt: t.jatuh_tempo,
+      _status: t.status,
+      _nominal: t.nominal,
+    })),
+    [aktivasis, pembayarans]
+  );
 
-  const getJatuhTempo = (aktivasi) => {
-    const last = getLastPayment(aktivasi.siswa_id);
-    if (last?.jatuh_tempo) {
-      const next = addOneMonth(last.jatuh_tempo);
-      if (next && aktivasi.tgl_mulai && next < aktivasi.tgl_mulai) return aktivasi.tgl_mulai;
-      return next;
-    }
-    return aktivasi.tgl_mulai;
-  };
-
-  const allUnits = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.unit).filter(Boolean))].sort(), [aktivasis]);
-  const allProgs = useMemo(() => [...new Set(aktivasis.map(a=>a.detail_jadwal?.nama_program).filter(Boolean))].sort(), [aktivasis]);
-
-  const enriched = useMemo(() => aktivasis.map(a => {
-    const last   = getLastPayment(a.siswa_id);
-    const jt     = getJatuhTempo(a);
-    const status = computeStatus(!!last, jt);
-    return { ...a, _last:last, _jt:jt, _status:status, _nominal:Number(a.spp)||0 };
-  }), [aktivasis, pembayarans]);
+  const allUnits = useMemo(() => [...new Set(enriched.map(t=>t.unit).filter(Boolean))].sort(), [enriched]);
+  const allProgs = useMemo(() => [...new Set(enriched.map(t=>t.nama_program).filter(Boolean))].sort(), [enriched]);
 
   const jmlLunas      = enriched.filter(a=>a._status==='Lunas').length;
   const jmlTerlambat  = enriched.filter(a=>a._status==='Terlambat').length;
@@ -215,11 +205,10 @@ export default function LaporanSppPage() {
   const totalTunggakan = enriched.filter(a=>a._status==='Terlambat').reduce((s,a)=>s+a._nominal,0);
 
   const filteredAktivasi = useMemo(() => enriched.filter(a => {
-    const dj = a.detail_jadwal||{};
     const q  = search.toLowerCase();
     if (search     && !a.nama_siswa?.toLowerCase().includes(q)) return false;
-    if (filterUnit && dj.unit         !== filterUnit) return false;
-    if (filterProg && dj.nama_program !== filterProg) return false;
+    if (filterUnit && a.unit         !== filterUnit) return false;
+    if (filterProg && a.nama_program !== filterProg) return false;
     if (jtFilter) {
       if (!a._jt) return false;
       const today = new Date(); today.setHours(0,0,0,0);
@@ -267,22 +256,21 @@ export default function LaporanSppPage() {
   const resetRekapFilter = () => { setRekapUnit(''); setRekapMetode(''); setRekapDateFrom(''); setRekapDateTo(''); setPage3(1); };
 
   const exportTunggakan = () => {
-    const rows = tunggakan.map((a, i) => {
-      const dj = a.detail_jadwal || {};
-      return {
-        'NO': i + 1,
-        'NAMA SISWA': a.nama_siswa || '-',
-        'PROGRAM': dj.nama_program || '-',
-        'UNIT': dj.unit || '-',
-        'TGL MULAI': a.tgl_mulai ? new Date(a.tgl_mulai).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
-        'JATUH TEMPO': a._jt ? new Date(a._jt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
-        'NOMINAL SPP': a._nominal || 0,
-        'STATUS': a._status,
-        'NO WA': a.siswa?.nowa || '-',
-      };
-    });
+    const rows = tunggakan.map((a, i) => ({
+      'NO': i + 1,
+      'NAMA SISWA': a.nama_siswa || '-',
+      'PROGRAM': a.nama_program || '-',
+      'JENIS': a.siklus === 'sekali' ? 'Paket Harian' : 'SPP Rutin',
+      'JUMLAH SESI': a.jumlah_sesi || '-',
+      'UNIT': a.unit || '-',
+      'TGL MULAI': periodeTagihan(a),
+      'JATUH TEMPO': a._jt ? new Date(a._jt).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-',
+      'NOMINAL SPP': a._nominal || 0,
+      'STATUS': a._status,
+      'NO WA': a.nowa || '-',
+    }));
     const ws = XLSX.utils.json_to_sheet(rows);
-    ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 16 }, { wch: 14 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 18 }];
+    ws['!cols'] = [{ wch: 5 }, { wch: 28 }, { wch: 20 }, { wch: 14 }, { wch: 12 }, { wch: 16 }, { wch: 20 }, { wch: 14 }, { wch: 16 }, { wch: 14 }, { wch: 18 }];
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, 'Tunggakan');
     const now = new Date();
@@ -413,7 +401,7 @@ export default function LaporanSppPage() {
                   </button>
                 </div>
                 {isMobile
-                  ? d1.map((a,i) => <SiswaCard key={a.id} a={a} idx={i} isTunggakan />)
+                  ? d1.map((a,i) => <SiswaCard key={a.key} a={a} idx={i} isTunggakan />)
                   : (
                     <div style={{overflowX:'auto'}}>
                       <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
@@ -426,21 +414,23 @@ export default function LaporanSppPage() {
                         </thead>
                         <tbody>
                           {d1.map((a,idx) => {
-                            const dj = a.detail_jadwal||{};
                             return (
-                              <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
+                              <tr key={a.key} style={{borderBottom:'1px solid var(--glass-border)'}}
                                 onMouseOver={e=>e.currentTarget.style.background='rgba(185,28,28,0.03)'}
                                 onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{(s1-1)*PER_PAGE+idx+1}</td>
                                 <td style={{padding:'0.7rem 0.75rem',fontWeight:700}}>{a.nama_siswa}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>
-                                  {a.siswa?.nowa
-                                    ? <a href={waLink(a.siswa.nowa)} target="_blank" rel="noreferrer" style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.siswa.nowa}</a>
+                                  {a.nowa
+                                    ? <a href={waLink(a.nowa)} target="_blank" rel="noreferrer" style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.nowa}</a>
                                     : <span style={{color:'var(--text-secondary)'}}>-</span>}
                                 </td>
-                                <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>{dj.nama_program||'-'}</td>
-                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
-                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a.tgl_mulai)}</td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>
+                                  {a.nama_program||'-'}
+                                  {a.siklus==='sekali' && <span style={{color:'var(--text-secondary)',fontSize:'0.75rem'}}> · {a.jumlah_sesi} pertemuan</span>}
+                                </td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{a.unit||'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{periodeTagihan(a)}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap',fontWeight:700,color:'#b91c1c'}}>{fmt(a._jt)}</td>
                                 <td style={{padding:'0.7rem 0.75rem',textAlign:'right',fontWeight:700}}>{a._nominal>0?formatRupiah(a._nominal):<span style={{color:'#d97706',fontWeight:400,fontSize:'0.78rem'}}>Belum diset</span>}</td>
                                 <td style={{padding:'0.7rem 0.75rem'}}>{statusBadge(a._status)}</td>
@@ -478,7 +468,7 @@ export default function LaporanSppPage() {
               ? <p style={{color:'var(--text-secondary)'}}>Tidak ada data.</p>
               : (<>
                 {isMobile
-                  ? d2.map((a,i) => <SiswaCard key={a.id} a={a} idx={i} isTunggakan={false} />)
+                  ? d2.map((a,i) => <SiswaCard key={a.key} a={a} idx={i} isTunggakan={false} />)
                   : (
                     <div style={{overflowX:'auto'}}>
                       <table style={{width:'100%',borderCollapse:'collapse',fontSize:'0.84rem'}}>
@@ -491,21 +481,23 @@ export default function LaporanSppPage() {
                         </thead>
                         <tbody>
                           {d2.map((a,idx) => {
-                            const dj = a.detail_jadwal||{};
                             return (
-                              <tr key={a.id} style={{borderBottom:'1px solid var(--glass-border)'}}
+                              <tr key={a.key} style={{borderBottom:'1px solid var(--glass-border)'}}
                                 onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
                                 onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                                 <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{(s2-1)*PER_PAGE+idx+1}</td>
                                 <td style={{padding:'0.7rem 0.75rem',fontWeight:700}}>{a.nama_siswa}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>
-                                  {a.siswa?.nowa
-                                    ? <a href={waLink(a.siswa.nowa)} target="_blank" rel="noreferrer" style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.siswa.nowa}</a>
+                                  {a.nowa
+                                    ? <a href={waLink(a.nowa)} target="_blank" rel="noreferrer" style={{color:'#25d366',fontWeight:600,textDecoration:'none'}}>{a.nowa}</a>
                                     : <span style={{color:'var(--text-secondary)'}}>-</span>}
                                 </td>
-                                <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>{dj.nama_program||'-'}</td>
-                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{dj.unit||'-'}</td>
-                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a.tgl_mulai)}</td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--primary)'}}>
+                                  {a.nama_program||'-'}
+                                  {a.siklus==='sekali' && <span style={{color:'var(--text-secondary)',fontSize:'0.75rem'}}> · {a.jumlah_sesi} pertemuan</span>}
+                                </td>
+                                <td style={{padding:'0.7rem 0.75rem',color:'var(--text-secondary)'}}>{a.unit||'-'}</td>
+                                <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{periodeTagihan(a)}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap'}}>{fmt(a._jt)}</td>
                                 <td style={{padding:'0.7rem 0.75rem',whiteSpace:'nowrap',color:'var(--text-secondary)'}}>{a._last?fmt(a._last.tanggal_bayar||a._last.created_at?.split('T')[0]):'-'}</td>
                                 <td style={{padding:'0.7rem 0.75rem',textAlign:'right',fontWeight:700}}>{a._nominal>0?formatRupiah(a._nominal):<span style={{color:'#d97706',fontWeight:400,fontSize:'0.78rem'}}>Belum diset</span>}</td>
