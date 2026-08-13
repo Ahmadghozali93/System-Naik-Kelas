@@ -32,10 +32,9 @@ export default function RekonsiliasiPage() {
   const [modalFilterUnit, setModalFilterUnit] = useState('');
 
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' };
-  const inp = { width:'100%', padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.875rem', color:'var(--text-primary)', boxSizing:'border-box' };
   const lb  = (text, req) => (
-    <label style={{display:'block',marginBottom:'0.3rem',fontWeight:600,fontSize:'0.78rem',color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>
-      {text}{req && <span style={{color:'#ef4444'}}> *</span>}
+    <label className="form-label">
+      {text}{req && <span className="wajib"> *</span>}
     </label>
   );
 
@@ -301,11 +300,11 @@ export default function RekonsiliasiPage() {
               <div style={{padding:'1rem 1.5rem',display:'grid',gridTemplateColumns:'1fr 2fr',gap:'0.85rem',borderBottom:'1px solid var(--glass-border)',flexShrink:0}}>
                 <div>
                   {lb('Tanggal Setor', true)}
-                  <input type="date" style={inp} value={formTanggal} onChange={e=>setFormTanggal(e.target.value)} required/>
+                  <input type="date" className="form-input" value={formTanggal} onChange={e=>setFormTanggal(e.target.value)} required/>
                 </div>
                 <div>
                   {lb('Catatan')}
-                  <input style={inp} value={formCatatan} onChange={e=>setFormCatatan(e.target.value)} placeholder="Opsional — keterangan setor"/>
+                  <input className="form-input" value={formCatatan} onChange={e=>setFormCatatan(e.target.value)} placeholder="Opsional — keterangan setor"/>
                 </div>
               </div>
 

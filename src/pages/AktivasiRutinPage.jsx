@@ -320,19 +320,19 @@ export default function AktivasiRutinPage() {
                                     <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
                                     <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filter:</span>
                                 </div>
-                                <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} className="form-input">
                                     <option value="">Semua Unit</option>
                                     {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.unit).filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
                                 </select>
-                                <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} className="form-input">
                                     <option value="">Semua Program</option>
                                     {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_program).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
                                 </select>
-                                <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} className="form-input">
                                     <option value="">Semua Guru</option>
                                     {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_guru).filter(Boolean))].map(g => <option key={g} value={g}>{g}</option>)}
                                 </select>
-                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="form-input">
                                     <option value="">Semua Status</option>
                                     <option value="Aktif">Aktif</option>
                                     <option value="Lulus">Lulus</option>
@@ -669,19 +669,19 @@ export default function AktivasiRutinPage() {
                                             <Filter size={14} style={{ color: 'var(--text-secondary)' }} />
                                             <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 500 }}>Filter:</span>
                                         </div>
-                                        <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                        <select value={filterUnit} onChange={(e) => setFilterUnit(e.target.value)} className="form-input">
                                             <option value="">Semua Unit</option>
                                             {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.unit).filter(Boolean))].map(u => <option key={u} value={u}>{u}</option>)}
                                         </select>
-                                        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                        <select value={filterProgram} onChange={(e) => setFilterProgram(e.target.value)} className="form-input">
                                             <option value="">Semua Program</option>
                                             {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_program).filter(Boolean))].map(p => <option key={p} value={p}>{p}</option>)}
                                         </select>
-                                        <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                        <select value={filterGuru} onChange={(e) => setFilterGuru(e.target.value)} className="form-input">
                                             <option value="">Semua Guru</option>
                                             {[...new Set(aktivasis.filter(a => a.detail_jadwal?.jenis_program === 'Rutin').map(a => a.detail_jadwal?.nama_guru).filter(Boolean))].map(g => <option key={g} value={g}>{g}</option>)}
                                         </select>
-                                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}>
+                                        <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)} className="form-input">
                                             <option value="">Semua Status</option>
                                             <option value="Aktif">Aktif</option>
                                             <option value="Lulus">Lulus</option>
@@ -787,14 +787,12 @@ export default function AktivasiRutinPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <form onSubmit={handleSubmit} className="form-grid">
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Penempatan Jadwal</h3>
-                            </div>
+                            <h3 className="form-section">Penempatan Jadwal</h3>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Siswa</label>
+                            <div className="field-full">
+                                <label className="form-label">Pilih Siswa</label>
                                 <div style={{ position: 'relative' }} ref={siswaDropdownRef}>
                                     <div
                                         onClick={() => setIsSiswaDropdownOpen(!isSiswaDropdownOpen)}
@@ -866,8 +864,8 @@ export default function AktivasiRutinPage() {
                                 </div>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Unit Siswa Terpilih</label>
+                            <div>
+                                <label className="form-label">Unit Siswa Terpilih</label>
                                 <input
                                     type="text"
                                     value={selectedSiswaObj ? selectedSiswaObj.unit : '-'}
@@ -877,13 +875,13 @@ export default function AktivasiRutinPage() {
                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>*Jadwal yang tampil di bawah hanya untuk unit ini.</p>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Program</label>
+                            <div>
+                                <label className="form-label">Pilih Program</label>
                                 <select
                                     name="program"
                                     value={formData.program}
                                     onChange={(e) => setFormData(prev => ({ ...prev, program: e.target.value, guru: '', jadwal_id: '' }))}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     disabled={!formData.siswa_id}
                                     required
                                 >
@@ -892,13 +890,13 @@ export default function AktivasiRutinPage() {
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Guru</label>
+                            <div>
+                                <label className="form-label">Pilih Guru</label>
                                 <select
                                     name="guru"
                                     value={formData.guru}
                                     onChange={(e) => setFormData(prev => ({ ...prev, guru: e.target.value, jadwal_id: '' }))}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     disabled={!formData.program}
                                     required
                                 >
@@ -907,13 +905,13 @@ export default function AktivasiRutinPage() {
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Jadwal Waktu</label>
+                            <div className="field-full">
+                                <label className="form-label">Pilih Jadwal Waktu</label>
                                 <select
                                     name="jadwal_id"
                                     value={formData.jadwal_id}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                     disabled={!formData.guru}
                                 >
@@ -932,24 +930,22 @@ export default function AktivasiRutinPage() {
                                 )}
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Administrasi</h3>
-                            </div>
+                            <h3 className="form-section">Administrasi</h3>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Mulai</label>
+                                <label className="form-label">Tanggal Mulai</label>
                                 <input
                                     type="date"
                                     name="tgl_mulai"
                                     value={formData.tgl_mulai}
                                     onChange={handleInputChange}
-                                    style={{ fontFamily: 'inherit', width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nominal SPP (Rp)</label>
+                                <label className="form-label">Nominal SPP (Rp)</label>
                                 <input
                                     type="number"
                                     name="spp"
@@ -961,18 +957,18 @@ export default function AktivasiRutinPage() {
                                             e.preventDefault();
                                         }
                                     }}
-                                    style={{ fontFamily: 'inherit', width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Status Aktivasi</label>
+                                <label className="form-label">Status Aktivasi</label>
                                 <select
                                     name="status"
                                     value={formData.status}
                                     onChange={handleInputChange}
-                                    style={{ fontFamily: 'inherit', width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 >
                                     <option value="Aktif">Aktif</option>
@@ -982,14 +978,14 @@ export default function AktivasiRutinPage() {
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Catatan</label>
+                            <div className="field-full">
+                                <label className="form-label">Catatan</label>
                                 <textarea
                                     name="catatan"
                                     value={formData.catatan}
                                     onChange={handleInputChange}
                                     rows="2"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit' }}
+                                    className="form-input"
                                     placeholder="Catatan tambahan..."
                                 />
                             </div>

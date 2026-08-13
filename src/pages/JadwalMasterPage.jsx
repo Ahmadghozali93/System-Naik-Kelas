@@ -543,20 +543,18 @@ export default function JadwalMasterPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <form onSubmit={handleSubmit} className="form-grid">
 
                             {/* Section: Penugasan */}
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Penugasan</h3>
-                            </div>
+                            <h3 className="form-section">Penugasan</h3>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Guru Pengajar</label>
+                                <label className="form-label">Guru Pengajar</label>
                                 <select
                                     name="guru_id"
                                     value={formData.guru_id}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 >
                                     <option value="" disabled>-- Pilih Guru --</option>
@@ -566,7 +564,7 @@ export default function JadwalMasterPage() {
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Program</label>
+                                <label className="form-label">Program</label>
                                 <select
                                     name="program_id"
                                     value={formData.program_id}
@@ -580,7 +578,7 @@ export default function JadwalMasterPage() {
                                             setFormData(prev => ({ ...prev, program_id: val }));
                                         }
                                     }}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 >
                                     <option value="" disabled>-- Pilih Program --</option>
@@ -599,12 +597,10 @@ export default function JadwalMasterPage() {
 
                                 return (
                                     <>
-                                        <div style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                                            <h3 className="font-semibold text-lg border-b pb-2 mb-2">Waktu & Lokasi</h3>
-                                        </div>
+                                        <h3 className="form-section">Waktu & Lokasi</h3>
 
-                                        <div style={{ gridColumn: 'span 2' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Hari (Bisa Pilih Lebih dari 1)</label>
+                                        <div className="field-full">
+                                            <label className="form-label">Hari (Bisa Pilih Lebih dari 1)</label>
                                             <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.5rem' }}>
                                                 {DAYS.map(h => (
                                                     <label key={h} style={{ display: 'flex', alignItems: 'center', gap: '0.35rem', background: 'var(--surface-color)', padding: '0.35rem 0.65rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', cursor: 'pointer', fontSize: '0.875rem' }}>
@@ -622,12 +618,12 @@ export default function JadwalMasterPage() {
                                         </div>
 
                                         <div>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Jam (Time Slot)</label>
+                                            <label className="form-label">Jam (Time Slot)</label>
                                             <select
                                                 name="jam"
                                                 value={formData.jam}
                                                 onChange={handleInputChange}
-                                                style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                                className="form-input"
                                                 required
                                             >
                                                 <option value="" disabled>-- Pilih Jam --</option>
@@ -641,12 +637,12 @@ export default function JadwalMasterPage() {
                             })()}
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Lokasi / Unit</label>
+                                <label className="form-label">Lokasi / Unit</label>
                                 <select
                                     name="unit"
                                     value={formData.unit}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 >
                                     <option value="" disabled>-- Pilih Unit --</option>
@@ -656,32 +652,30 @@ export default function JadwalMasterPage() {
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2 mt-4">Kapasitas</h3>
-                            </div>
+                            <h3 className="form-section">Kapasitas</h3>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Kuota Maksimal Siswa</label>
+                                <label className="form-label">Kuota Maksimal Siswa</label>
                                 <input
                                     type="number"
                                     name="kuota"
                                     value={formData.kuota}
                                     onChange={handleInputChange}
                                     min="0"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     required
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nominal SPP (Rp)</label>
+                                <label className="form-label">Nominal SPP (Rp)</label>
                                 <input
                                     type="number"
                                     name="nominal_spp"
                                     value={formData.nominal_spp}
                                     onChange={handleInputChange}
                                     min="0"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                    className="form-input"
                                     placeholder="0"
                                 />
                             </div>

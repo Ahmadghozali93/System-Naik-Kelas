@@ -323,26 +323,26 @@ export default function UnitPage() {
 
                             <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1.1rem' }}>
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Unit</label>
+                                    <label className="form-label">Nama Unit</label>
                                     <input
                                         type="text"
                                         name="nama"
                                         value={formData.nama}
                                         onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                        className="form-input"
                                         required
                                         placeholder="Mis: Cabang Jakarta Pusat"
                                     />
                                 </div>
 
                                 <div>
-                                    <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link Google Maps</label>
+                                    <label className="form-label">Link Google Maps</label>
                                     <input
                                         type="url"
                                         name="maps"
                                         value={formData.maps}
                                         onChange={handleInputChange}
-                                        style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                        className="form-input"
                                         placeholder="https://maps.google.com/?q=..."
                                     />
                                 </div>
@@ -352,7 +352,7 @@ export default function UnitPage() {
                                     untuk ini: isinya teks bebas, dan link pendek
                                     maps.app.goo.gl tidak bisa diurai jadi koordinat. */}
                                 <div style={{ borderTop: '1px solid var(--glass-border)', paddingTop: '1.1rem' }}>
-                                    <label style={{ display: 'block', marginBottom: '0.5rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                                    <label className="form-label">
                                         Titik Absensi
                                     </label>
                                     <MapPicker
@@ -367,23 +367,23 @@ export default function UnitPage() {
                                     </p>
                                 </div>
 
-                                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                                <div className="form-grid">
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Radius (meter)</label>
+                                        <label className="form-label">Radius (meter)</label>
                                         <input
                                             type="number" name="radius_meter" min="30" max="5000"
                                             value={formData.radius_meter}
                                             onChange={handleInputChange}
-                                            style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                            className="form-input"
                                         />
                                     </div>
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Mode Kunci</label>
+                                        <label className="form-label">Mode Kunci</label>
                                         <select
                                             name="mode_lokasi"
                                             value={formData.mode_lokasi}
                                             onChange={handleInputChange}
-                                            style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                            className="form-input"
                                         >
                                             {MODE_LOKASI.map(m => <option key={m.v} value={m.v}>{m.label}</option>)}
                                         </select>

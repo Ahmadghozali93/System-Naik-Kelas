@@ -586,14 +586,12 @@ export default function ReschedulePage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+                        <form onSubmit={handleSubmit} className="form-grid">
                             {/* Section: Asal */}
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Jadwal Asal (Dari)</h3>
-                            </div>
+                            <h3 className="form-section">Jadwal Asal (Dari)</h3>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Aktivasi Siswa</label>
+                            <div className="field-full">
+                                <label className="form-label">Pilih Aktivasi Siswa</label>
                                 <div style={{ position: 'relative' }} ref={dropdownRef}>
                                     <div
                                         onClick={() => setIsAktivasiDropdownOpen(!isAktivasiDropdownOpen)}
@@ -714,7 +712,7 @@ export default function ReschedulePage() {
 
                                 return (
                                     <div>
-                                        <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Asal</label>
+                                        <label className="form-label">Tanggal Asal</label>
                                         {!selectedAktivasi ? (
                                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih aktivasi siswa terlebih dahulu.</p>
                                         ) : jadwalDates.length === 0 ? (
@@ -723,7 +721,7 @@ export default function ReschedulePage() {
                                             <select
                                                 value={formData.tanggal_asal}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, tanggal_asal: e.target.value }))}
-                                                style={{ fontFamily: 'inherit', width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                                className="form-input"
                                                 required
                                             >
                                                 <option value="" disabled>-- Pilih Tanggal --</option>
@@ -739,9 +737,7 @@ export default function ReschedulePage() {
                             })()}
 
                             {/* Section: Tujuan */}
-                            <div style={{ gridColumn: 'span 2', marginTop: '1rem' }}>
-                                <h3 className="font-semibold text-lg border-b pb-2 mb-2">Jadwal Tujuan (Ke)</h3>
-                            </div>
+                            <h3 className="form-section">Jadwal Tujuan (Ke)</h3>
 
                             {(() => {
                                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -785,15 +781,15 @@ export default function ReschedulePage() {
 
                                 return (
                                     <>
-                                        <div style={{ gridColumn: 'span 2' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Tanggal Tujuan</label>
+                                        <div className="field-full">
+                                            <label className="form-label">Tanggal Tujuan</label>
                                             {!selectedAktivasi ? (
                                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih aktivasi siswa terlebih dahulu.</p>
                                             ) : (
                                                 <select
                                                     value={formData.tanggal_tujuan}
                                                     onChange={(e) => setFormData(prev => ({ ...prev, tanggal_tujuan: e.target.value, jadwal_tujuan_id: '', jam_tujuan: '' }))}
-                                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                                    className="form-input"
                                                     required
                                                 >
                                                     <option value="" disabled>-- Pilih Tanggal Tujuan --</option>
@@ -806,8 +802,8 @@ export default function ReschedulePage() {
                                             )}
                                         </div>
 
-                                        <div style={{ gridColumn: 'span 2' }}>
-                                            <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Pilih Jadwal Tujuan (Kosong)</label>
+                                        <div className="field-full">
+                                            <label className="form-label">Pilih Jadwal Tujuan (Kosong)</label>
                                             {!formData.tanggal_tujuan ? (
                                                 <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih tanggal tujuan terlebih dahulu untuk melihat jadwal kosong.</p>
                                             ) : targetSlots.length === 0 ? (
@@ -821,7 +817,7 @@ export default function ReschedulePage() {
                                                             const tj = jadwals.find(j => j.id === jid);
                                                             setFormData(prev => ({ ...prev, jadwal_tujuan_id: jid, jam_tujuan: tj?.jam || '' }));
                                                         }}
-                                                        style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                                        className="form-input"
                                                         required
                                                     >
                                                         <option value="" disabled>-- Pilih Jadwal Kosong --</option>
@@ -859,13 +855,13 @@ export default function ReschedulePage() {
                                 );
                             })()}
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Catatan</label>
+                            <div className="field-full">
+                                <label className="form-label">Catatan</label>
                                 <textarea
                                     value={formData.catatan}
                                     onChange={(e) => setFormData(prev => ({ ...prev, catatan: e.target.value }))}
                                     rows="2"
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit' }}
+                                    className="form-input"
                                     placeholder="Alasan reschedule..."
                                 />
                             </div>

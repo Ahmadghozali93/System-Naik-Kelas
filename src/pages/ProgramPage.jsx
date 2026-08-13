@@ -301,28 +301,28 @@ export default function ProgramPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.1rem' }}>
+                        <form onSubmit={handleSubmit} className="form-grid">
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Program / Paket</label>
+                            <div className="field-full">
+                                <label className="form-label">Nama Program / Paket</label>
                                 <input
                                     type="text"
                                     name="nama"
                                     value={formData.nama}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Jenis Program</label>
+                                <label className="form-label">Jenis Program</label>
                                 <select
                                     name="jenis"
                                     value={formData.jenis}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 >
@@ -332,12 +332,12 @@ export default function ProgramPage() {
                             </div>
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status Program</label>
+                                <label className="form-label">Status Program</label>
                                 <select
                                     name="status"
                                     value={formData.status}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 >
@@ -346,14 +346,14 @@ export default function ProgramPage() {
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Deskripsi / Kurikulum Singkat</label>
+                            <div className="field-full">
+                                <label className="form-label">Deskripsi / Kurikulum Singkat</label>
                                 <textarea
                                     name="deskripsi"
                                     value={formData.deskripsi}
                                     onChange={handleInputChange}
                                     rows="3"
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', resize: 'vertical' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 />

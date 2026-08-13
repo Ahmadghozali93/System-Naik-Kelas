@@ -85,25 +85,25 @@ function GantiPasswordModal({ onClose }) {
                 </div>
                 <form onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Password Baru</label>
+                        <label className="form-label">Password Baru</label>
                         <input
                             type="password"
                             value={passwordBaru}
                             onChange={e => setPasswordBaru(e.target.value)}
                             placeholder="Minimal 6 karakter"
                             required
-                            style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '0.5rem', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                        className="form-input"
                         />
                     </div>
                     <div>
-                        <label style={{ display: 'block', marginBottom: '0.4rem', fontSize: '0.85rem', fontWeight: 600 }}>Konfirmasi Password</label>
+                        <label className="form-label">Konfirmasi Password</label>
                         <input
                             type="password"
                             value={konfirmasi}
                             onChange={e => setKonfirmasi(e.target.value)}
                             placeholder="Ulangi password baru"
                             required
-                            style={{ width: '100%', padding: '0.6rem 0.75rem', border: '1px solid #ddd', borderRadius: '0.5rem', fontSize: '0.9rem', boxSizing: 'border-box' }}
+                        className="form-input"
                         />
                     </div>
                     {pesan && <p style={{ margin: 0, fontSize: '0.85rem', color: pesan.startsWith('✅') ? 'green' : 'red' }}>{pesan}</p>}

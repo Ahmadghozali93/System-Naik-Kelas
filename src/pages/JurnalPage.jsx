@@ -761,13 +761,13 @@ export default function JurnalPage() {
                 <h3 className="font-semibold text-lg border-b pb-2 mb-3">Informasi Umum</h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                   <div>
-                    <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500 }}>Nama Guru</label>
+                    <label className="form-label">Nama Guru</label>
                     <select
                       className="form-input"
                       value={guruId}
                       onChange={(e) => setGuruId(e.target.value)}
                       disabled={!isPrivileged}
-                      style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                      className="form-input"
                       required
                     >
                       <option value="">-- Pilih Guru --</option>
@@ -832,7 +832,7 @@ export default function JurnalPage() {
                         {isExpanded && (
                           <div style={{ padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '1rem' }}>
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Nama Siswa</label>
+                              <label className="form-label">Nama Siswa</label>
                               <SearchableStudentDropdown
                                 siswas={siswas}
                                 value={item._siswa_key}
@@ -841,32 +841,32 @@ export default function JurnalPage() {
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Program (Otomatis)</label>
+                              <label className="form-label">Program (Otomatis)</label>
                               <input type="text" className="form-input" value={item.program} readOnly placeholder="Terisi Otomatis" style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: '#f3f4f6', color: 'var(--text-secondary)' }} />
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Unit / Cabang (Otomatis)</label>
+                              <label className="form-label">Unit / Cabang (Otomatis)</label>
                               <input type="text" className="form-input" value={item.unit} readOnly placeholder="Terisi Otomatis" style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: '#f3f4f6', color: 'var(--text-secondary)' }} />
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Level / Tema / Bab</label>
+                              <label className="form-label">Level / Tema / Bab</label>
                               <input type="text" className="form-input" value={item.level} onChange={(e) => handleItemChange(index, 'level', e.target.value)} placeholder="Mis: Jilid 1 / Tema 2" style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }} />
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Pb / Hafalan / Materi</label>
+                              <label className="form-label">Pb / Hafalan / Materi</label>
                               <input type="text" className="form-input" value={item.materi} onChange={(e) => handleItemChange(index, 'materi', e.target.value)} placeholder="Mis: Pb 1 / An-Naba" style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }} />
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Halaman</label>
+                              <label className="form-label">Halaman</label>
                               <input type="text" className="form-input" value={item.halaman} onChange={(e) => handleItemChange(index, 'halaman', e.target.value)} placeholder="Hal. X" style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }} />
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Evaluasi (Hasil)</label>
+                              <label className="form-label">Evaluasi (Hasil)</label>
                               <select className="form-input" value={item.hasil} onChange={(e) => handleItemChange(index, 'hasil', e.target.value)} style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}>
                                 <option value="">- Pilih Hasil -</option>
                                 <option value="Lanjut">Lanjut</option>
@@ -875,7 +875,7 @@ export default function JurnalPage() {
                             </div>
                             
                             <div>
-                              <label style={{ display: 'block', marginBottom: '0.5rem', fontWeight: 500, fontSize: '0.9rem' }}>Keterangan Khusus</label>
+                              <label className="form-label">Keterangan Khusus</label>
                               <textarea className="form-input" value={item.ket} onChange={(e) => handleItemChange(index, 'ket', e.target.value)} placeholder="Catatan opsional..." rows="2" style={{ width: '100%', padding: '0.6rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontFamily: 'inherit' }}></textarea>
                             </div>
                           </div>

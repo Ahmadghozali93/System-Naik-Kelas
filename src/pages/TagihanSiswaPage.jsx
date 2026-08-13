@@ -287,8 +287,8 @@ export default function TagihanSiswaPage() {
   };
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' };
   const lb  = (text, req) => (
-    <label style={{display:'block',marginBottom:'0.3rem',fontWeight:600,fontSize:'0.78rem',color:'var(--text-secondary)',textTransform:'uppercase',letterSpacing:'0.05em'}}>
-      {text}{req && <span style={{color:'#ef4444'}}> *</span>}
+    <label className="form-label">
+      {text}{req && <span className="wajib"> *</span>}
     </label>
   );
 
@@ -668,25 +668,25 @@ export default function TagihanSiswaPage() {
               <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'0.9rem'}}>
                 <div>
                   {lb('Tanggal Bayar', true)}
-                  <input type="date" style={inp} value={modalForm.tanggal_bayar}
+                  <input type="date" className="form-input" value={modalForm.tanggal_bayar}
                     onChange={e=>setModalForm(f=>({...f,tanggal_bayar:e.target.value}))} required/>
                 </div>
                 <div>
                   {lb('Metode Pembayaran', true)}
-                  <select style={inp} value={modalForm.metode}
+                  <select className="form-input" value={modalForm.metode}
                     onChange={e=>setModalForm(f=>({...f,metode:e.target.value}))} required>
                     {METODE.map(m=><option key={m} value={m}>{m}</option>)}
                   </select>
                 </div>
                 <div>
                   {lb('Diskon (Rp)')}
-                  <input type="number" style={inp} value={modalForm.diskon}
+                  <input type="number" className="form-input" value={modalForm.diskon}
                     onChange={e=>setModalForm(f=>({...f,diskon:e.target.value}))}
                     min="0" max={nominal} placeholder="0"/>
                 </div>
                 <div>
                   {lb('Catatan')}
-                  <input style={inp} value={modalForm.catatan}
+                  <input className="form-input" value={modalForm.catatan}
                     onChange={e=>setModalForm(f=>({...f,catatan:e.target.value}))}
                     placeholder="Opsional"/>
                 </div>

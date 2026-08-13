@@ -190,7 +190,7 @@ export default function UserPage() {
                                 placeholder="Cari nama atau email..."
                                 value={search}
                                 onChange={(e) => setSearch(e.target.value)}
-                                style={{ width: '100%', padding: '0.5rem 1rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem' }}
+                                className="form-input"
                             />
                         </div>
                         <button className="btn btn-primary" style={{ whiteSpace: 'nowrap' }} onClick={() => handleOpenModal()}>
@@ -377,34 +377,34 @@ export default function UserPage() {
                             </button>
                         </div>
 
-                        <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1.1rem' }}>
+                        <form onSubmit={handleSubmit} className="form-grid">
 
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Nama Lengkap</label>
+                                <label className="form-label">Nama Lengkap</label>
                                 <input
                                     type="text"
                                     name="nama"
                                     value={formData.nama}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>No WA</label>
+                                <label className="form-label">No WA</label>
                                 <input
                                     type="tel"
                                     name="nowa"
                                     value={formData.nowa}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tanggal Lahir</label>
+                                <label className="form-label">Tanggal Lahir</label>
                                 <DatePicker
                                     name="tanggal_lahir"
                                     value={formData.tanggal_lahir}
@@ -413,7 +413,7 @@ export default function UserPage() {
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Tanggal Masuk Kerja</label>
+                                <label className="form-label">Tanggal Masuk Kerja</label>
                                 <DatePicker
                                     name="tanggal_masuk"
                                     value={formData.tanggal_masuk}
@@ -422,24 +422,24 @@ export default function UserPage() {
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Email</label>
+                                <label className="form-label">Email</label>
                                 <input
                                     type="email"
                                     name="email"
                                     value={formData.email}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Role</label>
+                                <label className="form-label">Role</label>
                                 <select
                                     name="role"
                                     value={formData.role}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 >
@@ -474,12 +474,12 @@ export default function UserPage() {
                                 </div>
                             )}
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Kelas Bonus KPI</label>
+                                <label className="form-label">Kelas Bonus KPI</label>
                                 <select
                                     name="role_guru"
                                     value={formData.role_guru}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     disabled={isViewing}
                                 >
                                     <option value="">-- Belum diset --</option>
@@ -488,12 +488,12 @@ export default function UserPage() {
                                 </select>
                             </div>
                             <div>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Status</label>
+                                <label className="form-label">Status</label>
                                 <select
                                     name="status"
                                     value={formData.status}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 >
@@ -502,27 +502,27 @@ export default function UserPage() {
                                 </select>
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Alamat Lengkap</label>
+                            <div className="field-full">
+                                <label className="form-label">Alamat Lengkap</label>
                                 <textarea
                                     name="alamat"
                                     value={formData.alamat}
                                     onChange={handleInputChange}
                                     rows="2"
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)', fontFamily: 'inherit', resize: 'vertical' }}
+                                    className="form-input"
                                     required
                                     disabled={isViewing}
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2' }}>
-                                <label style={{ display: 'block', marginBottom: '0.375rem', fontSize: '0.72rem', fontWeight: 600, color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Link Maps Rumah</label>
+                            <div className="field-full">
+                                <label className="form-label">Link Maps Rumah</label>
                                 <input
                                     type="url"
                                     name="maps"
                                     value={formData.maps}
                                     onChange={handleInputChange}
-                                    style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-primary)' }}
+                                    className="form-input"
                                     placeholder="https://maps.google.com/..."
                                     disabled={isViewing}
                                 />
