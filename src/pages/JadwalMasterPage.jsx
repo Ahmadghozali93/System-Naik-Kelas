@@ -707,14 +707,14 @@ export default function JadwalMasterPage() {
                                 type="time"
                                 value={jamMulai}
                                 onChange={(e) => setJamMulai(e.target.value)}
-                                style={{ flex: 1, padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                className="form-input" style={{ flex: 1 }}
                             />
                             <span style={{ fontWeight: 'bold', color: 'var(--text-secondary)' }}>-</span>
                             <input
                                 type="time"
                                 value={jamSelesai}
                                 onChange={(e) => setJamSelesai(e.target.value)}
-                                style={{ flex: 1, padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)' }}
+                                className="form-input" style={{ flex: 1 }}
                             />
                             <button onClick={handleAddJam} className="btn btn-primary" disabled={!jamMulai || !jamSelesai}>
                                 <Plus size={16} /> Tambah

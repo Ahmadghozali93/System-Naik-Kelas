@@ -870,7 +870,7 @@ export default function AktivasiRutinPage() {
                                     type="text"
                                     value={selectedSiswaObj ? selectedSiswaObj.unit : '-'}
                                     disabled
-                                    style={{ width: '100%', padding: '0.5rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: '#f3f4f6', color: '#6b7280' }}
+                                    className="form-input"
                                 />
                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>*Jadwal yang tampil di bawah hanya untuk unit ini.</p>
                             </div>

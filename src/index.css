@@ -240,13 +240,13 @@ input, select, textarea {
   font-size: 0.875rem;
 }
 
-/* Ukuran dipakai dari Master Data — yang paling lega dari dua metrik yang
-   selama ini hidup berdampingan (0,625rem di sana, 0,5rem di Jadwal &
-   Jurnal), sehingga tinggi kontrol seragam di seluruh aplikasi. */
+/* Satu tinggi untuk semua kontrol di seluruh aplikasi. Dua metrik pernah
+   hidup berdampingan — 0,625rem di Master Data, 0,5rem di Jadwal & Jurnal —
+   dan yang ringkas ini yang dipakai. Mengubahnya cukup di satu baris. */
 .form-input {
   display: block;
   width: 100%;
-  padding: 0.625rem 0.875rem;
+  padding: 0.5rem 0.75rem;
   border-radius: var(--radius-md);
   border: 1px solid var(--border);
   background: var(--surface-input);

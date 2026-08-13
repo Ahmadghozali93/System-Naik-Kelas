@@ -500,7 +500,7 @@ export default function SiswaPage() {
                             {isViewing && editingId && (
                                 <div className="field-full">
                                     <label className="form-label">ID Siswa</label>
-                                    <input type="text" value={editingId} disabled style={{ width: '100%', padding: '0.625rem 0.875rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.875rem', color: 'var(--text-secondary)' }} />
+                                    <input type="text" value={editingId} disabled className="form-input" />
                                 </div>
                             )}
 
