@@ -252,6 +252,8 @@ input, select, textarea {
   background: var(--surface-input);
   font-family: inherit;
   font-size: 0.875rem;
+  line-height: 1.6;
+  min-height: 2.5rem;
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
@@ -346,6 +348,17 @@ textarea.form-input { resize: vertical; min-height: 4.5rem; }
 .modal-content textarea {
   padding: 0.5rem 0.75rem !important;
   border-radius: var(--radius-md) !important;
+  line-height: 1.6 !important;
+}
+
+/* <input> mewarisi line-height 1.6 dari body, sedangkan <select> dipaksa
+   'normal' (±1.2) oleh browser — itulah kenapa kotak teks tampak lebih
+   tinggi daripada dropdown di baris yang sama. Line-height di atas
+   menyamakan keduanya; tinggi minimum di bawah menjadi jaring pengaman
+   untuk peramban yang mengabaikan line-height pada <select>. */
+.modal-content input:not([type="checkbox"]):not([type="radio"]),
+.modal-content select {
+  min-height: 2.5rem !important;
 }
 
 /* Kecuali kotak cari, yang ikonnya menumpang di dalam kotak dan butuh
