@@ -25,7 +25,23 @@ async function rpc(model, method, args = [], kwargs = {}, apiKey, email, company
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ model, method, args, kwargs, companyId, apiKey, email, odooUrl: _odooUrl, odooDb: _odooDb }),
   });
-  const data = await resp.json();
+
+  // Proxy selalu menjawab JSON, bahkan saat gagal. Kalau yang datang bukan
+  // JSON, berarti permintaannya tidak pernah sampai ke sana — dan resp.json()
+  // akan melempar pesan bawaan peramban yang tidak menjelaskan apa pun
+  // ("The string did not match the expected pattern" di Safari).
+  const teks = await resp.text();
+  let data;
+  try {
+    data = JSON.parse(teks);
+  } catch {
+    throw new Error(
+      resp.status === 404
+        ? 'Alamat /api/odoo-proxy tidak ditemukan. Fungsi di folder api/ hanya hidup di lingkungan yang menjalankannya — pastikan dev server dijalankan ulang setelah perubahan vite.config.js, atau uji di alamat produksi.'
+        : `Proxy Odoo menjawab bukan JSON (status ${resp.status}): ${teks.slice(0, 150) || '(badan kosong)'}`
+    );
+  }
+
   if (data.error) {
     const msg = data.error?.data?.message || data.error?.message || JSON.stringify(data.error);
     throw new Error(msg);
