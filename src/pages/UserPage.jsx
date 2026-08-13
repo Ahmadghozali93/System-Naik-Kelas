@@ -528,7 +528,7 @@ export default function UserPage() {
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                            <div className="form-actions bergaris">
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Tutup</button>
                                 {!isViewing && (
                                     <button type="submit" className="btn btn-primary">

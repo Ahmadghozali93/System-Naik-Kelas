@@ -63,7 +63,7 @@ export default function DatePicker({ name, value, onChange, required, disabled }
     : '';
 
   return (
-    <div style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
+    <div className="datepicker" style={{ display: 'flex', gap: '0.4rem', alignItems: 'center' }}>
       {/* invisible input so HTML5 required validation works */}
       <input
         tabIndex={-1}

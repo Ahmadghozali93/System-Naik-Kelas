@@ -651,7 +651,7 @@ export default function AktivasiHarianPage() {
                         <form onSubmit={handleSubmit} className="form-grid">
 
                             {perpanjangDari && (
-                                <div style={{ gridColumn: 'span 2', background: 'rgba(79,70,229,0.07)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '0.5rem', padding: '0.7rem 0.9rem', fontSize: '0.82rem' }}>
+                                <div className="field-full" style={{ background: 'rgba(79,70,229,0.07)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '0.5rem', padding: '0.7rem 0.9rem', fontSize: '0.82rem' }}>
                                     Melanjutkan paket <strong>{perpanjangDari.kode}</strong> ({perpanjangDari.jumlah} pertemuan).
                                     Tanggal di bawah sudah ditebak mengikuti irama pertemuan sebelumnya — silakan sesuaikan.
                                     <div style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
@@ -875,7 +875,7 @@ export default function AktivasiHarianPage() {
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div className="form-actions">
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Batal</button>
                                 <button type="submit" className="btn btn-primary">
                                     {editingId ? 'Simpan Perubahan'

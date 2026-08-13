@@ -492,7 +492,7 @@ export default function SiswaPage() {
                         <form onSubmit={handleSubmit} className="form-grid">
 
                             {/* Info Dasar */}
-                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                            <div className="field-full" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Informasi Dasar</span>
                                 <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
@@ -615,7 +615,7 @@ export default function SiswaPage() {
                             )}
 
                             {/* Kontak & Alamat */}
-                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                            <div className="field-full" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Kontak & Alamat</span>
                                 <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
@@ -647,7 +647,7 @@ export default function SiswaPage() {
                             </div>
 
                             {/* Sosial Media */}
-                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                            <div className="field-full" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Sosial Media</span>
                                 <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
@@ -692,7 +692,7 @@ export default function SiswaPage() {
                             </div>
 
                             {/* Lain-lain */}
-                            <div style={{ gridColumn: 'span 2', display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
+                            <div className="field-full" style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginTop: '0.5rem' }}>
                                 <span style={{ fontSize: '0.7rem', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>Catatan</span>
                                 <div style={{ flex: 1, height: '1px', background: 'var(--glass-border)' }} />
                             </div>
@@ -709,7 +709,7 @@ export default function SiswaPage() {
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+                            <div className="form-actions bergaris">
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Tutup</button>
                                 {!isViewing && (
                                     <button type="submit" className="btn btn-primary" disabled={isSaving}>

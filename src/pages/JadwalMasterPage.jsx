@@ -680,7 +680,7 @@ export default function JadwalMasterPage() {
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div className="form-actions">
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Batal</button>
                                 <button type="submit" className="btn btn-primary">
                                     {editingId ? 'Simpan Perubahan' : 'Buat Jadwal'}

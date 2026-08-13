@@ -668,7 +668,7 @@ export default function ReschedulePage() {
                             </div>
 
                             {selectedAktJadwal && (
-                                <div style={{ gridColumn: 'span 2', background: 'rgba(79,70,229,0.05)', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem' }}>
+                                <div className="field-full" style={{ background: 'rgba(79,70,229,0.05)', padding: '0.75rem 1rem', borderRadius: '0.5rem', fontSize: '0.85rem' }}>
                                     <strong>Jadwal Asal:</strong> {selectedAktJadwal.nama_program} — {selectedAktJadwal.nama_guru} ({selectedAktJadwal.hari || '-'} {selectedAktJadwal.jam || '-'}) [{selectedAktJadwal.unit}]
                                 </div>
                             )}
@@ -867,7 +867,7 @@ export default function ReschedulePage() {
                                 />
                             </div>
 
-                            <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
+                            <div className="form-actions">
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={() => setIsModalOpen(false)}>Batal</button>
                                 <button type="submit" className="btn btn-primary">Simpan Reschedule</button>
                             </div>
