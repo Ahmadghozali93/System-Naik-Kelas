@@ -253,12 +253,13 @@ input, select, textarea {
   font-family: inherit;
   font-size: 0.875rem;
   line-height: 1.6;
-  min-height: 2.5rem;
+  height: 2.5rem;
   color: var(--text-primary);
   outline: none;
   transition: border-color 0.15s, box-shadow 0.15s;
 }
-textarea.form-input { resize: vertical; min-height: 4.5rem; }
+/* Textarea tidak ikut dipatok — tingginya mengikuti atribut rows. */
+textarea.form-input { height: auto; min-height: 4.5rem; resize: vertical; }
 
 /* Ruas yang isinya ditolak. !important-nya harus ada karena aturan
    penyeragaman modal di bawah juga memakainya — tanpa ini, penanda merah
@@ -352,13 +353,16 @@ textarea.form-input { resize: vertical; min-height: 4.5rem; }
 }
 
 /* <input> mewarisi line-height 1.6 dari body, sedangkan <select> dipaksa
-   'normal' (±1.2) oleh browser — itulah kenapa kotak teks tampak lebih
-   tinggi daripada dropdown di baris yang sama. Line-height di atas
-   menyamakan keduanya; tinggi minimum di bawah menjadi jaring pengaman
-   untuk peramban yang mengabaikan line-height pada <select>. */
+   'normal' (±1.2) oleh peramban — itulah kenapa kotak teks tampak lebih
+   tinggi daripada dropdown di baris yang sama.
+   Menyamakan line-height saja ternyata belum cukup karena tiap peramban
+   memperlakukannya berbeda pada <select>, jadi tingginya dipatok tetap.
+   Dengan box-sizing: border-box, 2,5rem sudah termasuk padding dan garis
+   tepi, sehingga kotak teks, dropdown, dan tanggal benar-benar sama.
+   Textarea sengaja tidak ikut — tingginya mengikuti jumlah barisnya. */
 .modal-content input:not([type="checkbox"]):not([type="radio"]),
 .modal-content select {
-  min-height: 2.5rem !important;
+  height: 2.5rem !important;
 }
 
 /* Kecuali kotak cari, yang ikonnya menumpang di dalam kotak dan butuh
