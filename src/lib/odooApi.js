@@ -44,9 +44,20 @@ async function rpc(model, method, args = [], kwargs = {}, apiKey, email, company
 
   if (data.error) {
     const msg = data.error?.data?.message || data.error?.message || JSON.stringify(data.error);
-    throw new Error(msg);
+    throw new Error(ringkasGalatOdoo(msg));
   }
   return data.result;
+}
+
+// Odoo membalas kegagalan dengan seluruh traceback Python. Yang berguna bagi
+// operator adalah baris terakhirnya — sisanya dibuang ke konsol supaya tetap
+// bisa dibaca saat menelusuri.
+function ringkasGalatOdoo(pesan) {
+  const teks  = String(pesan).trim();
+  const baris = teks.split('\n').map(b => b.trim()).filter(Boolean);
+  if (baris.length <= 3) return teks;
+  console.error('[Odoo] galat lengkap:\n' + teks);
+  return `${baris[baris.length - 1]}\n\n(rincian lengkapnya ada di konsol peramban)`;
 }
 
 // ─── Test Connection ─────────────────────────────────────────────────────────
@@ -125,12 +136,15 @@ export async function cariKontakSiswa(apiKey, email, { nama, nowa }) {
   if (!nama) return [];
   const rows = await rpc('res.partner', 'search_read',
     [[['name', 'ilike', nama]]],
-    { fields: ['id', 'name', 'mobile', 'phone', 'street'], limit: 10, order: 'id asc' },
+    // Odoo 19 menghapus field 'mobile' dari res.partner dan meleburnya ke
+    // 'phone'. Memintanya membuat search_read gagal dengan KeyError, jadi
+    // hanya 'phone' yang dipakai — field itu ada di semua versi.
+    { fields: ['id', 'name', 'phone', 'street'], limit: 10, order: 'id asc' },
     apiKey, email
   );
   return rows.map(r => ({
     ...r,
-    cocokTelepon: nomorSama(nowa, r.mobile) || nomorSama(nowa, r.phone),
+    cocokTelepon: nomorSama(nowa, r.phone),
   }));
 }
 
@@ -141,7 +155,7 @@ export async function buatKontakSiswa(apiKey, email, siswa) {
     [{
       name:          siswa.nama,
       customer_rank: 1,
-      mobile:        nomorInternasional(siswa.nowa) || false,
+      phone:         nomorInternasional(siswa.nowa) || false,
       street:        siswa.alamat || false,
       comment:       keteranganKontak(siswa) || false,
     }],

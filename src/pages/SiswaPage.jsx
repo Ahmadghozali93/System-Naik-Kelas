@@ -891,7 +891,7 @@ export default function SiswaPage() {
                                     <span>
                                         <span style={{ fontWeight: 600, display: 'block' }}>{k.name}</span>
                                         <span style={{ fontSize: '0.78rem', color: 'var(--text-secondary)' }}>
-                                            #{k.id}{(k.mobile || k.phone) ? ` · ${k.mobile || k.phone}` : ' · tanpa nomor'}
+                                            #{k.id}{k.phone ? ` · ${k.phone}` : ' · tanpa nomor'}
                                             {k.street ? ` · ${k.street}` : ''}
                                         </span>
                                     </span>
