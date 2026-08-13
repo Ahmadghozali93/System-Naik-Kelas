@@ -1,9 +1,33 @@
 import { useState, useEffect } from 'react';
-import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User, Search, Filter } from 'lucide-react';
+import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, ChevronDown, ChevronRight, Clock, MapPin, BookOpen, User, Search, Filter, CopyPlus } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
 import { toProperCase } from '../utils/formatRupiah';
 import { sisaKuota, adaKursi } from '../utils/kuota';
+
+// Aritmetika tanggal dikerjakan di UTC. Kalau memakai waktu lokal, tengah malam
+// WIB adalah pukul 17:00 UTC hari sebelumnya, dan toISOString() akan memundurkan
+// tanggalnya satu hari.
+const keHari = (tglStr) => Math.floor(Date.parse(tglStr + 'T00:00:00Z') / 86400000);
+
+const tambahHari = (tglStr, n) => {
+    const d = new Date(tglStr + 'T00:00:00Z');
+    d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().split('T')[0];
+};
+
+// Jarak hari antar-pertemuan yang paling sering dipakai paket ini — biasanya
+// 7 (mingguan). Dipakai untuk menebak tanggal lanjutan saat paket diperpanjang.
+// Jatuh ke 7 kalau paketnya cuma satu pertemuan atau jaraknya acak.
+const jarakPertemuan = (urut) => {
+    const hitung = {};
+    for (let i = 1; i < urut.length; i++) {
+        const selisih = keHari(urut[i].tgl_mulai) - keHari(urut[i - 1].tgl_mulai);
+        if (selisih > 0) hitung[selisih] = (hitung[selisih] || 0) + 1;
+    }
+    const terbanyak = Object.entries(hitung).sort((a, b) => b[1] - a[1])[0];
+    return terbanyak ? Number(terbanyak[0]) : 7;
+};
 
 export default function AktivasiHarianPage() {
     const { user } = useAuth();
@@ -17,6 +41,7 @@ export default function AktivasiHarianPage() {
     const [isLoading, setIsLoading] = useState(true);
     const [showSelesai, setShowSelesai] = useState(false);
     const [expandedId, setExpandedId] = useState(null);
+    const [perpanjangDari, setPerpanjangDari] = useState(null);   // paket yang sedang diperpanjang
 
     // Search & Filters
     const [search, setSearch] = useState('');
@@ -68,6 +93,7 @@ export default function AktivasiHarianPage() {
     }, []);
 
     const handleOpenModal = (aktivasi = null) => {
+        setPerpanjangDari(null);
         if (aktivasi) {
             setEditingId(aktivasi.id);
             setFormData({
@@ -100,6 +126,48 @@ export default function AktivasiHarianPage() {
     const handleCloseModal = () => {
         setIsModalOpen(false);
         setEditingId(null);
+        setPerpanjangDari(null);
+    };
+
+    // Paket privat sering diambil lagi periode berikutnya. Yang dibuat adalah
+    // paket BARU dengan induk sendiri — bukan menambah pertemuan ke paket lama,
+    // yang tagihannya bisa jadi sudah lunas dan notanya sudah terbit.
+    const handlePerpanjang = (entries) => {
+        const urut   = [...entries].sort((a, b) => (a.tgl_mulai || '').localeCompare(b.tgl_mulai || ''));
+        const acuan  = urut[0];
+        const jadwal = jadwals.find(j => j.id === acuan.jadwal_id);
+        const siswa  = siswas.find(s => s.id === acuan.siswa_id);
+
+        if (!jadwal) {
+            alert('Jadwal paket ini sudah tidak ada di Jadwal Master, jadi tidak bisa diperpanjang otomatis.');
+            return;
+        }
+        if (!siswa) {
+            alert('Siswa ini sudah tidak berstatus Aktif, jadi paketnya tidak bisa diperpanjang.');
+            return;
+        }
+
+        // Lanjutkan irama pertemuan dari tanggal terakhir paket yang berjalan.
+        const jarak = jarakPertemuan(urut);
+        const akhir = urut[urut.length - 1].tgl_mulai;
+        const pertemuan = urut.map((e, i) => ({
+            tanggal: tambahHari(akhir, jarak * (i + 1)),
+            jam: e.detail_jadwal?.jam_pertemuan || ''
+        }));
+
+        setEditingId(null);
+        setPerpanjangDari({ kode: acuan.assign_id_induk || acuan.assign_id, jumlah: urut.length });
+        setFormData({
+            siswa_id: siswa.id,
+            program: jadwal.nama_program || '',
+            guru: jadwal.nama_guru || '',
+            jadwal_id: jadwal.id,
+            pertemuan,
+            spp: acuan.spp || 0,
+            catatan: acuan.catatan || '',
+            status: 'Aktif'
+        });
+        setIsModalOpen(true);
     };
 
     const handleInputChange = (e) => {
@@ -484,6 +552,20 @@ export default function AktivasiHarianPage() {
                                                 </span>
                                             )}
                                         </div>
+                                        {user?.role !== 'Guru' && (
+                                            <button
+                                                onClick={(e) => { e.stopPropagation(); handlePerpanjang(entries); }}
+                                                title="Perpanjang paket — buat paket baru dengan jadwal & harga yang sama"
+                                                style={{
+                                                    display: 'flex', alignItems: 'center', gap: '0.3rem', flexShrink: 0,
+                                                    background: 'rgba(79,70,229,0.1)', color: 'var(--primary)', border: 'none',
+                                                    cursor: 'pointer', padding: '0.3rem 0.6rem', borderRadius: '0.4rem',
+                                                    fontSize: '0.75rem', fontWeight: 600, fontFamily: 'inherit'
+                                                }}
+                                            >
+                                                <CopyPlus size={14} /> Perpanjang
+                                            </button>
+                                        )}
                                         <div style={{ fontSize: '0.75rem', color: 'var(--primary)', flexShrink: 0, fontWeight: 600 }}>
                                             {first.assign_id_induk || first.assign_id}
                                         </div>
@@ -556,13 +638,27 @@ export default function AktivasiHarianPage() {
                 <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 0' }}>
                     <div className="modal-content" style={{ maxWidth: '700px', margin: 'auto' }} onClick={e => e.stopPropagation()}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 className="text-xl font-bold">{editingId ? 'Edit Aktivasi Jadwal Harian' : 'Aktivasi Harian Baru'}</h2>
+                            <h2 className="text-xl font-bold">
+                                {editingId ? 'Edit Aktivasi Jadwal Harian'
+                                    : perpanjangDari ? 'Perpanjang Paket'
+                                    : 'Aktivasi Harian Baru'}
+                            </h2>
                             <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
 
                         <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
+
+                            {perpanjangDari && (
+                                <div style={{ gridColumn: 'span 2', background: 'rgba(79,70,229,0.07)', border: '1px solid rgba(79,70,229,0.2)', borderRadius: '0.5rem', padding: '0.7rem 0.9rem', fontSize: '0.82rem' }}>
+                                    Melanjutkan paket <strong>{perpanjangDari.kode}</strong> ({perpanjangDari.jumlah} pertemuan).
+                                    Tanggal di bawah sudah ditebak mengikuti irama pertemuan sebelumnya — silakan sesuaikan.
+                                    <div style={{ color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                        Yang tersimpan adalah <strong>paket baru</strong> dengan tagihannya sendiri; paket lama tidak diubah.
+                                    </div>
+                                </div>
+                            )}
 
                             <div style={{ gridColumn: 'span 2' }}>
                                 <h3 className="font-semibold text-lg border-b pb-2 mb-2">Penempatan Jadwal</h3>
@@ -784,7 +880,9 @@ export default function AktivasiHarianPage() {
                             <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end', gap: '0.75rem', marginTop: '1rem' }}>
                                 <button type="button" className="btn" style={{ background: '#f3f4f6' }} onClick={handleCloseModal}>Batal</button>
                                 <button type="submit" className="btn btn-primary">
-                                    {editingId ? 'Simpan Perubahan' : 'Aktifkan Siswa'}
+                                    {editingId ? 'Simpan Perubahan'
+                                        : perpanjangDari ? 'Simpan Paket Baru'
+                                        : 'Aktifkan Siswa'}
                                 </button>
                             </div>
                         </form>
