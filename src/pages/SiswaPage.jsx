@@ -475,14 +475,14 @@ export default function SiswaPage() {
             {isModalOpen && (
                 <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 0' }}>
                     <div className="modal-content" style={{ maxWidth: '700px', margin: 'auto' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '1.25rem', paddingBottom: '1rem', borderBottom: '1px solid var(--glass-border)' }}>
+                        <div className="modal-header">
                             <div>
-                                <p style={{ margin: '0 0 0.2rem 0', fontSize: '0.7rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-secondary)' }}>
+                                <p className="modal-eyebrow">
                                     {isViewing ? 'Detail' : editingId ? 'Edit' : 'Tambah'} Data
                                 </p>
-                                <h2 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700 }}>Siswa</h2>
+                                <h2 className="modal-title">Siswa</h2>
                             </div>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)', padding: '0.25rem' }}>
+                            <button onClick={handleCloseModal} className="modal-close">
                                 <X size={20} />
                             </button>
                         </div>

@@ -780,9 +780,9 @@ export default function AktivasiRutinPage() {
             {isModalOpen && (
                 <div className="modal-overlay" style={{ overflowY: 'auto', padding: '2rem 0' }}>
                     <div className="modal-content" style={{ maxWidth: '700px', margin: 'auto' }} onClick={e => e.stopPropagation()}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-                            <h2 className="text-xl font-bold">{editingId ? 'Edit Aktivasi Jadwal Rutin' : 'Aktivasi Rutin Baru'}</h2>
-                            <button onClick={handleCloseModal} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-secondary)' }}>
+                        <div className="modal-header">
+                            <h2 className="modal-title">{editingId ? 'Edit Aktivasi Jadwal Rutin' : 'Aktivasi Rutin Baru'}</h2>
+                            <button onClick={handleCloseModal} className="modal-close">
                                 <X className="w-5 h-5" />
                             </button>
                         </div>
