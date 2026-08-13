@@ -826,7 +826,8 @@ export default function AktivasiRutinPage() {
                                                         value={siswaSearch}
                                                         onChange={(e) => setSiswaSearch(e.target.value)}
                                                         onClick={(e) => e.stopPropagation()}
-                                                        style={{ width: '100%', padding: '0.5rem 0.5rem 0.5rem 2.25rem', borderRadius: '0.5rem', border: '1px solid var(--glass-border)', fontSize: '0.85rem', background: 'var(--surface-color)', outline: 'none' }}
+                                                        className="input-cari"
+                                                        style={{ width: '100%' }}
                                                         autoFocus
                                                     />
                                                 </div>

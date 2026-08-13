@@ -336,6 +336,22 @@ textarea.form-input { resize: vertical; min-height: 4.5rem; }
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 
+/* Tinggi kontrol. Empat metrik pernah hidup berdampingan — 0,5rem di
+   Jadwal, 0,55rem di Gaji & Absensi, 0,6rem di Jurnal, 0,625rem di Master
+   Data — masing-masing ditulis lewat objek gaya di dalam berkasnya
+   sendiri. Menyeragamkannya berkas demi berkas berarti menyentuh 38
+   tempat; satu aturan di sini menjangkau semuanya sekaligus. */
+.modal-content input:not([type="checkbox"]):not([type="radio"]),
+.modal-content select,
+.modal-content textarea {
+  padding: 0.5rem 0.75rem !important;
+  border-radius: var(--radius-md) !important;
+}
+
+/* Kecuali kotak cari, yang ikonnya menumpang di dalam kotak dan butuh
+   ruang di kiri. */
+.modal-content input.input-cari { padding-left: 2.25rem !important; }
+
 /* Ruas terkunci tetap terbaca sebagai terkunci. */
 .modal-content input:disabled,
 .modal-content select:disabled,
