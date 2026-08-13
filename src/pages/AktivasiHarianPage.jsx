@@ -3,6 +3,7 @@ import { CalendarDays, Edit, Trash2, X, Plus, GraduationCap, Eye, EyeOff, Chevro
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
 import { toProperCase } from '../utils/formatRupiah';
+import { sisaKuota, adaKursi } from '../utils/kuota';
 
 export default function AktivasiHarianPage() {
     const { user } = useAuth();
@@ -121,6 +122,15 @@ export default function AktivasiHarianPage() {
             const validPertemuan = formData.pertemuan.filter(p => p.tanggal && p.jam);
             if (validPertemuan.length === 0) {
                 alert('Silakan isi minimal 1 tanggal dan jam pertemuan.');
+                return;
+            }
+
+            // Kuota harian berlaku per tanggal, jadi diperiksa per baris pertemuan.
+            const bermasalah = formData.pertemuan
+                .map((p, i) => ({ tanggal: p.tanggal, alasan: alasanTanggalPenuh(p.tanggal, i) }))
+                .filter(x => x.alasan);
+            if (bermasalah.length > 0) {
+                alert('Tidak bisa disimpan:\n\n' + bermasalah.map(x => `• ${formatTanggal(x.tanggal)} — ${x.alasan}`).join('\n'));
                 return;
             }
 
@@ -265,21 +275,21 @@ export default function AktivasiHarianPage() {
         return dateStr;
     };
 
-    const getSisaKuota = (jadwalId, currentKuota) => {
-        let activeCount = aktivasis.filter(a => a.jadwal_id === jadwalId && a.status === 'Aktif' && a.id !== editingId).length;
-        return (currentKuota || 0) - activeCount;
-    };
+    // Sisa kursi jadwal harian dihitung per tanggal pertemuan — lihat utils/kuota.js.
+    const getSisaKuota = (jadwal, tanggal) =>
+        sisaKuota(jadwal, aktivasis, { tanggal, kecuali: editingId });
 
     // Derived state for filtering and cascading selects
     const selectedSiswaObj = siswas.find(s => s.id === formData.siswa_id);
 
-    // 1. Valid jadwals for the current unit
+    // 1. Valid jadwals for the current unit.
+    // Jadwal harian tidak disaring kuota di sini: yang menentukan penuh atau
+    // tidak adalah tanggal pertemuan, dan tanggalnya baru dipilih di bawah.
     const validJadwalsUnit = selectedSiswaObj
         ? jadwals.filter(j => {
             const isSameUnit = j.unit === selectedSiswaObj.unit;
-            const sisaKuota = getSisaKuota(j.id, j.kuota);
             const isCurrentJadwal = (formData.jadwal_id === j.id && editingId);
-            return isSameUnit && (sisaKuota > 0 || isCurrentJadwal);
+            return isSameUnit && (adaKursi(j, aktivasis, { kecuali: editingId }) || isCurrentJadwal);
         })
         : [];
 
@@ -302,6 +312,21 @@ export default function AktivasiHarianPage() {
     const filteredJadwals = (formData.program && formData.guru)
         ? validJadwalsProgram.filter(j => j.nama_guru === formData.guru)
         : [];
+
+    const selectedJadwalObj = jadwals.find(j => j.id === formData.jadwal_id) || null;
+
+    // Alasan sebuah baris tanggal tidak bisa dipakai — null artinya aman.
+    // Baris yang lebih atas dihitung lebih dulu supaya dua baris bertanggal
+    // sama tidak sama-sama lolos padahal kursinya cuma satu.
+    const alasanTanggalPenuh = (tanggal, idx) => {
+        if (!tanggal || !selectedJadwalObj) return null;
+        const sisa = getSisaKuota(selectedJadwalObj, tanggal);
+        if (sisa === null) return null;
+        if (sisa <= 0) return `sudah penuh (kuota ${selectedJadwalObj.kuota || 0} per tanggal)`;
+        const sebelumnya = formData.pertemuan.filter((p, i) => i < idx && p.tanggal === tanggal).length;
+        if (sisa - sebelumnya <= 0) return 'sudah dipakai di baris sebelumnya';
+        return null;
+    };
 
     return (
         <div className="page-container">
@@ -603,17 +628,19 @@ export default function AktivasiHarianPage() {
                                     disabled={!formData.guru}
                                 >
                                     <option value="" disabled>-- Pilih Jadwal Tersedia --</option>
-                                    {filteredJadwals.map(j => {
-                                        const sisa = getSisaKuota(j.id, j.kuota);
-                                        return (
-                                            <option key={j.id} value={j.id}>
-                                                {j.hari} : {j.jam} - Sisa Kuota: {sisa}
-                                            </option>
-                                        );
-                                    })}
+                                    {filteredJadwals.map(j => (
+                                        <option key={j.id} value={j.id}>
+                                            {[j.hari, j.jam].filter(Boolean).join(' : ') || 'Harian'} — kuota {j.kuota || 0} per tanggal
+                                        </option>
+                                    ))}
                                 </select>
                                 {formData.guru && filteredJadwals.length === 0 && (
                                     <p style={{ color: '#ef4444', fontSize: '0.8rem', marginTop: '0.25rem' }}>Tidak ada jadwal tersedia untuk guru ini.</p>
+                                )}
+                                {selectedJadwalObj && (
+                                    <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.25rem' }}>
+                                        *Kuota jadwal harian berlaku per tanggal, bukan per paket — sisa kursi dicek di tiap tanggal pertemuan di bawah.
+                                    </p>
                                 )}
                             </div>
 
@@ -634,8 +661,11 @@ export default function AktivasiHarianPage() {
                                 </div>
                                 <p style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', marginBottom: '0.5rem' }}>Maks. 15 pertemuan. {editingId ? '(Mode edit: 1 tanggal)' : `(${formData.pertemuan.length}/15)`}</p>
                                 <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', maxHeight: '300px', overflowY: 'auto', paddingRight: '0.25rem' }}>
-                                    {formData.pertemuan.map((p, idx) => (
-                                        <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                    {formData.pertemuan.map((p, idx) => {
+                                        const alasan = alasanTanggalPenuh(p.tanggal, idx);
+                                        return (
+                                        <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '0.2rem' }}>
+                                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
                                             <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', minWidth: '1.5rem' }}>{idx + 1}.</span>
                                             <input
                                                 type="date"
@@ -645,7 +675,7 @@ export default function AktivasiHarianPage() {
                                                     updated[idx] = { ...updated[idx], tanggal: e.target.value };
                                                     setFormData(prev => ({ ...prev, pertemuan: updated }));
                                                 }}
-                                                style={{ fontFamily: 'inherit', flex: 1, padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid var(--glass-border)', background: 'var(--surface-color)', fontSize: '0.85rem' }}
+                                                style={{ fontFamily: 'inherit', flex: 1, padding: '0.4rem', borderRadius: '0.375rem', border: '1px solid ' + (alasan ? '#ef4444' : 'var(--glass-border)'), background: 'var(--surface-color)', fontSize: '0.85rem' }}
                                                 required
                                             />
                                             <select
@@ -677,7 +707,14 @@ export default function AktivasiHarianPage() {
                                                 </button>
                                             )}
                                         </div>
-                                    ))}
+                                        {alasan && (
+                                            <span style={{ fontSize: '0.72rem', color: '#ef4444', paddingLeft: '2rem' }}>
+                                                {formatTanggal(p.tanggal)} {alasan}
+                                            </span>
+                                        )}
+                                        </div>
+                                        );
+                                    })}
                                 </div>
                             </div>
 

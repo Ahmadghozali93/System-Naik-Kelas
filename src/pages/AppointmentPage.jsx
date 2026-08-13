@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CalendarPlus, X, Search, CheckCircle2, XCircle, Flag, AlertTriangle } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
+import { sisaKuota } from '../utils/kuota';
 
 const HARI_ID = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 const todayWIB = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
@@ -66,7 +67,7 @@ export default function AppointmentPage() {
       supabase.from('siswa').select('id, nama, nowa, unit, booking_program, booking_jam')
         .eq('status', 'Booking').order('nama'),
       supabase.from('jadwal_master').select('*').order('unit').order('hari'),
-      supabase.from('aktivasi_siswa').select('jadwal_id, status'),
+      supabase.from('aktivasi_siswa').select('jadwal_id, status, tgl_mulai'),
     ]);
     setAppointments(apRes.data || []);
     setBookings(bkRes.data || []);
@@ -78,17 +79,20 @@ export default function AppointmentPage() {
   useEffect(() => { fetchAll(); }, []);
 
   // ── Hitung sisa kuota slot pada tanggal tertentu ──
-  // sisa = kuota − siswa rutin aktif − appointment aktif di tanggal itu
-  const sisaKuota = (jadwal, tanggal) => {
-    const rutin = aktivasis.filter(a => a.jadwal_id === jadwal.id && a.status === 'Aktif').length;
-    const appt  = appointments.filter(a => a.jadwal_id === jadwal.id && a.tanggal === tanggal && a.status !== 'batal').length;
-    return (jadwal.kuota || 0) - rutin - appt;
+  // sisa = kuota − siswa yang memegang kursi di tanggal itu − appointment aktif di tanggal itu.
+  // Siswa rutin memegang kursinya terus-menerus, siswa harian hanya pada tanggal
+  // pertemuannya — pembedaan itu ada di utils/kuota.js, sejalan dengan trigger
+  // appointment_cek_kuota() di database (migrasi 0029).
+  const sisaSlot = (jadwal, tanggal) => {
+    const dariAktivasi = sisaKuota(jadwal, aktivasis, { tanggal });
+    const appt = appointments.filter(a => a.jadwal_id === jadwal.id && a.tanggal === tanggal && a.status !== 'batal').length;
+    return (dariAktivasi ?? (jadwal.kuota || 0)) - appt;
   };
 
   // ── Slot tersedia untuk tanggal terpilih ──
   const slotTersedia = jadwals
     .filter(j => jadwalCocokTanggal(j, form.tanggal))
-    .map(j => ({ ...j, sisa: sisaKuota(j, form.tanggal) }))
+    .map(j => ({ ...j, sisa: sisaSlot(j, form.tanggal) }))
     .filter(j => j.sisa > 0);
 
   const handleSubmit = async (e) => {

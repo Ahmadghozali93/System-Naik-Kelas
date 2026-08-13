@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { CalendarX2, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
+import { sisaKuota, adaKursi } from '../utils/kuota';
 
 export default function JadwalKosongPage() {
     const [jadwals, setJadwals] = useState([]);
@@ -44,11 +45,8 @@ export default function JadwalKosongPage() {
         fetchData();
     }, []);
 
-    // Calculate sisa kuota
-    const getSisaKuota = (jadwalId, kuota) => {
-        const activeCount = aktivasis.filter(a => a.jadwal_id === jadwalId && a.status === 'Aktif').length;
-        return (kuota || 0) - activeCount;
-    };
+    // Calculate sisa kuota — null untuk jadwal harian (kuotanya per tanggal)
+    const getSisaKuota = (jadwal) => sisaKuota(jadwal, aktivasis);
 
     // Status slot DITURUNKAN dari appointment aktif (tidak disimpan sebagai kolom)
     const getAppointments = (jadwalId) =>
@@ -56,12 +54,14 @@ export default function JadwalKosongPage() {
             .filter(a => a.jadwal_id === jadwalId)
             .sort((a, b) => (a.tanggal || '').localeCompare(b.tanggal || ''));
 
-    // Show all jadwals with remaining quota > 0
+    // Jadwal yang masih bisa diisi. Jadwal harian selalu ikut tampil: kursinya
+    // hanya terpakai pada tanggal pertemuan, jadi slotnya tidak boleh dianggap
+    // penuh gara-gara satu paket berisi banyak pertemuan.
     const jadwalsWithQuota = jadwals
         .map(j => ({
             ...j,
-            sisaKuota: getSisaKuota(j.id, j.kuota)
-        })).filter(j => j.sisaKuota > 0);
+            sisaKuota: getSisaKuota(j)
+        })).filter(j => adaKursi(j, aktivasis));
 
     // Derive unique filter options from jadwals with remaining quota
     const unitOptions = [...new Set(jadwalsWithQuota.map(j => j.unit).filter(Boolean))];
@@ -162,7 +162,8 @@ export default function JadwalKosongPage() {
                                 </tr>
                             ) : (
                                 filtered.map((j, idx) => {
-                                    const terisi = (j.kuota || 0) - j.sisaKuota;
+                                    const perTanggal = j.sisaKuota === null;   // jadwal harian
+                                    const terisi = perTanggal ? null : (j.kuota || 0) - j.sisaKuota;
                                     const appts = getAppointments(j.id);
                                     return (
                                         <tr key={j.id} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }}
@@ -182,11 +183,20 @@ export default function JadwalKosongPage() {
                                             </td>
                                             <td style={{ padding: '1rem' }}>{j.unit}</td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>{j.kuota}</td>
-                                            <td style={{ padding: '1rem', textAlign: 'center' }}>{terisi}</td>
+                                            <td style={{ padding: '1rem', textAlign: 'center', color: perTanggal ? 'var(--text-secondary)' : 'inherit' }}>
+                                                {perTanggal ? '—' : terisi}
+                                            </td>
                                             <td style={{ padding: '1rem', textAlign: 'center' }}>
-                                                <span className="badge" style={{ background: '#d1fae5', color: '#047857', fontWeight: 700 }}>
-                                                    {j.sisaKuota}
-                                                </span>
+                                                {perTanggal ? (
+                                                    <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}
+                                                        title="Kuota jadwal harian dihitung per tanggal pertemuan, bukan per slot.">
+                                                        —
+                                                    </span>
+                                                ) : (
+                                                    <span className="badge" style={{ background: '#d1fae5', color: '#047857', fontWeight: 700 }}>
+                                                        {j.sisaKuota}
+                                                    </span>
+                                                )}
                                             </td>
                                             <td style={{ padding: '1rem' }}>
                                                 {appts.length === 0 ? (

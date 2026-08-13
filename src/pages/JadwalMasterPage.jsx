@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { CalendarDays, Edit, Trash2, X, Plus, Clock, Save, Search, Filter } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { useAuth } from '../context/authStore';
+import { sisaKuota } from '../utils/kuota';
 
 export default function JadwalMasterPage() {
     const { user } = useAuth();
@@ -267,10 +268,9 @@ export default function JadwalMasterPage() {
 
     const DAYS = ['Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu', 'Minggu'];
 
-    const getSisaKuota = (jadwalId, kuota) => {
-        const activeCount = aktivasis.filter(a => a.jadwal_id === jadwalId && a.status === 'Aktif').length;
-        return (kuota || 0) - activeCount;
-    };
+    // null untuk jadwal harian: kuotanya berlaku per tanggal, jadi satu angka
+    // untuk seluruh slot tidak punya arti. Lihat utils/kuota.js.
+    const getSisaKuota = (jadwal) => sisaKuota(jadwal, aktivasis);
 
     const handleToggleReschedule = async (jadwal) => {
         const newVal = !jadwal.reschedule;
@@ -416,7 +416,15 @@ export default function JadwalMasterPage() {
                                         <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>{j.kuota}</td>
                                         <td style={{ padding: '0.6rem 0.5rem', textAlign: 'center' }}>
                                             {(() => {
-                                                const sisa = getSisaKuota(j.id, j.kuota);
+                                                const sisa = getSisaKuota(j);
+                                                if (sisa === null) {
+                                                    return (
+                                                        <span style={{ color: 'var(--text-secondary)', fontWeight: 600 }}
+                                                            title="Kuota jadwal harian dihitung per tanggal pertemuan, bukan per slot.">
+                                                            —
+                                                        </span>
+                                                    );
+                                                }
                                                 const bg = sisa > 0 ? '#d1fae5' : '#fee2e2';
                                                 const color = sisa > 0 ? '#047857' : '#b91c1c';
                                                 return <span className="badge" style={{ background: bg, color, fontWeight: 700 }}>{sisa}</span>;
