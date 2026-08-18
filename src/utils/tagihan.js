@@ -44,10 +44,26 @@ export const computeStatus = (hasPayment, currentJT, siklus = 'bulanan') => {
   return 'Belum Bayar';
 };
 
+// Dipakai untuk menampilkan "Bayar Terakhir". Beberapa periode sering dilunasi
+// sekaligus, jadi tanggal_bayar yang sama itu biasa. Array.sort bersifat stabil,
+// sehingga hasil seri ikut urutan array — yang berbeda tiap halaman karena
+// order query-nya beda. created_at jadi pemutus supaya hasilnya seragam.
 const terbaru = (daftar) =>
-  [...daftar].sort((a, b) =>
-    new Date(b.tanggal_bayar || b.created_at) - new Date(a.tanggal_bayar || a.created_at)
-  )[0];
+  [...daftar].sort((a, b) => {
+    const selisih = new Date(b.tanggal_bayar || b.created_at) - new Date(a.tanggal_bayar || a.created_at);
+    return selisih || new Date(b.created_at) - new Date(a.created_at);
+  })[0];
+
+// Periode terjauh yang sudah dibayar — dasar jatuh tempo berikutnya.
+//
+// Sebelumnya dasarnya adalah transaksi dengan tanggal_bayar paling akhir. Saat
+// orang tua melunasi Juli dan Agustus di hari yang sama, kedua baris bertanggal
+// bayar sama dan yang terpilih jadi untung-untungan; kalau yang tersangkut baris
+// Juli, jatuh tempo mundur sebulan dan tagihan yang sudah lunas tampil
+// 'Terlambat'. Kasus yang sama juga muncul saat tunggakan lama baru dibayar
+// setelah periode berjalan sudah lunas.
+const jatuhTempoTerjauh = (daftar) =>
+  daftar.reduce((max, p) => (p.jatuh_tempo && (!max || p.jatuh_tempo > max) ? p.jatuh_tempo : max), null);
 
 const isPaket = (aktivasi) =>
   aktivasi.siklus === 'sekali' || aktivasi.detail_jadwal?.jenis_program === 'Harian';
@@ -139,13 +155,15 @@ export function buildTagihan(aktivasis, pembayarans) {
       : pembayaranRutin(pembayarans || [], t);
     const last = terbaru(milik);
 
+    const jtDibayar = t.siklus === 'sekali' ? null : jatuhTempoTerjauh(milik);
+
     let jatuh_tempo;
     if (t.siklus === 'sekali') {
       // Paket dibayar sekali di muka: jatuh temponya tetap pertemuan pertama,
       // tidak pernah maju sebulan.
       jatuh_tempo = t.tgl_mulai;
-    } else if (last?.jatuh_tempo) {
-      const next = addOneMonth(last.jatuh_tempo);
+    } else if (jtDibayar) {
+      const next = addOneMonth(jtDibayar);
       // Siswa yang mendaftar ulang setelah sempat berhenti: pakai tanggal
       // mulai yang baru, bukan lanjutan periode lama.
       jatuh_tempo = (next && t.tgl_mulai && next < t.tgl_mulai) ? t.tgl_mulai : next;
