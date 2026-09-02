@@ -5,6 +5,12 @@ import { useAuth } from '../../context/authStore';
 
 const todayWIB  = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 const firstOfMonth = () => todayWIB().slice(0,8)+'01';
+// Izin hanya bisa diajukan untuk tanggal hari ini ke depan, jadi rentang yang
+// berhenti di hari ini hampir selalu memotongnya. Default sampai akhir bulan.
+const endOfMonth = () => {
+  const [y, m] = todayWIB().split('-').map(Number);
+  return `${y}-${String(m).padStart(2,'0')}-${String(new Date(y, m, 0).getDate()).padStart(2,'0')}`;
+};
 const fmtTgl    = (d)  => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
 const fmtTime   = (ts) => ts ? new Date(ts).toLocaleTimeString('id-ID',{timeZone:'Asia/Jakarta',hour:'2-digit',minute:'2-digit'}) : '-';
 const mntToStr  = (m)  => m != null && m > 0 ? `${Math.floor(m/60)}j${m%60>0?` ${m%60}m`:''}` : '-';
@@ -56,7 +62,7 @@ export default function RekapAbsensiPage() {
   const [filterGuru, setFilterGuru]   = useState('');
   const [filterStatus, setFilterStatus] = useState('');
   const [dateFrom, setDateFrom] = useState(firstOfMonth());
-  const [dateTo, setDateTo]     = useState(todayWIB());
+  const [dateTo, setDateTo]     = useState(endOfMonth());
 
   useEffect(() => {
     supabase.from('units').select('*').eq('aktif',true).order('nama').then(r=>setUnits(r.data||[]));
@@ -84,21 +90,40 @@ export default function RekapAbsensiPage() {
   // karena tukar shift sengaja tidak membuat catatan absensi.
   const [izinDiajukan, setIzinDiajukan] = useState({});
   useEffect(() => {
-    supabase.from('v_izin_shift').select('guru_id')
-      .eq('status','Approved').gte('tanggal', dateFrom).lte('tanggal', dateTo)
-      .then(({ data }) => {
-        const m = {};
-        (data || []).forEach(r => { m[r.guru_id] = (m[r.guru_id] || 0) + 1; });
-        setIzinDiajukan(m);
-      });
-  }, [dateFrom, dateTo]);
+    let q = supabase.from('v_izin_shift').select('guru_id')
+      .eq('status','Approved').gte('tanggal', dateFrom).lte('tanggal', dateTo);
+    // Ikut filter yang sama dengan tabel absensi, supaya angkanya tidak
+    // bercerita tentang cakupan yang berbeda dari baris di sebelahnya.
+    if (filterUnit) q = q.eq('unit_id', filterUnit);
+    if (filterGuru) q = q.eq('guru_id', filterGuru);
+    q.then(({ data, error }) => {
+      if (error) { console.error('Gagal memuat izin:', error.message); return; }
+      const m = {};
+      (data || []).forEach(r => { m[r.guru_id] = (m[r.guru_id] || 0) + 1; });
+      setIzinDiajukan(m);
+    });
+  }, [dateFrom, dateTo, filterUnit, filterGuru]);
 
   // Summary per karyawan
   const summary = useMemo(() => {
     const m = {};
+    const kosong = (id, nama) => ({ guru_id:id, nama: nama||'-', Hadir:0, Telat:0, Izin:0,
+      'Izin Tanpa Pengganti':0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0,
+      seragamOk:0, seragamTidak:0, seragamBelum:0 });
+
+    // Guru yang izinnya tukar_shift tidak pernah punya baris absensi — shift
+    // asalnya ditandai dialihkan dan mark_alpha sengaja melewatinya. Kalau
+    // ringkasan hanya dibangun dari attendances, mereka hilang sama sekali
+    // dan justru kasus yang kolom "Izin Diajukan" dibuat untuk menampungnya
+    // tidak pernah terlihat.
+    Object.keys(izinDiajukan).forEach(id => {
+      m[id] = kosong(id, gurus.find(g => g.id === id)?.nama);
+    });
+
     records.forEach(r => {
       const id = r.guru_id;
-      if (!m[id]) m[id] = { guru_id:id, nama: r.gurus?.nama||'-', Hadir:0, Telat:0, Izin:0, 'Izin Tanpa Pengganti':0, Sakit:0, Cuti:0, Alpha:0, totalMenit:0, seragamOk:0, seragamTidak:0, seragamBelum:0 };
+      if (!m[id]) m[id] = kosong(id, r.gurus?.nama);
+      if (m[id].nama === '-' && r.gurus?.nama) m[id].nama = r.gurus.nama;
       const key = r.status || 'Alpha';
       if (m[id][key] !== undefined) m[id][key]++;
       const dm = getDurasi(r); if (dm) m[id].totalMenit += dm;
@@ -107,7 +132,7 @@ export default function RekapAbsensiPage() {
       else                                   m[id].seragamBelum++;
     });
     return Object.values(m).sort((a,b) => a.nama.localeCompare(b.nama));
-  }, [records]);
+  }, [records, izinDiajukan, gurus]);
 
   const exportCSV = () => {
     const header = ['Tanggal','Nama','Unit','Shift','Check-in','Check-out','Status','Durasi','Seragam','Status Lokasi','Jarak (m)','Akurasi (m)','Alasan Luar Area','Verifikasi Lokasi','Catatan'];

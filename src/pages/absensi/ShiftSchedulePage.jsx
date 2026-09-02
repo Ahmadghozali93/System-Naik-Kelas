@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Plus, Trash2, X, ChevronLeft, ChevronRight, CalendarClock } from 'lucide-react';
+import { Plus, Trash2, X, ChevronLeft, ChevronRight, CalendarClock, Lock } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
@@ -137,6 +137,8 @@ export default function ShiftSchedulePage() {
     fetchData();
   };
 
+  const guruNama = (id) => gurus.find(g => String(g.id) === String(id))?.nama || id;
+
   const scheduleMap = useMemo(() => {
     const m = {};
     schedules.forEach(ss => {
@@ -224,17 +226,37 @@ export default function ShiftSchedulePage() {
                     const isToday = d === todayWIB();
                     return (
                       <td key={d} style={{ padding:'0.4rem', verticalAlign:'top', background:isToday?'rgba(79,70,229,0.03)':undefined }}>
-                        {ssList.map(ss => (
-                          <div key={ss.id} style={{ background:'rgba(79,70,229,0.1)', borderRadius:'0.35rem', padding:'0.2rem 0.4rem', marginBottom:'0.2rem', fontSize:'0.72rem', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.25rem' }}>
-                            <span style={{ fontWeight:600, color:'var(--primary)', flex:1, overflow:'hidden', textOverflow:'ellipsis', whiteSpace:'nowrap' }}>
-                              {ss.shifts?.nama}<br/>
+                        {ssList.map(ss => {
+                          // Jadwal yang terikat izin tidak boleh dihapus dari sini:
+                          // izin_detail.shift_schedule_id ber-ON DELETE CASCADE, jadi
+                          // menghapusnya ikut memusnahkan izin yang sudah disetujui.
+                          // Penjaganya ada di DB (migrasi 0032); ini supaya SPV tidak
+                          // menabraknya, dan supaya jadwal titipan tidak lagi tampak
+                          // seperti duplikat yang perlu dirapikan.
+                          const terikatIzin = ss.dialihkan || ss.titipan_dari || ss.izin_detail_id;
+                          return (
+                          <div key={ss.id} style={{ background: ss.dialihkan ? 'rgba(107,114,128,0.12)' : 'rgba(79,70,229,0.1)', borderRadius:'0.35rem', padding:'0.2rem 0.4rem', marginBottom:'0.2rem', fontSize:'0.72rem', display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.25rem' }}>
+                            <span style={{ fontWeight:600, color: ss.dialihkan ? 'var(--text-secondary)' : 'var(--primary)', flex:1, overflow:'hidden' }}>
+                              <span style={{ textDecoration: ss.dialihkan ? 'line-through' : 'none' }}>{ss.shifts?.nama}</span><br/>
                               <span style={{ fontWeight:400, color:'var(--text-secondary)' }}>{ss.shifts?.jam_mulai}–{ss.shifts?.jam_selesai}</span>
+                              {ss.dialihkan && (
+                                <><br/><span title="Shift ini ditinggalkan karena tukar shift — kelasnya jalan lewat guru lain"
+                                  style={{ display:'inline-block', marginTop:'0.15rem', background:'#e5e7eb', color:'#4b5563', padding:'0.05rem 0.35rem', borderRadius:999, fontSize:'0.62rem', fontWeight:700 }}>Dialihkan</span></>
+                              )}
+                              {ss.titipan_dari && (
+                                <><br/><span title={`Jadwal titipan dari ${guruNama(ss.titipan_dari)}`}
+                                  style={{ display:'inline-block', marginTop:'0.15rem', background:'#e0e7ff', color:'#4338ca', padding:'0.05rem 0.35rem', borderRadius:999, fontSize:'0.62rem', fontWeight:700, maxWidth:'100%', overflow:'hidden', textOverflow:'ellipsis' }}>Titipan · {guruNama(ss.titipan_dari)}</span></>
+                              )}
                             </span>
-                            {isAdmin && (
+                            {isAdmin && (terikatIzin ? (
+                              <span title="Terikat izin yang sudah disetujui. Cabut persetujuan izinnya dulu lewat menu Izin & Cuti."
+                                style={{ color:'var(--text-secondary)', padding:'0 2px', flexShrink:0, cursor:'help', display:'flex' }}><Lock size={11}/></span>
+                            ) : (
                               <button onClick={()=>handleDelete(ss.id)} style={{ background:'none', border:'none', cursor:'pointer', color:'#ef4444', padding:'0 2px', flexShrink:0 }}><Trash2 size={11}/></button>
-                            )}
+                            ))}
                           </div>
-                        ))}
+                          );
+                        })}
                         {isAdmin && (
                           <button onClick={()=>{ setForm({guru_id:g.id,shift_id:'',tanggal:d,catatan:''}); setModal(true); }}
                             style={{ background:'none', border:'1px dashed var(--glass-border)', borderRadius:'0.35rem', padding:'0.15rem 0.35rem', cursor:'pointer', fontSize:'0.68rem', color:'var(--text-secondary)', width:'100%', marginTop:ssList.length?'0.2rem':0 }}>
