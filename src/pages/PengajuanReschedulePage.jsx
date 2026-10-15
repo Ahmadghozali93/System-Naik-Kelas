@@ -10,6 +10,7 @@ export default function PengajuanReschedulePage() {
     const [isLoading, setIsLoading] = useState(true);
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [isSuccess, setIsSuccess] = useState(false);
+    const [formAktif, setFormAktif] = useState(true);
 
     const [formData, setFormData] = useState({
         aktivasi_id: '',
@@ -27,10 +28,11 @@ export default function PengajuanReschedulePage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [aktRes, jadRes, resRes] = await Promise.all([
+            const [aktRes, jadRes, resRes, saklarRes] = await Promise.all([
                 supabase.from('aktivasi_siswa').select('*').eq('status', 'Aktif'),
                 supabase.from('jadwal_master').select('*'),
-                supabase.from('reschedules').select('id, jadwal_tujuan_id, tanggal_tujuan, status, nama_siswa, aktivasi_id')
+                supabase.from('reschedules').select('id, jadwal_tujuan_id, tanggal_tujuan, status, nama_siswa, aktivasi_id'),
+                supabase.from('app_settings').select('value').eq('key', 'pengajuan_reschedule_aktif').maybeSingle()
             ]);
 
             if (aktRes.error) throw aktRes.error;
@@ -40,6 +42,7 @@ export default function PengajuanReschedulePage() {
             setAktivasis(aktRes.data || []);
             setJadwals(jadRes.data || []);
             setReschedules(resRes.data || []);
+            setFormAktif(saklarRes.data?.value !== 'false');
         } catch (error) {
             console.error('Error fetching data:', error.message);
         } finally {
@@ -64,6 +67,14 @@ export default function PengajuanReschedulePage() {
 
     const selectedSiswaId = selectedAktivasi?.siswa_id;
     const siswaAktivasis = aktivasis.filter(a => a.siswa_id === selectedSiswaId);
+
+    // Satu siswa hanya boleh punya satu pengajuan berjalan. Pengajuan baru
+    // baru bisa dibuat setelah yang lama selesai (Done) atau dibatalkan.
+    const namaKunci = (n) => (n || '').trim().toLowerCase();
+    const pengajuanBerjalan = selectedAktivasi ? reschedules.find(r =>
+        (r.status === 'Pending' || r.status === 'Approved') &&
+        (siswaAktivasis.some(a => a.id === r.aktivasi_id) || namaKunci(r.nama_siswa) === namaKunci(selectedAktivasi.nama_siswa))
+    ) : null;
 
     const getSiswaJamsOnDate = (targetDate) => {
         const jams = [];
@@ -165,6 +176,7 @@ export default function PengajuanReschedulePage() {
         e.preventDefault();
         if (!selectedAktivasi) { alert('Pilih siswa & jadwal asal.'); return; }
         if (!formData.jadwal_tujuan_id) { alert('Pilih jadwal tujuan.'); return; }
+        if (pengajuanBerjalan) { alert('Siswa ini masih punya pengajuan reschedule yang sedang diproses admin.'); return; }
 
         setIsSubmitting(true);
         const targetJadwal = jadwals.find(j => j.id === formData.jadwal_tujuan_id);
@@ -216,7 +228,14 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
             window.scrollTo({ top: 0, behavior: 'smooth' });
             await fetchData();
         } catch (error) {
-            alert('Gagal menyimpan reschedule: ' + error.message);
+            // Ditolak RLS: form ditutup admin, atau siswa masih punya pengajuan berjalan
+            // (bisa terjadi kalau data di halaman ini sudah basi).
+            if (error.code === '42501') {
+                alert('Pengajuan tidak dapat dikirim. Kemungkinan siswa ini masih punya pengajuan yang sedang diproses admin, atau form pengajuan sedang ditutup. Silakan muat ulang halaman.');
+                await fetchData();
+            } else {
+                alert('Gagal menyimpan reschedule: ' + error.message);
+            }
         } finally {
             setIsSubmitting(false);
         }
@@ -405,7 +424,23 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
                 </nav>
 
                 <div className="rs-content">
-                    {isSuccess ? (
+                    {!formAktif ? (
+                        <div className="rs-success-card">
+                            <h2 style={{ fontSize: '1.5rem', fontWeight: 900, marginBottom: '0.75rem' }}>Pengajuan Ganti Hari Ditutup</h2>
+                            <p style={{ color: '#64748b', marginBottom: '2rem', lineHeight: 1.6 }}>
+                                Saat ini pengajuan ganti hari belum dibuka. Silakan hubungi Admin Ahe Naik Kelas untuk informasi lebih lanjut.
+                            </p>
+                            <a
+                                href="https://wa.me/6282341988735"
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rs-btn rs-btn-blue"
+                                style={{ textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: '0.5rem' }}
+                            >
+                                <MessageCircle size={18} /> Hubungi Admin
+                            </a>
+                        </div>
+                    ) : isSuccess ? (
                         <div className="rs-success-card">
                             <div className="rs-success-icon">
                                 <CheckCircle size={40} />
@@ -498,7 +533,15 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
                                         </div>
                                     </div>
 
-                                    {selectedAktivasi && (
+                                    {pengajuanBerjalan && (
+                                        <div style={{ background: '#fef3c7', border: '1px solid #fcd34d', color: '#92400e', borderRadius: '0.75rem', padding: '0.875rem 1rem', fontSize: '0.9rem', lineHeight: 1.5, marginBottom: '1.5rem' }}>
+                                            <strong>{selectedAktivasi.nama_siswa}</strong> masih punya pengajuan reschedule yang sedang diproses
+                                            {pengajuanBerjalan.tanggal_tujuan ? <> (pindah ke {pengajuanBerjalan.tanggal_tujuan})</> : null}.
+                                            Pengajuan baru bisa dibuat setelah pengajuan tersebut selesai atau dibatalkan oleh admin.
+                                        </div>
+                                    )}
+
+                                    {selectedAktivasi && !pengajuanBerjalan && (
                                         <div className="rs-input-group">
                                             <label className="rs-label">Tanggal Pelajaran yang Ingin Dipindah</label>
                                             {jadwalDates.length === 0 ? (
@@ -534,7 +577,7 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
                                         <label className="rs-label">Ingin Pindah ke Tanggal Berapa?</label>
                                         <div className="rs-select-wrapper">
                                             <select
-                                                disabled={!formData.aktivasi_id}
+                                                disabled={!formData.aktivasi_id || !!pengajuanBerjalan}
                                                 value={formData.tanggal_tujuan}
                                                 onChange={(e) => setFormData(prev => ({ ...prev, tanggal_tujuan: e.target.value, jadwal_tujuan_id: '', jam_tujuan: '' }))}
                                                 className="rs-input"
@@ -609,7 +652,7 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
                                     />
                                 </div>
 
-                                <button type="submit" className="rs-btn rs-btn-blue" disabled={isSubmitting || !formData.jadwal_tujuan_id}>
+                                <button type="submit" className="rs-btn rs-btn-blue" disabled={isSubmitting || !formData.jadwal_tujuan_id || !!pengajuanBerjalan}>
                                     {isSubmitting ? <RefreshCw size={20} style={{ animation: 'spin 1.5s linear infinite' }} /> : '✓ Kirim Pengajuan'}
                                 </button>
                             </form>

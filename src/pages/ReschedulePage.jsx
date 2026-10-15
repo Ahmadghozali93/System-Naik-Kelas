@@ -14,6 +14,9 @@ export default function ReschedulePage() {
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [activeTab, setActiveTab] = useState('kuota');
     const [showDone, setShowDone] = useState(false);
+    const [pengajuanAktif, setPengajuanAktif] = useState(true);
+    const [simpanSaklar, setSimpanSaklar] = useState(false);
+    const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
     // Filters
     const [search, setSearch] = useState('');
@@ -38,12 +41,13 @@ export default function ReschedulePage() {
     const fetchData = async () => {
         setIsLoading(true);
         try {
-            const [resRes, aktRes, jadRes, jamRes, siswaRes] = await Promise.all([
+            const [resRes, aktRes, jadRes, jamRes, siswaRes, saklarRes] = await Promise.all([
                 supabase.from('reschedules').select('*').order('created_at', { ascending: false }),
                 supabase.from('aktivasi_siswa').select('*').eq('status', 'Aktif'),
                 supabase.from('jadwal_master').select('*'),
                 supabase.from('master_jam').select('*').order('waktu', { ascending: true }),
-                supabase.from('siswa').select('id, nama, nowa')
+                supabase.from('siswa').select('id, nama, nowa'),
+                supabase.from('app_settings').select('value').eq('key', 'pengajuan_reschedule_aktif').maybeSingle()
             ]);
 
             if (resRes.error) throw resRes.error;
@@ -57,6 +61,7 @@ export default function ReschedulePage() {
             setJadwals(jadRes.data || []);
             setMasterJam(jamRes.data || []);
             setSiswas(siswaRes.data || []);
+            setPengajuanAktif(saklarRes.data?.value !== 'false');
         } catch (error) {
             console.error('Error:', error.message);
         } finally {
@@ -65,6 +70,19 @@ export default function ReschedulePage() {
     };
 
     useEffect(() => { fetchData(); }, []);
+
+    const togglePengajuanPublik = async () => {
+        const nilaiBaru = !pengajuanAktif;
+        setSimpanSaklar(true);
+        const { error } = await supabase.from('app_settings')
+            .upsert([{ key: 'pengajuan_reschedule_aktif', value: String(nilaiBaru) }], { onConflict: 'key' });
+        setSimpanSaklar(false);
+        if (error) {
+            alert('Gagal mengubah status form pengajuan: ' + error.message);
+            return;
+        }
+        setPengajuanAktif(nilaiBaru);
+    };
 
     // Dropdown ref for click outside
     const dropdownRef = useRef(null);
@@ -260,6 +278,32 @@ export default function ReschedulePage() {
                 <h1 className="page-title">Reschedule</h1>
                 <p className="text-secondary">Kelola perpindahan jadwal siswa tanpa tabrakan.</p>
             </div>
+
+            {isAdmin && (
+                <div className="glass-card" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem', flexWrap: 'wrap', padding: '1rem 1.25rem', marginBottom: '1.5rem' }}>
+                    <div>
+                        <div style={{ fontWeight: 600 }}>
+                            Form Pengajuan Publik:{' '}
+                            <span style={{ color: pengajuanAktif ? '#16a34a' : '#dc2626' }}>
+                                {pengajuanAktif ? 'Aktif' : 'Nonaktif'}
+                            </span>
+                        </div>
+                        <div className="text-secondary" style={{ fontSize: '0.85rem' }}>
+                            Halaman <a href="/pengajuan-reschedule" target="_blank" rel="noreferrer">/pengajuan-reschedule</a>{' '}
+                            {pengajuanAktif ? 'menerima pengajuan ganti hari dari siswa/orang tua.' : 'ditutup — siswa/orang tua tidak bisa mengajukan.'}
+                        </div>
+                    </div>
+                    <button
+                        type="button"
+                        className="btn"
+                        disabled={simpanSaklar || isLoading}
+                        onClick={togglePengajuanPublik}
+                        style={{ background: pengajuanAktif ? '#fee2e2' : '#dcfce7', color: pengajuanAktif ? '#b91c1c' : '#15803d', fontWeight: 600 }}
+                    >
+                        {simpanSaklar ? 'Menyimpan...' : pengajuanAktif ? 'Nonaktifkan' : 'Aktifkan'}
+                    </button>
+                </div>
+            )}
 
             {/* Tab Navigation */}
             <div style={{ display: 'flex', gap: '0', marginBottom: '1.5rem', borderBottom: '2px solid var(--glass-border)' }}>
