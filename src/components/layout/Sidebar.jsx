@@ -413,6 +413,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         isOpen={activeGroup === 'spp'}
                         onToggle={() => toggleGroup('spp')}
                     >
+                        {hasPermission('/spp/scan') && (
+                            <NavLink to="/spp/scan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ScanLine className="w-4 h-4" /><span>Scan Barcode</span>
+                            </NavLink>
+                        )}
                         {hasPermission('/spp/tagihan') && (
                             <NavLink to="/spp/tagihan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <Receipt className="w-4 h-4" /><span>Tagihan Siswa</span>
@@ -431,11 +436,6 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/spp/laporan') && (
                             <NavLink to="/spp/laporan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <BarChart3 className="w-4 h-4" /><span>Laporan SPP</span>
-                            </NavLink>
-                        )}
-                        {hasPermission('/spp/scan') && (
-                            <NavLink to="/spp/scan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
-                                <ScanLine className="w-4 h-4" /><span>Scan Barcode</span>
                             </NavLink>
                         )}
                     </SidebarGroup>
