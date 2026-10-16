@@ -406,7 +406,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                 )}
 
                 {/* SPP GROUP */}
-                {['/spp/tagihan','/spp/rekonsiliasi','/spp/faktur-odoo','/spp/laporan','/spp/scan'].some(p => hasPermission(p)) && (
+                {['/spp/tagihan','/spp/rekonsiliasi','/spp/faktur-odoo','/spp/laporan','/spp/scan','/spp/log'].some(p => hasPermission(p)) && (
                     <SidebarGroup
                         title="SPP"
                         icon={Wallet}
@@ -416,6 +416,11 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/spp/scan') && (
                             <NavLink to="/spp/scan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <ScanLine className="w-4 h-4" /><span>Scan Barcode</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/spp/log') && (
+                            <NavLink to="/spp/log" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ClipboardList className="w-4 h-4" /><span>Log SPP</span>
                             </NavLink>
                         )}
                         {hasPermission('/spp/tagihan') && (

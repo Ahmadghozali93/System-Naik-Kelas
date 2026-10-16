@@ -2,24 +2,16 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle, Send, Copy, Check, Ban, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { formatRupiah, toProperCase } from '../utils/formatRupiah';
+import { formatRupiah } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
-import { buildTagihan, addOneMonth } from '../utils/tagihan';
+import { buildTagihan } from '../utils/tagihan';
+import { barisPembayaran, rentangPaket, METODE } from '../utils/pembayaranSpp';
+import FormBayarSpp from '../components/FormBayarSpp';
 
 const genId    = () => 'TG-'  + Math.random().toString(36).substr(2,6).toUpperCase();
-const genPayId = () => 'PAY-' + Math.random().toString(36).substr(2,6).toUpperCase();
-const METODE   = ['Tunai','BNI','Xendit'];
 const PER_PAGE = 20;
 
 const fmt = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
-const fmtPendek = (d) => d ? new Date(d).toLocaleDateString('id-ID',{day:'2-digit',month:'short'}) : '-';
-
-// "05 Agu – 30 Sep 2026" — tahun cukup ditulis sekali di ujung.
-const rentangPaket = (t) => {
-  if (!t?.tgl_mulai) return '';
-  if (!t.tgl_selesai || t.tgl_selesai === t.tgl_mulai) return fmt(t.tgl_mulai);
-  return `${fmtPendek(t.tgl_mulai)} – ${fmt(t.tgl_selesai)}`;
-};
 
 const waLink = (nowa) => {
   if (!nowa) return null;
@@ -251,30 +243,9 @@ export default function TagihanSiswaPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    const { t }     = modal;
-    const isPaket   = t.siklus === 'sekali';
-    const diskon    = Number(modalForm.diskon) || 0;
-    const bayar     = Math.max(t.nominal - diskon, 0);
-
-    const { error } = await supabase.from('pembayaran_spp').insert([{
-      id: genPayId(),
-      // Paket tetap menunjuk pertemuan pertama supaya relasi lama tidak putus;
-      // yang mengikat ke seluruh paket adalah induk_id.
-      aktivasi_id: t.aktivasi_ids[0],
-      induk_id: isPaket ? t.induk_id : null,
-      siswa_id: t.siswa_id,
-      nama_siswa: toProperCase(t.nama_siswa || ''),
-      nama_program: t.nama_program || '',
-      unit: t.unit || '',
-      nominal: bayar,
-      diskon,
-      metode: modalForm.metode,
-      tanggal_bayar: modalForm.tanggal_bayar || null,
-      jatuh_tempo: t.jatuh_tempo,   // simpan periode yg dibayar, bukan tanggal transaksi
-      keterangan: modalForm.catatan
-        || (isPaket ? `Paket ${t.jumlah_sesi} pertemuan (${rentangPaket(t)})` : ''),
-      dicatat_oleh: user?.nama || user?.email || '-'
-    }]);
+    const { error } = await supabase.from('pembayaran_spp').insert([
+      barisPembayaran(modal.t, modalForm, user?.nama || user?.email),
+    ]);
 
     if (error) {
       alert('Gagal menyimpan: ' + error.message);
@@ -291,11 +262,6 @@ export default function TagihanSiswaPage() {
     fontFamily:'inherit', fontSize:'0.875rem', color:'var(--text-primary)', boxSizing:'border-box'
   };
   const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' };
-  const lb  = (text, req) => (
-    <label className="form-label">
-      {text}{req && <span className="wajib"> *</span>}
-    </label>
-  );
 
   const Pager = ({ cur, total, onChange }) => total <= 1 ? null : (
     <div style={{display:'flex',alignItems:'center',gap:'0.4rem',marginTop:'0.85rem',justifyContent:'flex-end'}}>
@@ -646,111 +612,11 @@ export default function TagihanSiswaPage() {
       )}
 
       {/* ── MODAL BAYAR ── */}
-      {modal && (() => {
-        const { t }      = modal;
-        const isPaket    = t.siklus === 'sekali';
-        const nominal    = t.nominal;
-        const diskon     = Number(modalForm.diskon) || 0;
-        const yg_dibayar = Math.max(nominal - diskon, 0);
-        const jt         = t.jatuh_tempo;
-
-        return (
-          <div style={{position:'fixed',inset:0,background:'rgba(0,0,0,0.55)',display:'flex',alignItems:'center',justifyContent:'center',zIndex:1000,padding:'1rem'}}>
-            <div className="glass-card" style={{width:'100%',maxWidth:460,padding:'1.5rem',maxHeight:'90vh',overflowY:'auto'}}>
-              <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
-                <h3 style={{margin:0,fontWeight:700}}>{isPaket ? 'Bayar Paket' : 'Bayar SPP'}</h3>
-                <button onClick={()=>setModal(null)} style={{background:'none',border:'none',cursor:'pointer',color:'var(--text-secondary)'}}><X size={18}/></button>
-              </div>
-
-              {/* Info siswa */}
-              <div style={{background:'rgba(79,70,229,0.06)',border:'1px solid rgba(79,70,229,0.15)',borderRadius:'0.5rem',padding:'0.85rem 1rem',marginBottom:'1.25rem'}}>
-                <div style={{fontWeight:700,fontSize:'1rem'}}>{t.nama_siswa}</div>
-                <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:'0.25rem 1rem',fontSize:'0.82rem',color:'var(--text-secondary)',marginTop:'0.35rem'}}>
-                  <span><b style={{color:'var(--text-primary)'}}>Program:</b> {t.nama_program||'-'}</span>
-                  <span><b style={{color:'var(--text-primary)'}}>Unit:</b> {t.unit||'-'}</span>
-                  <span><b style={{color:'var(--text-primary)'}}>{isPaket ? 'Pertemuan:' : 'Mulai Les:'}</b> {isPaket ? rentangPaket(t) : fmt(t.tgl_mulai)}</span>
-                  <span><b style={{color:'var(--text-primary)'}}>Jatuh Tempo:</b> {fmt(jt)}</span>
-                </div>
-                <div style={{marginTop:'0.6rem',paddingTop:'0.5rem',borderTop:'1px solid rgba(79,70,229,0.15)',fontWeight:700,fontSize:'0.95rem'}}>
-                  {isPaket
-                    ? `Total paket (${t.jumlah_sesi} pertemuan): ${formatRupiah(nominal)}`
-                    : `Nominal SPP: ${formatRupiah(nominal)}`}
-                </div>
-              </div>
-
-              {/* Dicatat oleh */}
-              <div style={{display:'flex',alignItems:'center',gap:'0.5rem',padding:'0.45rem 0.75rem',background:'rgba(0,0,0,0.03)',borderRadius:'0.4rem',fontSize:'0.85rem',marginBottom:'0.9rem'}}>
-                <span style={{color:'var(--text-secondary)',fontSize:'0.78rem',fontWeight:600,textTransform:'uppercase',letterSpacing:'0.05em'}}>Dicatat oleh:</span>
-                <span style={{fontWeight:700,color:'var(--primary)'}}>{user?.nama || user?.email || '-'}</span>
-              </div>
-
-              <form onSubmit={handleSubmit} style={{display:'flex',flexDirection:'column',gap:'0.9rem'}}>
-                <div>
-                  {lb('Tanggal Bayar', true)}
-                  <input type="date" className="form-input" value={modalForm.tanggal_bayar}
-                    onChange={e=>setModalForm(f=>({...f,tanggal_bayar:e.target.value}))} required/>
-                </div>
-                <div>
-                  {lb('Metode Pembayaran', true)}
-                  <select className="form-input" value={modalForm.metode}
-                    onChange={e=>setModalForm(f=>({...f,metode:e.target.value}))} required>
-                    {METODE.map(m=><option key={m} value={m}>{m}</option>)}
-                  </select>
-                </div>
-                <div>
-                  {lb('Diskon (Rp)')}
-                  <input type="number" className="form-input" value={modalForm.diskon}
-                    onChange={e=>setModalForm(f=>({...f,diskon:e.target.value}))}
-                    min="0" max={nominal} placeholder="0"/>
-                </div>
-                <div>
-                  {lb('Catatan')}
-                  <input className="form-input" value={modalForm.catatan}
-                    onChange={e=>setModalForm(f=>({...f,catatan:e.target.value}))}
-                    placeholder="Opsional"/>
-                </div>
-
-                {/* Ringkasan */}
-                <div style={{background:'rgba(16,185,129,0.08)',border:'1px solid rgba(16,185,129,0.2)',borderRadius:'0.5rem',padding:'0.7rem 1rem',fontSize:'0.85rem'}}>
-                  <div style={{display:'flex',justifyContent:'space-between',marginBottom:'0.25rem'}}>
-                    <span style={{color:'var(--text-secondary)'}}>{isPaket ? `Total ${t.jumlah_sesi} pertemuan` : 'Nominal SPP'}</span>
-                    <span style={{fontWeight:600}}>{formatRupiah(nominal)}</span>
-                  </div>
-                  {diskon>0&&(
-                    <div style={{display:'flex',justifyContent:'space-between',color:'#b45309',marginBottom:'0.25rem'}}>
-                      <span>Diskon</span>
-                      <span style={{fontWeight:600}}>– {formatRupiah(diskon)}</span>
-                    </div>
-                  )}
-                  <div style={{display:'flex',justifyContent:'space-between',paddingTop:'0.35rem',borderTop:'1px solid rgba(16,185,129,0.25)',fontWeight:700}}>
-                    <span>Yang Dibayar</span>
-                    <span style={{color:'#047857'}}>{formatRupiah(yg_dibayar)}</span>
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.3rem',fontSize:'0.78rem',color:'var(--text-secondary)'}}>
-                    <span>{isPaket ? 'Paket' : 'Periode dibayar'}</span>
-                    <span style={{fontWeight:600}}>{isPaket ? rentangPaket(t) : fmt(jt)}</span>
-                  </div>
-                  <div style={{display:'flex',justifyContent:'space-between',marginTop:'0.2rem',fontSize:'0.78rem',color:'var(--text-secondary)'}}>
-                    {isPaket ? (
-                      <span style={{fontWeight:600,color:'#047857'}}>Pelunasan paket — tidak ada tagihan lanjutan.</span>
-                    ) : (
-                      <>
-                        <span>Jatuh tempo berikutnya</span>
-                        <span style={{fontWeight:600,color:'#047857'}}>{fmt(addOneMonth(jt))}</span>
-                      </>
-                    )}
-                  </div>
-                </div>
-
-                <div style={{display:'flex',gap:'0.75rem'}}>
-                  <button type="submit" className="btn btn-primary" style={{flex:1}}>Simpan Pembayaran</button>
-                  <button type="button" className="btn" onClick={()=>setModal(null)} style={{background:'var(--surface-color)'}}>Batal</button>
-                </div>
-              </form>
-            </div>
-          </div>
-        );
-      })()}
+      {modal && (
+        <FormBayarSpp t={modal.t} form={modalForm} setForm={setModalForm}
+          onSubmit={handleSubmit} onClose={()=>setModal(null)}
+          dicatatOleh={user?.nama || user?.email}/>
+      )}
     </div>
   );
 }

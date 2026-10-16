@@ -27,6 +27,7 @@ const AVAILABLE_MENUS = [
     { path: '/spp/faktur-odoo',  label: 'SPP - Faktur Odoo' },
     { path: '/spp/laporan',      label: 'SPP - Laporan' },
     { path: '/spp/scan',         label: 'SPP - Scan Barcode' },
+    { path: '/spp/log',          label: 'SPP - Log SPP (validasi scan)' },
     // ── Jurnal ───────────────────────────────────────
     { path: '/jurnal',           label: 'Jurnal Mengajar' },
     // ── Absensi ──────────────────────────────────────
