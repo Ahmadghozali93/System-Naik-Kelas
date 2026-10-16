@@ -329,23 +329,23 @@ export default function ReschedulePage() {
                 ))}
             </div>
 
-            {/* Tab: Kuota Reschedule — Ringkasan Jadwal 10 Hari yang Kosong */}
+            {/* Tab: Kuota Reschedule — Ringkasan Jadwal 5 Hari yang Kosong */}
             {activeTab === 'kuota' && (() => {
                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-                // Generate next 10 days starting from tomorrow (skip Sunday)
-                const dates10 = [];
+                // Generate next 5 days starting from tomorrow (skip Sunday)
+                const dates5 = [];
                 const today = new Date();
-                for (let i = 1; dates10.length < 10; i++) {
+                for (let i = 1; dates5.length < 5; i++) {
                     const d = new Date(today);
                     d.setDate(d.getDate() + i);
                     if (d.getDay() !== 0) {
-                        dates10.push(d);
+                        dates5.push(d);
                     }
                 }
 
                 // Build rows: for each date + jadwal_master that falls on that date and has sisa kuota > 0
                 const rows = [];
-                dates10.forEach(dateObj => {
+                dates5.forEach(dateObj => {
                     const dateStr = dateObj.toISOString().split('T')[0];
                     const hari = dayNames[dateObj.getDay()];
 
@@ -383,10 +383,10 @@ export default function ReschedulePage() {
                     <div className="glass-card">
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', flexWrap: 'wrap', gap: '0.75rem' }}>
                             <h2 style={{ fontSize: '1.25rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '0.5rem', margin: 0 }}>
-                                <CalendarX2 className="text-primary" size={24} /> Kuota Reschedule — Ringkasan 10 Hari
+                                <CalendarX2 className="text-primary" size={24} /> Kuota Reschedule — Ringkasan 5 Hari
                             </h2>
                             <span style={{ fontSize: '0.875rem', color: 'var(--text-secondary)' }}>
-                                {filteredRows.length} slot kosong dalam 10 hari ke depan
+                                {filteredRows.length} slot kosong dalam 5 hari ke depan
                             </span>
                         </div>
 
@@ -426,7 +426,7 @@ export default function ReschedulePage() {
                                     {isLoading ? (
                                         <tr><td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Memuat data...</td></tr>
                                     ) : filteredRows.length === 0 ? (
-                                        <tr><td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Tidak ada slot kosong dalam 10 hari ke depan.</td></tr>
+                                        <tr><td colSpan="10" style={{ padding: '2rem', textAlign: 'center', color: 'var(--text-secondary)' }}>Tidak ada slot kosong dalam 5 hari ke depan.</td></tr>
                                     ) : (
                                         filteredRows.map((r, idx) => (
                                             <tr key={r.id + '-' + r.dateStr} style={{ borderBottom: '1px solid rgba(0,0,0,0.05)', transition: 'background-color 0.2s' }}
@@ -719,13 +719,13 @@ export default function ReschedulePage() {
 
                             {(() => {
                                 // Generate next 10 calendar days starting tomorrow (skip Sunday)
-                                const dates10 = [];
+                                const dates5 = [];
                                 const today = new Date();
-                                for (let i = 1; dates10.length < 10; i++) {
+                                for (let i = 1; dates5.length < 5; i++) {
                                     const d = new Date(today);
                                     d.setDate(d.getDate() + i);
                                     if (d.getDay() !== 0) {
-                                        dates10.push(d);
+                                        dates5.push(d);
                                     }
                                 }
                                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
@@ -739,14 +739,14 @@ export default function ReschedulePage() {
                                         const tgl = selectedAktivasi.tgl_mulai;
                                         if (tgl) {
                                             const tglDate = new Date(tgl + 'T00:00:00');
-                                            if (tglDate >= new Date(today.toISOString().split('T')[0] + 'T00:00:00') && tglDate <= new Date(dates10[9].toISOString().split('T')[0] + 'T00:00:00')) {
+                                            if (tglDate >= new Date(today.toISOString().split('T')[0] + 'T00:00:00') && tglDate <= new Date(dates5[dates5.length - 1].toISOString().split('T')[0] + 'T00:00:00')) {
                                                 jadwalDates.push(tgl);
                                             }
                                         }
                                     } else {
                                         // Rutin: match hari
                                         const jadwalHari = selectedAktJadwal.hari || '';
-                                        dates10.forEach(d => {
+                                        dates5.forEach(d => {
                                             const hari = dayNames[d.getDay()];
                                             if (jadwalHari.includes(hari)) {
                                                 jadwalDates.push(d.toISOString().split('T')[0]);
@@ -761,7 +761,7 @@ export default function ReschedulePage() {
                                         {!selectedAktivasi ? (
                                             <p style={{ color: 'var(--text-secondary)', fontSize: '0.85rem' }}>Pilih aktivasi siswa terlebih dahulu.</p>
                                         ) : jadwalDates.length === 0 ? (
-                                            <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Tidak ada jadwal siswa ini dalam 10 hari ke depan.</p>
+                                            <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Tidak ada jadwal siswa ini dalam 5 hari ke depan.</p>
                                         ) : (
                                             <select
                                                 value={formData.tanggal_asal}
@@ -787,13 +787,13 @@ export default function ReschedulePage() {
                             {(() => {
                                 const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
                                 // Generate Kuota Reschedule rows starting tomorrow (skip Sunday)
-                                const dates10 = [];
+                                const dates5 = [];
                                 const today = new Date();
-                                for (let i = 1; dates10.length < 10; i++) {
+                                for (let i = 1; dates5.length < 5; i++) {
                                     const d = new Date(today);
                                     d.setDate(d.getDate() + i);
                                     if (d.getDay() !== 0) {
-                                        dates10.push(d);
+                                        dates5.push(d);
                                     }
                                 }
 
@@ -838,7 +838,7 @@ export default function ReschedulePage() {
                                                     required
                                                 >
                                                     <option value="" disabled>-- Pilih Tanggal Tujuan --</option>
-                                                    {dates10.map(d => {
+                                                    {dates5.map(d => {
                                                         const dateStr = d.toISOString().split('T')[0];
                                                         const hri = dayNames[d.getDay()];
                                                         return <option key={dateStr} value={dateStr}>{hri}, {dateStr}</option>;

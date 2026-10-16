@@ -102,17 +102,17 @@ export default function PengajuanReschedulePage() {
         return jams;
     };
 
-    const generateDates10 = () => {
+    const generateDates5 = () => {
         const dates = [];
         const today = new Date();
-        for (let i = 1; dates.length < 10; i++) {
+        for (let i = 1; dates.length < 5; i++) {
             const d = new Date(today);
             d.setDate(d.getDate() + i);
             if (d.getDay() !== 0) dates.push(d);
         }
         return dates;
     };
-    const dates10 = generateDates10();
+    const dates5 = generateDates5();
     const dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
 
     const getJadwalDates = () => {
@@ -123,14 +123,14 @@ export default function PengajuanReschedulePage() {
             const tgl = selectedAktivasi.tgl_mulai;
             if (!tgl) return [];
             const tglDate = new Date(tgl + 'T00:00:00');
-            const last = dates10[dates10.length - 1];
+            const last = dates5[dates5.length - 1];
             if (tglDate >= new Date(today.toISOString().split('T')[0] + 'T00:00:00') && tglDate <= last) {
                 return [tgl];
             }
             return [];
         } else {
             const jadwalHari = selectedAktJadwal.hari || '';
-            return dates10
+            return dates5
                 .filter(d => jadwalHari.includes(dayNames[d.getDay()]))
                 .map(d => d.toISOString().split('T')[0]);
         }
@@ -545,7 +545,7 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
                                         <div className="rs-input-group">
                                             <label className="rs-label">Tanggal Pelajaran yang Ingin Dipindah</label>
                                             {jadwalDates.length === 0 ? (
-                                                <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Tidak ada jadwal tersedia dalam 10 hari ke depan.</p>
+                                                <p style={{ color: '#ef4444', fontSize: '0.85rem' }}>Tidak ada jadwal tersedia dalam 5 hari ke depan.</p>
                                             ) : (
                                                 <div className="rs-select-wrapper">
                                                     <select
@@ -584,7 +584,7 @@ Mohon bantuannya untuk memproses pengajuan ini. Terima kasih.`;
                                                 required
                                             >
                                                 <option value="" disabled>-- Pilih Tanggal Tujuan --</option>
-                                                {dates10.map(d => {
+                                                {dates5.map(d => {
                                                     const dateStr = d.toISOString().split('T')[0];
                                                     return <option key={dateStr} value={dateStr}>{dayNames[d.getDay()]}, {dateStr}</option>;
                                                 })}
