@@ -159,7 +159,7 @@ export default function SetorBukuPage() {
       </div>
 
       {modalOpen && (
-        <div className="modal-overlay" onClick={e=>{ if (e.target === e.currentTarget && !saving) setModalOpen(false); }}>
+        <div className="modal-overlay modal-tengah" onClick={e=>{ if (e.target === e.currentTarget && !saving) setModalOpen(false); }}>
           <div className="modal-content" style={{maxWidth:680}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
               <h3 style={{margin:0,fontWeight:700}}>Input Setor Buku</h3>

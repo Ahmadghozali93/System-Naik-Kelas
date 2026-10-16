@@ -379,8 +379,10 @@ textarea.form-input { height: auto; min-height: 4.5rem; resize: vertical; }
 }
 
 /* Kecuali kotak cari, yang ikonnya menumpang di dalam kotak dan butuh
-   ruang di kiri. */
-.modal-content input.input-cari { padding-left: 2.25rem !important; }
+   ruang di kiri. Kedua :not() di sini bukan penyaring — tanpanya selektor
+   ini kalah spesifik dari aturan padding di atas (tiap :not([type]) ikut
+   menambah bobot), sehingga padding-left-nya diam-diam tertimpa. */
+.modal-content input.input-cari:not([type="checkbox"]):not([type="radio"]) { padding-left: 2.25rem !important; }
 
 /* Ruas terkunci tetap terbaca sebagai terkunci. */
 .modal-content input:disabled,

@@ -161,7 +161,7 @@ export default function ProdukBukuPage() {
       </div>
 
       {modal && (
-        <div className="modal-overlay" onClick={e=>{ if (e.target === e.currentTarget && !saving) setModal(null); }}>
+        <div className="modal-overlay modal-tengah" onClick={e=>{ if (e.target === e.currentTarget && !saving) setModal(null); }}>
           <div className="modal-content" style={{maxWidth:460}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
               <h3 style={{margin:0,fontWeight:700}}>{modal.id ? `Edit ${modal.id}` : 'Tambah Produk'}</h3>

@@ -235,7 +235,7 @@ export default function LogBukuPage() {
       </div>
 
       {modal && (
-        <div className="modal-overlay" onClick={e=>{ if (e.target === e.currentTarget && !menyimpan) setModal(null); }}>
+        <div className="modal-overlay modal-tengah" onClick={e=>{ if (e.target === e.currentTarget && !menyimpan) setModal(null); }}>
           <div className="modal-content" style={{maxWidth:500}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'1rem'}}>
               <h3 style={{margin:0,fontWeight:700}}>Validasi Penjualan Buku</h3>
