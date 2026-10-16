@@ -31,6 +31,7 @@ import NotaPublikPage from './pages/NotaPublikPage';
 import JurnalPage from './pages/JurnalPage';
 import TagihanSiswaPage from './pages/TagihanSiswaPage';
 import LaporanSppPage from './pages/LaporanSppPage';
+import ScanBarcodeSppPage from './pages/ScanBarcodeSppPage';
 import RekonsiliasiPage from './pages/RekonsiliasiPage';
 import FakturOdooPage from './pages/FakturOdooPage';
 import AbsensiCheckPage from './pages/absensi/AbsensiCheckPage';
@@ -178,6 +179,7 @@ function App() {
             <Route path="/spp/rekonsiliasi" element={<RekonsiliasiPage />} />
             <Route path="/spp/faktur-odoo" element={<FakturOdooPage />} />
             <Route path="/spp/laporan" element={<LaporanSppPage />} />
+            <Route path="/spp/scan" element={<ScanBarcodeSppPage />} />
 
             {/* ABSENSI */}
             <Route path="/absensi/check"       element={<AbsensiCheckPage />} />

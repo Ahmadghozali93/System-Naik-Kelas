@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, X, FileText, Receipt, ChevronLeft, ChevronRight, Trash2, MessageCircle, Send, Copy, Check, Ban, RotateCcw } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import { formatRupiah, toProperCase } from '../utils/formatRupiah';
@@ -80,6 +81,9 @@ const TAB = (active) => ({
 export default function TagihanSiswaPage() {
   const { user } = useAuth();
   const [tab, setTab]               = useState('tagihan');
+  // ?siswa=<id> — dikirim halaman Scan Barcode; daftar dikunci ke siswa itu.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const filterSiswa = searchParams.get('siswa') || '';
   const [aktivasis, setAktivasis]   = useState([]);
   const [transaksis, setTransaksis] = useState([]);
   const [loading, setLoading]       = useState(true);
@@ -196,16 +200,17 @@ export default function TagihanSiswaPage() {
   // Filter & paginate tagihan
   const filteredAll = useMemo(() => tagihan.filter(t => {
     const q = search.toLowerCase();
+    if (filterSiswa && t.siswa_id !== filterSiswa) return false;
     // Paket yang sudah lunas tidak akan menagih apa-apa lagi — disembunyikan
     // supaya daftar hanya berisi yang benar-benar perlu ditindaklanjuti.
-    if (t.siklus === 'sekali' && t.status === 'Lunas' && !showPaketLunas) return false;
+    if (t.siklus === 'sekali' && t.status === 'Lunas' && !showPaketLunas && !filterSiswa) return false;
     if (search && !t.nama_siswa?.toLowerCase().includes(q) && !t.nama_program?.toLowerCase().includes(q)) return false;
     if (filterUnit   && t.unit         !== filterUnit)   return false;
     if (filterProg   && t.nama_program !== filterProg)   return false;
     if (filterStatus && t.status       !== filterStatus) return false;
     if (filterJenis  && t.siklus       !== filterJenis)  return false;
     return true;
-  }), [tagihan, search, filterUnit, filterProg, filterStatus, filterJenis, showPaketLunas]);
+  }), [tagihan, filterSiswa, search, filterUnit, filterProg, filterStatus, filterJenis, showPaketLunas]);
 
   const paketLunasTersembunyi = useMemo(
     () => tagihan.filter(t => t.siklus === 'sekali' && t.status === 'Lunas').length,
@@ -327,6 +332,20 @@ export default function TagihanSiswaPage() {
       {/* ── TAB: TAGIHAN SISWA ── */}
       {tab === 'tagihan' && (
         <>
+          {filterSiswa && (
+            <div style={{display:'flex',alignItems:'center',justifyContent:'space-between',gap:'0.75rem',flexWrap:'wrap',
+              marginBottom:'1rem',padding:'0.65rem 0.9rem',borderRadius:'0.5rem',background:'rgba(79,70,229,0.08)',fontSize:'0.875rem'}}>
+              <span>
+                Tagihan siswa <b>{tagihan.find(t => t.siswa_id === filterSiswa)?.nama_siswa || ''}</b>{' '}
+                <span style={{color:'var(--text-secondary)'}}>({filterSiswa})</span>
+              </span>
+              <button onClick={()=>{setSearchParams({});setPage(1);}}
+                style={{display:'flex',alignItems:'center',gap:'0.3rem',background:'none',border:'1px solid var(--glass-border)',
+                  borderRadius:'0.4rem',padding:'0.3rem 0.6rem',cursor:'pointer',fontSize:'0.8rem',fontFamily:'inherit'}}>
+                <X size={14}/> Tampilkan semua
+              </button>
+            </div>
+          )}
           <div style={{display:'flex',gap:'0.65rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
             <div style={{position:'relative',flex:1,minWidth:180}}>
               <Search size={15} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)'}}/>

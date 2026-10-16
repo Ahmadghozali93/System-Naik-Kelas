@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
-import { GraduationCap, Edit, Trash2, X, MapPin, MessageCircle, Eye, Instagram, Facebook, Link2, Check, AlertTriangle, Loader2 } from 'lucide-react';
+import { GraduationCap, Edit, Trash2, X, MapPin, MessageCircle, Eye, Instagram, Facebook, Link2, Check, AlertTriangle, Loader2, QrCode } from 'lucide-react';
 import { supabase } from '../lib/supabase';
 import DatePicker from '../components/DatePicker';
 import { toProperCase } from '../utils/formatRupiah';
 import { useAuth } from '../context/authStore';
+import { downloadBarcodeSiswa } from '../utils/barcodeSiswa';
 import { loadOdooSettings, configureOdoo, cariKontakSiswa, buatKontakSiswa } from '../lib/odooApi';
 
 // Ikona kustom sederhana untuk TikTok karena tidak ada di lucid default
@@ -370,13 +371,14 @@ export default function SiswaPage() {
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Status</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Sosial Media</th>
                                 {bolehOdoo && <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Odoo</th>}
+                                <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Barcode</th>
                                 <th style={{ padding: '1rem', color: 'var(--text-secondary)' }}>Aksi</th>
                             </tr>
                         </thead>
                         <tbody>
                             {isLoading ? (
                                 <tr>
-                                    <td colSpan={bolehOdoo ? 7 : 6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
+                                    <td colSpan={bolehOdoo ? 8 : 7} style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
                                         Memuat data...
                                     </td>
                                 </tr>
@@ -400,7 +402,7 @@ export default function SiswaPage() {
 
                                     return filteredSiswas.length === 0 ? (
                                         <tr>
-                                            <td colSpan={bolehOdoo ? 7 : 6} style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
+                                            <td colSpan={bolehOdoo ? 8 : 7} style={{ padding: "2rem", textAlign: "center", color: "var(--text-secondary)" }}>
                                                 Tidak ada siswa yang cocok.
                                             </td>
                                         </tr>
@@ -513,6 +515,15 @@ export default function SiswaPage() {
                                                     )}
                                                 </td>
                                             )}
+                                            <td style={{ padding: '1rem' }}>
+                                                <button
+                                                    onClick={() => downloadBarcodeSiswa(s)}
+                                                    style={{ color: '#374151', background: 'rgba(0,0,0,0.05)', border: 'none', cursor: 'pointer', padding: '0.4rem 0.65rem', borderRadius: '0.375rem', display: 'flex', alignItems: 'center', gap: '0.35rem', fontSize: '0.8rem', fontWeight: 500, whiteSpace: 'nowrap' }}
+                                                    title="Download QR code (PNG)"
+                                                >
+                                                    <QrCode className="w-4 h-4" /> Download
+                                                </button>
+                                            </td>
                                             <td style={{ padding: '1rem' }}>
                                                 <div style={{ display: 'flex', gap: '0.5rem' }}>
                                                     <button
