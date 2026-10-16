@@ -8,8 +8,9 @@ import { formatRupiah } from '../utils/formatRupiah';
 import {
   loadOdooSettings, saveOdooSettings, testConnection,
   getOrCreatePartner, searchPartners, findProduct, createInvoice, getInvoiceStatus,
-  UNIT_COMPANY, configureOdoo,
+  getCompanyId, getUnitCompany, mappingKeBaris, barisKeMapping, configureOdoo,
 } from '../lib/odooApi';
+import PengaturanUnitOdoo from '../components/PengaturanUnitOdoo';
 
 const PER_PAGE = 50;
 const fmt = (d) => d ? new Date(d + 'T12:00:00').toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
@@ -100,6 +101,7 @@ export default function FakturOdooPage() {
   const [testMsg, setTestMsg]             = useState(null);
   const [testLoading, setTestLoading]     = useState(false);
   const [savingSettings, setSavingSettings] = useState(false);
+  const [unitBaris, setUnitBaris] = useState(() => mappingKeBaris(getUnitCompany()));
 
   const fetchAll = useCallback(async () => {
     setLoading(true);
@@ -115,7 +117,8 @@ export default function FakturOdooPage() {
       if (settings.odoo_email)   setEmail(settings.odoo_email);
       if (settings.odoo_url)     setOdooUrl(settings.odoo_url);
       if (settings.odoo_db)      setOdooDb(settings.odoo_db);
-      configureOdoo({ odooUrl: settings.odoo_url, odooDb: settings.odoo_db });
+      configureOdoo({ odooUrl: settings.odoo_url, odooDb: settings.odoo_db, unitCompany: settings.odoo_unit_company });
+      setUnitBaris(mappingKeBaris(getUnitCompany()));
     } catch (e) {
       console.error('FakturOdoo fetchAll error:', e);
     }
@@ -156,10 +159,12 @@ export default function FakturOdooPage() {
 
   const handleSaveSettings = async () => {
     if (!apiKey) return alert('API Key wajib diisi.');
+    const { map, error } = barisKeMapping(unitBaris);
+    if (error) return alert(error);
     setSavingSettings(true);
     try {
-      await saveOdooSettings(supabase, { apiKey, email, odooUrl, odooDb });
-      configureOdoo({ odooUrl, odooDb });
+      await saveOdooSettings(supabase, { apiKey, email, odooUrl, odooDb, unitCompany: map });
+      configureOdoo({ odooUrl, odooDb, unitCompany: map });
       alert('Pengaturan Odoo berhasil disimpan.');
     } catch (e) {
       alert('Gagal simpan: ' + e.message);
@@ -186,8 +191,8 @@ export default function FakturOdooPage() {
     const metodeBayar       = getMetodeBayar(p);
     const tanggalJatuhTempo = getJatuhTempo(p);
     if (!apiKey) { alert('API Key belum dikonfigurasi. Buka panel Pengaturan Odoo.'); setShowSettings(true); return; }
-    const companyId = UNIT_COMPANY[p.unit];
-    if (!companyId) { alert(`Unit "${p.unit}" tidak ada di mapping Odoo.`); return; }
+    const companyId = getCompanyId(p.unit);
+    if (!companyId) { alert(`Unit "${p.unit}" tidak ada di mapping Odoo. Tambahkan di Pengaturan Odoo › Mapping Unit.`); return; }
 
     setSending(prev => new Set([...prev, p.id]));
     try {
@@ -250,7 +255,7 @@ export default function FakturOdooPage() {
 
   const handleRefreshStatus = async (p) => {
     if (!p.odoo_invoice_id || !apiKey) return;
-    const companyId = UNIT_COMPANY[p.unit];
+    const companyId = getCompanyId(p.unit);
     try {
       const inv = await getInvoiceStatus(apiKey, email, p.odoo_invoice_id, companyId);
       await supabase.from('pembayaran_spp').update({ odoo_status: inv.payment_state, odoo_synced_at: new Date().toISOString() }).eq('id', p.id);
@@ -338,8 +343,8 @@ export default function FakturOdooPage() {
               </span>
             )}
           </div>
-          <div style={{ marginTop: '0.85rem', fontSize: '0.75rem', color: 'var(--text-secondary)' }}>
-            <strong>Mapping Unit → Odoo Company:</strong> Sarirejo (ID 2) · Plantaran (ID 3) · Krajankulon (ID 4) · Magelung (ID 5)
+          <div style={{ marginTop: '1rem', paddingTop: '1rem', borderTop: '1px solid var(--glass-border)' }}>
+            <PengaturanUnitOdoo baris={unitBaris} setBaris={setUnitBaris} />
           </div>
         </div>
       )}

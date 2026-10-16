@@ -1,20 +1,65 @@
 // Odoo XML-RPC via Vercel proxy (/api/odoo-proxy)
 // Tidak perlu session, bekerja di semua versi Odoo
 
-export const UNIT_COMPANY = {
+// Unit → ID company Odoo. Bisa diubah dari panel Pengaturan Odoo (disimpan
+// di app_settings 'odoo_unit_company' sebagai JSON); daftar ini dipakai bila
+// pengaturan itu belum pernah disimpan.
+export const UNIT_COMPANY_BAWAAN = {
   'Sarirejo':    2,
   'Plantaran':   3,
   'Krajankulon': 4,
   'Magelung':    5,
 };
+let _unitCompany = { ...UNIT_COMPANY_BAWAAN };
+
+// Terima JSON string dari app_settings atau objek; nilai tak valid dibuang.
+export function parseUnitCompany(nilai) {
+  let obj = nilai;
+  if (typeof nilai === 'string') {
+    try { obj = JSON.parse(nilai); } catch { return null; }
+  }
+  if (!obj || typeof obj !== 'object') return null;
+  const bersih = {};
+  Object.entries(obj).forEach(([unit, id]) => {
+    const n = Number(id);
+    if (unit.trim() && Number.isInteger(n) && n > 0) bersih[unit.trim()] = n;
+  });
+  return bersih;
+}
+
+export const getCompanyId     = (unit) => _unitCompany[unit];
+export const getUnitCompany   = () => ({ ..._unitCompany });
+
+// Untuk editor mapping (components/PengaturanUnitOdoo.jsx), yang menyunting
+// daftar baris [{ unit, id }] lalu mengubahnya kembali saat disimpan.
+export const mappingKeBaris = (map) =>
+  Object.entries(map || {}).map(([unit, id]) => ({ unit, id: String(id) }));
+
+// → { map } bila valid, { error } bila tidak.
+export function barisKeMapping(baris) {
+  const map = {};
+  for (const { unit, id } of baris) {
+    const u = (unit || '').trim();
+    if (!u && !String(id).trim()) continue;   // baris kosong diabaikan
+    const n = Number(id);
+    if (!u) return { error: 'Ada baris mapping tanpa nama unit.' };
+    if (!Number.isInteger(n) || n <= 0) return { error: `ID company untuk unit "${u}" harus angka bulat positif.` };
+    if (u in map) return { error: `Unit "${u}" tertulis dua kali di mapping.` };
+    map[u] = n;
+  }
+  if (Object.keys(map).length === 0) return { error: 'Mapping unit tidak boleh kosong.' };
+  return { map };
+}
 
 // Konfigurasi Odoo — diset lewat configureOdoo() setelah load dari Supabase
 let _odooUrl = 'https://naik-kelas.odoo.com';
 let _odooDb  = 'naik-kelas';
 
-export function configureOdoo({ odooUrl, odooDb }) {
+export function configureOdoo({ odooUrl, odooDb, unitCompany }) {
   if (odooUrl) _odooUrl = odooUrl;
   if (odooDb)  _odooDb  = odooDb;
+  const map = unitCompany && parseUnitCompany(unitCompany);
+  if (map) _unitCompany = map;
 }
 
 // ─── Low-level XML-RPC proxy call ───────────────────────────────────────────
@@ -234,6 +279,48 @@ export async function createInvoice(apiKey, email, {
   return { id: invoiceId, name: inv.name, status: inv.payment_state };
 }
 
+// ─── Invoice penjualan buku ──────────────────────────────────────────────────
+// Satu baris invoice per produk (bisa banyak), diskon sebagai baris negatif
+// seperti createInvoice() di atas.
+// items = [{ productId, nama, qty, harga }]
+export async function createInvoiceBuku(apiKey, email, {
+  companyId, partnerId, items, diskon, tanggalBayar, namaSiswa, metodeBayar,
+}) {
+  const lines = items.map(i => [0, 0, {
+    product_id: i.productId || false,
+    name: i.nama,
+    quantity: i.qty,
+    price_unit: i.harga,
+  }]);
+  if (diskon > 0) {
+    lines.push([0, 0, { name: 'Diskon', quantity: 1, price_unit: -(diskon) }]);
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  const invoiceId = await rpc('account.move', 'create',
+    [{
+      move_type: 'out_invoice',
+      partner_id: partnerId,
+      company_id: companyId,
+      invoice_date:     tanggalBayar || today,
+      invoice_date_due: tanggalBayar || today,
+      ref: `Buku - ${namaSiswa}`,
+      narration: metodeBayar ? `Metode Pembayaran: ${metodeBayar}` : false,
+      invoice_line_ids: lines,
+    }],
+    {},
+    apiKey, email, companyId
+  );
+
+  const [inv] = await rpc('account.move', 'read',
+    [[invoiceId]],
+    { fields: ['id', 'name', 'payment_state'] },
+    apiKey, email, companyId
+  );
+
+  return { id: invoiceId, name: inv.name, status: inv.payment_state };
+}
+
 // ─── Refresh status invoice ──────────────────────────────────────────────────
 
 export async function getInvoiceStatus(apiKey, email, invoiceId, companyId) {
@@ -252,7 +339,7 @@ export async function loadOdooSettings(supabase) {
     const { data, error } = await supabase
       .from('app_settings')
       .select('key, value')
-      .in('key', ['odoo_api_key', 'odoo_email', 'odoo_url', 'odoo_db']);
+      .in('key', ['odoo_api_key', 'odoo_email', 'odoo_url', 'odoo_db', 'odoo_unit_company']);
     if (error || !data) return {};
     return Object.fromEntries(data.map(r => [r.key, r.value]));
   } catch {
@@ -260,13 +347,14 @@ export async function loadOdooSettings(supabase) {
   }
 }
 
-export async function saveOdooSettings(supabase, { apiKey, email, odooUrl, odooDb }) {
+export async function saveOdooSettings(supabase, { apiKey, email, odooUrl, odooDb, unitCompany }) {
   const upserts = [
     { key: 'odoo_api_key', value: apiKey  },
     { key: 'odoo_email',   value: email   },
     { key: 'odoo_url',     value: odooUrl },
     { key: 'odoo_db',      value: odooDb  },
   ];
+  if (unitCompany) upserts.push({ key: 'odoo_unit_company', value: JSON.stringify(unitCompany) });
   const { error } = await supabase.from('app_settings').upsert(upserts, { onConflict: 'key' });
   if (error) throw error;
 }

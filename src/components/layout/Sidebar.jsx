@@ -55,6 +55,8 @@ import {
     Coins,
     FileKey,
     ScanLine,
+    ShoppingCart,
+    Package,
 } from 'lucide-react';
 import { useAuth } from '../../context/authStore';
 import { supabase } from '../../lib/supabase';
@@ -441,6 +443,47 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         {hasPermission('/spp/laporan') && (
                             <NavLink to="/spp/laporan" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
                                 <BarChart3 className="w-4 h-4" /><span>Laporan SPP</span>
+                            </NavLink>
+                        )}
+                    </SidebarGroup>
+                )}
+
+                {/* PENJUALAN BUKU GROUP */}
+                {['/buku/produk','/buku/transaksi','/buku/log','/buku/setor','/buku/faktur-odoo','/buku/rekap'].some(p => hasPermission(p)) && (
+                    <SidebarGroup
+                        title="Penjualan Buku"
+                        icon={ShoppingCart}
+                        isOpen={activeGroup === 'buku'}
+                        onToggle={() => toggleGroup('buku')}
+                    >
+                        {hasPermission('/buku/produk') && (
+                            <NavLink to="/buku/produk" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <Package className="w-4 h-4" /><span>Produk</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/buku/transaksi') && (
+                            <NavLink to="/buku/transaksi" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ScanLine className="w-4 h-4" /><span>Transaksi</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/buku/log') && (
+                            <NavLink to="/buku/log" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ClipboardList className="w-4 h-4" /><span>Log Buku</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/buku/setor') && (
+                            <NavLink to="/buku/setor" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <ClipboardCheck className="w-4 h-4" /><span>Setor Buku</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/buku/faktur-odoo') && (
+                            <NavLink to="/buku/faktur-odoo" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <FileSpreadsheet className="w-4 h-4" /><span>Faktur Odoo</span>
+                            </NavLink>
+                        )}
+                        {hasPermission('/buku/rekap') && (
+                            <NavLink to="/buku/rekap" className={({ isActive }) => `nav-item ${isActive ? 'active' : ''}`} style={{ padding: '0.5rem 1rem 0.5rem 2.85rem', fontSize: '0.9rem' }} onClick={() => setIsOpen && setIsOpen(false)}>
+                                <BarChart3 className="w-4 h-4" /><span>Rekap</span>
                             </NavLink>
                         )}
                     </SidebarGroup>

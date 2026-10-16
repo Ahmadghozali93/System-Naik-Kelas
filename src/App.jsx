@@ -33,6 +33,12 @@ import TagihanSiswaPage from './pages/TagihanSiswaPage';
 import LaporanSppPage from './pages/LaporanSppPage';
 import ScanBarcodeSppPage from './pages/ScanBarcodeSppPage';
 import LogSppPage from './pages/LogSppPage';
+import ProdukBukuPage from './pages/buku/ProdukBukuPage';
+import TransaksiBukuPage from './pages/buku/TransaksiBukuPage';
+import LogBukuPage from './pages/buku/LogBukuPage';
+import SetorBukuPage from './pages/buku/SetorBukuPage';
+import FakturOdooBukuPage from './pages/buku/FakturOdooBukuPage';
+import RekapBukuPage from './pages/buku/RekapBukuPage';
 import RekonsiliasiPage from './pages/RekonsiliasiPage';
 import FakturOdooPage from './pages/FakturOdooPage';
 import AbsensiCheckPage from './pages/absensi/AbsensiCheckPage';
@@ -182,6 +188,14 @@ function App() {
             <Route path="/spp/laporan" element={<LaporanSppPage />} />
             <Route path="/spp/scan" element={<ScanBarcodeSppPage />} />
             <Route path="/spp/log" element={<LogSppPage />} />
+
+            {/* PENJUALAN BUKU */}
+            <Route path="/buku/produk"      element={<ProdukBukuPage />} />
+            <Route path="/buku/transaksi"   element={<TransaksiBukuPage />} />
+            <Route path="/buku/log"         element={<LogBukuPage />} />
+            <Route path="/buku/setor"       element={<SetorBukuPage />} />
+            <Route path="/buku/faktur-odoo" element={<FakturOdooBukuPage />} />
+            <Route path="/buku/rekap"       element={<RekapBukuPage />} />
 
             {/* ABSENSI */}
             <Route path="/absensi/check"       element={<AbsensiCheckPage />} />

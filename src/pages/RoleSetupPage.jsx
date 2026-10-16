@@ -28,6 +28,13 @@ const AVAILABLE_MENUS = [
     { path: '/spp/laporan',      label: 'SPP - Laporan' },
     { path: '/spp/scan',         label: 'SPP - Scan Barcode' },
     { path: '/spp/log',          label: 'SPP - Log SPP (validasi scan)' },
+    // ── Penjualan Buku ───────────────────────────────
+    { path: '/buku/produk',      label: 'Buku - Produk' },
+    { path: '/buku/transaksi',   label: 'Buku - Transaksi (input guru)' },
+    { path: '/buku/log',         label: 'Buku - Log Buku (validasi koordinator)' },
+    { path: '/buku/setor',       label: 'Buku - Setor Buku' },
+    { path: '/buku/faktur-odoo', label: 'Buku - Faktur Odoo' },
+    { path: '/buku/rekap',       label: 'Buku - Rekap' },
     // ── Jurnal ───────────────────────────────────────
     { path: '/jurnal',           label: 'Jurnal Mengajar' },
     // ── Absensi ──────────────────────────────────────
