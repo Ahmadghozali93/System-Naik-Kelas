@@ -245,7 +245,7 @@ export default function TransaksiBukuPage() {
 
       {/* ── Popup bertahap ── */}
       {buka && (
-        <div className="modal-overlay">
+        <div className="modal-overlay modal-tengah">
           <div className="modal-content" style={{maxWidth:520}}>
             <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:'0.9rem'}}>
               <h3 style={{margin:0,fontWeight:700}}>Transaksi Buku</h3>
@@ -272,7 +272,7 @@ export default function TransaksiBukuPage() {
               <>
                 <div style={{position:'relative'}}>
                   <Search size={15} style={ikonKiri}/>
-                  <input style={inp} placeholder="Ketik nama / ID siswa" value={qSiswa} autoFocus
+                  <input className="input-cari" style={inp} placeholder="Ketik nama / ID siswa" value={qSiswa} autoFocus
                     onChange={e=>{ setQSiswa(e.target.value); if (e.target.value.trim().length < 2) setHasilSiswa([]); }}/>
                 </div>
                 {hasilSiswa.length > 0 && (
@@ -311,7 +311,7 @@ export default function TransaksiBukuPage() {
                 <form onSubmit={e=>{ e.preventDefault(); scanProduk(kode); setKode(''); }} style={{marginTop:'0.75rem'}}>
                   <div style={{position:'relative'}}>
                     <ScanLine size={15} style={ikonKiri}/>
-                    <input style={inp} placeholder="Scanner USB / ketik barcode lalu Enter" value={kode} onChange={e=>setKode(e.target.value)}/>
+                    <input className="input-cari" style={inp} placeholder="Scanner USB / ketik barcode lalu Enter" value={kode} onChange={e=>setKode(e.target.value)}/>
                   </div>
                 </form>
                 {pesanScan}

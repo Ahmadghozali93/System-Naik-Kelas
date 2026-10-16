@@ -791,6 +791,15 @@ textarea.form-input { height: auto; min-height: 4.5rem; resize: vertical; }
     max-width: 100%;
     padding: 1.25rem 1rem;
   }
+  /* Kecuali modal yang memang ingin tetap di tengah seperti di web. */
+  .modal-overlay.modal-tengah {
+    align-items: center;
+    padding: 1rem;
+  }
+  .modal-tengah .modal-content {
+    max-height: 90dvh;
+    border-radius: var(--radius-xl);
+  }
 
   /* Formulir modal jadi satu kolom. Grid dua kolomnya disetel lewat gaya
      inline di tiap halaman, jadi hanya !important yang bisa mengalahkannya.
