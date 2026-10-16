@@ -49,6 +49,10 @@ export default function LogSppPage() {
   const [logs, setLogs]       = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch]   = useState('');
+  const [filterUnit, setFilterUnit]   = useState('');
+  const [filterProg, setFilterProg]   = useState('');
+  const [filterJenis, setFilterJenis] = useState('');   // '', 'bulanan', 'sekali'
+  const [filterGuru, setFilterGuru]   = useState('');
   const [muat, setMuat]       = useState(0);   // naikkan untuk memuat ulang
 
   // Modal validasi: { log, t (tagihan saat ini) | null, catatan }
@@ -74,14 +78,25 @@ export default function LogSppPage() {
   const gantiTab = (t) => { setLoading(true); setTab(t); };
   const muatUlang = () => { setLoading(true); setMuat(n => n + 1); };
 
+  // Pilihan filter diambil dari log yang sedang tampil di tab ini.
+  const [allUnits, allPrograms, allGurus] = useMemo(() =>
+    ['unit', 'nama_program', 'discan_oleh'].map(k => [...new Set(logs.map(l => l[k]).filter(Boolean))].sort()),
+  [logs]);
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase();
-    return logs.filter(l => !q
-      || l.nama_siswa?.toLowerCase().includes(q)
-      || l.nama_program?.toLowerCase().includes(q)
-      || l.discan_oleh?.toLowerCase().includes(q)
-      || l.siswa_id?.toLowerCase().includes(q));
-  }, [logs, search]);
+    return logs.filter(l => {
+      if (q && !l.nama_siswa?.toLowerCase().includes(q)
+            && !l.nama_program?.toLowerCase().includes(q)
+            && !l.discan_oleh?.toLowerCase().includes(q)
+            && !l.siswa_id?.toLowerCase().includes(q)) return false;
+      if (filterUnit  && l.unit         !== filterUnit)  return false;
+      if (filterProg  && l.nama_program !== filterProg)  return false;
+      if (filterJenis && l.siklus       !== filterJenis) return false;
+      if (filterGuru  && l.discan_oleh  !== filterGuru)  return false;
+      return true;
+    });
+  }, [logs, search, filterUnit, filterProg, filterJenis, filterGuru]);
 
   // Tagihan dihitung ulang saat validasi: bisa saja periode itu sudah dibayar
   // lewat Tagihan Siswa sejak discan.
@@ -176,6 +191,7 @@ export default function LogSppPage() {
 
   const inp = { width:'100%', padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)',
     background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.875rem', boxSizing:'border-box' };
+  const sel = { padding:'0.5rem 0.75rem', borderRadius:'0.5rem', border:'1px solid var(--glass-border)', background:'var(--surface-color)', fontFamily:'inherit', fontSize:'0.85rem' };
   const th = { padding:'0.65rem 0.75rem', fontWeight:700, fontSize:'0.72rem', color:'var(--text-secondary)', whiteSpace:'nowrap', letterSpacing:'0.06em', textAlign:'left' };
   const td = { padding:'0.75rem', verticalAlign:'top' };
   const btnKecil = (warna, bg) => ({ display:'inline-flex', alignItems:'center', gap:'0.3rem', color:warna, background:bg, border:'none',
@@ -195,10 +211,29 @@ export default function LogSppPage() {
         </div>
       </div>
 
-      <div style={{position:'relative',marginBottom:'1rem',maxWidth:360}}>
-        <Search size={15} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)'}}/>
-        <input style={{...inp,paddingLeft:'2.2rem'}} placeholder="Cari siswa / program / guru..." value={search}
-          onChange={e=>setSearch(e.target.value)}/>
+      <div style={{display:'flex',gap:'0.65rem',marginBottom:'1rem',flexWrap:'wrap',alignItems:'center'}}>
+        <div style={{position:'relative',flex:1,minWidth:180}}>
+          <Search size={15} style={{position:'absolute',left:'0.75rem',top:'50%',transform:'translateY(-50%)',color:'var(--text-secondary)'}}/>
+          <input style={{...inp,paddingLeft:'2.2rem'}} placeholder="Cari siswa / program / guru..." value={search}
+            onChange={e=>setSearch(e.target.value)}/>
+        </div>
+        <select style={sel} value={filterUnit} onChange={e=>setFilterUnit(e.target.value)}>
+          <option value="">Semua Unit</option>
+          {allUnits.map(u=><option key={u} value={u}>{u}</option>)}
+        </select>
+        <select style={sel} value={filterProg} onChange={e=>setFilterProg(e.target.value)}>
+          <option value="">Semua Program</option>
+          {allPrograms.map(p=><option key={p} value={p}>{p}</option>)}
+        </select>
+        <select style={sel} value={filterJenis} onChange={e=>setFilterJenis(e.target.value)}>
+          <option value="">Semua Jenis</option>
+          <option value="bulanan">SPP Rutin</option>
+          <option value="sekali">Paket Harian</option>
+        </select>
+        <select style={sel} value={filterGuru} onChange={e=>setFilterGuru(e.target.value)}>
+          <option value="">Semua Guru</option>
+          {allGurus.map(g=><option key={g} value={g}>{g}</option>)}
+        </select>
       </div>
 
       <div className="glass-card" style={{padding:'1.5rem'}}>
