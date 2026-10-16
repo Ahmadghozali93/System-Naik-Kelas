@@ -188,8 +188,12 @@ export default function KpiAssessmentPage() {
       .eq('periode_bulan', filterBulan)
       .order('created_at', { ascending: false });
     if (filterUnit)   q = q.eq('unit_id', filterUnit);
-    if (filterStatus) q = q.eq('status', filterStatus);
-    if (!isAdmin)     q = q.eq('guru_id', user?.id);
+    if (isAdmin) {
+      if (filterStatus) q = q.eq('status', filterStatus);
+    } else {
+      // Guru hanya melihat penilaian miliknya yang sudah di-Approve
+      q = q.eq('guru_id', user?.id).eq('status', 'Approved');
+    }
     const { data } = await q;
     setAssessments(data || []);
     setLoading(false);
@@ -520,15 +524,17 @@ export default function KpiAssessmentPage() {
             </select>
           </div>
         )}
-        <div>
-          <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Status</label>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
-            <option value="">Semua Status</option>
-            <option value="Draft">Draft</option>
-            <option value="Submitted">Submitted</option>
-            <option value="Approved">Approved</option>
-          </select>
-        </div>
+        {isAdmin && (
+          <div>
+            <label style={{ fontSize: '0.78rem', fontWeight: 600, display: 'block', marginBottom: '0.25rem' }}>Status</label>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
+              <option value="">Semua Status</option>
+              <option value="Draft">Draft</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Approved">Approved</option>
+            </select>
+          </div>
+        )}
         {isAdmin && (
           <button className="btn btn-primary" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginLeft: 'auto' }}
             onClick={() => { setFormCreate({ guru_id:'', unit_id:'', periode_tahun: filterTahun, periode_bulan: filterBulan }); setModalCreate(true); }}>

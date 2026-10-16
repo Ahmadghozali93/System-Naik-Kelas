@@ -71,8 +71,12 @@ export default function KpiDashboardPage() {
       .eq('periode_bulan', filterBulan)
       .order('skor_akhir', { ascending: false, nullsLast: true });
     if (filterUnit)   q = q.eq('unit_id', filterUnit);
-    if (filterStatus) q = q.eq('status', filterStatus);
-    if (!isAdmin)     q = q.eq('guru_id', user?.id);
+    if (isAdmin) {
+      if (filterStatus) q = q.eq('status', filterStatus);
+    } else {
+      // Guru hanya melihat penilaian miliknya yang sudah di-Approve
+      q = q.eq('guru_id', user?.id).eq('status', 'Approved');
+    }
     const { data } = await q;
     setAssessments(data || []);
     setLoading(false);
@@ -153,15 +157,17 @@ export default function KpiDashboardPage() {
             </select>
           </div>
         )}
-        <div>
-          <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>Status</label>
-          <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
-            <option value="">Semua</option>
-            <option value="Draft">Draft</option>
-            <option value="Submitted">Submitted</option>
-            <option value="Approved">Approved</option>
-          </select>
-        </div>
+        {isAdmin && (
+          <div>
+            <label style={{ fontSize: '0.75rem', fontWeight: 600, display: 'block', marginBottom: '0.2rem' }}>Status</label>
+            <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ ...inp, width: 'auto' }}>
+              <option value="">Semua</option>
+              <option value="Draft">Draft</option>
+              <option value="Submitted">Submitted</option>
+              <option value="Approved">Approved</option>
+            </select>
+          </div>
+        )}
         <button className="btn" style={{ display: 'flex', alignItems: 'center', gap: '0.4rem', marginLeft: 'auto' }} onClick={exportCSV}>
           <Download size={15} /> Export CSV
         </button>
