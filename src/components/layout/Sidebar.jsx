@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { NavLink, useNavigate } from 'react-router-dom';
+import LoncengNotifikasi from '../notifikasi/LoncengNotifikasi';
 import {
     Users,
     Building,
@@ -272,6 +273,8 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                         <div style={{ fontWeight: '600', color: 'var(--text-primary)' }}>{user.nama}</div>
                         <div style={{ color: 'var(--text-secondary)', fontSize: '0.8rem', marginTop: '0.1rem' }}>{user.role}</div>
                     </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.35rem' }}>
+                    <LoncengNotifikasi onClick={() => setIsOpen && setIsOpen(false)} />
                     <button
                         onClick={() => setShowGantiPassword(true)}
                         title="Ganti Password"
@@ -279,6 +282,7 @@ const Sidebar = ({ isOpen, setIsOpen }) => {
                     >
                         <KeyRound size={16} />
                     </button>
+                    </div>
                 </div>
             )}
             {showGantiPassword && <GantiPasswordModal onClose={() => setShowGantiPassword(false)} />}

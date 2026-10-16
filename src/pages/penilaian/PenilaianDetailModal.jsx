@@ -3,6 +3,7 @@ import { X, Send, Lock, RotateCcw, Camera, Image, ImageOff } from 'lucide-react'
 import imageCompression from 'browser-image-compression';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
+import { useNotifikasi } from '../../context/notifikasiStore';
 import { syncKualitasMengajar } from '../../utils/syncKualitasMengajar';
 
 const COMPRESS_OPTS = { maxSizeMB: 0.3, maxWidthOrHeight: 1280, useWebWorker: true, initialQuality: 0.82 };
@@ -28,6 +29,7 @@ const inpStyle = {
 
 export default function PenilaianDetailModal({ assessmentId, onClose, onSaved }) {
   const { user } = useAuth();
+  const notif = useNotifikasi();
   const isNew = !assessmentId;
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
   const photoInputRef = useRef();
@@ -79,6 +81,11 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
     const r = rRes.data;
     if (r) {
       setRow(r);
+      // Guru membuka penilaiannya sendiri = notifikasinya sudah dilihat.
+      if (r.assignee_id === user?.id) {
+        supabase.rpc('notifikasi_tandai_dibaca', { p_teaching_assessment_id: r.id })
+          .then(() => notif?.muat());
+      }
       setForm({
         judul: r.judul || '', assignee_id: r.assignee_id || '',
         bulan: r.bulan || THIS_MONTH, tahun: r.tahun || THIS_YEAR,
@@ -254,6 +261,8 @@ export default function PenilaianDetailModal({ assessmentId, onClose, onSaved })
 
       setComments(prev => [data, ...prev]);
       setNewComment(''); clearCommentPhoto();
+      // Balasan guru menutup notifikasi Revisi (lewat trigger) — segarkan badge.
+      if (row?.assignee_id === user?.id) notif?.muat();
     } catch (err) {
       alert('Gagal kirim komentar: ' + err.message);
     } finally {

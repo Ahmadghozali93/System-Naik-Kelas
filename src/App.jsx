@@ -9,6 +9,8 @@ import {
 import { Menu } from 'lucide-react';
 
 import Sidebar from './components/layout/Sidebar';
+import NotifikasiProvider from './components/notifikasi/NotifikasiProvider';
+import LoncengNotifikasi from './components/notifikasi/LoncengNotifikasi';
 import UserPage from './pages/UserPage';
 import UnitPage from './pages/UnitPage';
 import SiswaPage from './pages/SiswaPage';
@@ -95,6 +97,7 @@ function DashboardLayout() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
   return (
+    <NotifikasiProvider>
     <div className="app-container">
       <Sidebar isOpen={isSidebarOpen} setIsOpen={setIsSidebarOpen} />
 
@@ -130,12 +133,17 @@ function DashboardLayout() {
           <h2 style={{ fontSize: '1.25rem', margin: 0 }}>
             Menu
           </h2>
+
+          <div style={{ marginLeft: 'auto' }}>
+            <LoncengNotifikasi />
+          </div>
         </header>
 
         {/* 🔥 INI WAJIB UNTUK NESTED ROUTE */}
         <Outlet />
       </main>
     </div>
+    </NotifikasiProvider>
   );
 }
 

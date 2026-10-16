@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Search, Plus, X, ClipboardCheck, SlidersHorizontal } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
@@ -17,6 +18,17 @@ const STATUS_CFG = {
 const StatusBadge = ({ s }) => {
   const c = STATUS_CFG[s] || STATUS_CFG.Proses;
   return <span style={{ background: c.bg, color: c.color, padding: '0.15rem 0.6rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 700, whiteSpace: 'nowrap' }}>{s}</span>;
+};
+
+// Pantauan admin untuk penilaian Revisi: sudahkah guru melihat notifikasinya?
+const StatusRevisi = ({ n }) => {
+  if (!n) return null;
+  const dilihat = !!n.dibaca_at;
+  return (
+    <div style={{ fontSize: '0.7rem', fontWeight: 600, marginTop: '0.25rem', whiteSpace: 'nowrap', color: dilihat ? '#b45309' : '#b91c1c' }}>
+      {dilihat ? `Dilihat ${fmtDate(n.dibaca_at)}, belum dibalas` : 'Belum dilihat guru'}
+    </div>
+  );
 };
 
 const fmtDate = (d) => d ? new Date(d).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric' }) : '-';
@@ -42,6 +54,16 @@ export default function PenilaianListPage() {
   const [page, setPage]               = useState(1);
 
   const [modalId, setModalId] = useState(undefined); // undefined=tutup, null=baru, id=edit
+  const [revisiTerbuka, setRevisiTerbuka] = useState({}); // assessment_id → notifikasi Revisi yang belum dibalas
+
+  // Dibuka dari notifikasi: /penilaian?buka=<id>
+  const [searchParams, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    const buka = searchParams.get('buka');
+    if (!buka) return;
+    setModalId(buka);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768);
   useEffect(() => {
@@ -54,14 +76,19 @@ export default function PenilaianListPage() {
 
   const loadAll = async () => {
     setLoading(true);
-    const [rRes, uRes, gRes, lRes] = await Promise.all([
+    const [rRes, uRes, gRes, lRes, nRes] = await Promise.all([
       supabase.from('teaching_assessments')
         .select('id, judul, assignee_id, bulan, tahun, status, unit_id, label_id, created_at, gurus:assignee_id(id, nama), task_labels(id, nama, warna), units:unit_id(id, nama)')
         .order('tahun', { ascending: false }).order('bulan', { ascending: false }).order('created_at', { ascending: false }),
       supabase.from('units').select('id, nama').eq('aktif', true).order('nama'),
       supabase.from('gurus').select('id, nama').eq('status', 'Aktif').order('nama'),
       supabase.from('task_labels').select('*').order('nama'),
+      isAdmin
+        ? supabase.from('notifikasi').select('teaching_assessment_id, dibaca_at, created_at')
+            .eq('jenis', 'penilaian_revisi').eq('perlu_tindakan', true).is('selesai_at', null)
+        : Promise.resolve({ data: [] }),
     ]);
+    setRevisiTerbuka(Object.fromEntries((nRes.data || []).map(n => [n.teaching_assessment_id, n])));
     setRows(rRes.data || []);
     setUnits(uRes.data || []);
     setGurus(gRes.data || []);
@@ -175,7 +202,10 @@ export default function PenilaianListPage() {
               style={{ padding: '1rem', cursor: 'pointer' }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '0.5rem', marginBottom: '0.4rem' }}>
                 <div style={{ fontWeight: 700, fontSize: '0.95rem' }}>{r.judul}</div>
-                <StatusBadge s={r.status} />
+                <div style={{ textAlign: 'right' }}>
+                  <StatusBadge s={r.status} />
+                  {r.status === 'Revisi' && <StatusRevisi n={revisiTerbuka[r.id]} />}
+                </div>
               </div>
               <div style={{ fontSize: '0.82rem', color: 'var(--primary)', fontWeight: 600 }}>{r.gurus?.nama || '-'}</div>
               <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap', fontSize: '0.75rem', color: 'var(--text-secondary)', marginTop: '0.35rem', alignItems: 'center' }}>
@@ -213,7 +243,10 @@ export default function PenilaianListPage() {
                         ? <span style={{ background: r.task_labels.warna + '22', color: r.task_labels.warna, padding: '0.1rem 0.5rem', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600 }}>{r.task_labels.nama}</span>
                         : <span style={{ color: 'var(--text-secondary)' }}>—</span>}
                     </td>
-                    <td style={{ padding: '0.7rem 0.75rem' }}><StatusBadge s={r.status} /></td>
+                    <td style={{ padding: '0.7rem 0.75rem' }}>
+                      <StatusBadge s={r.status} />
+                      {r.status === 'Revisi' && <StatusRevisi n={revisiTerbuka[r.id]} />}
+                    </td>
                     <td style={{ padding: '0.7rem 0.75rem', color: 'var(--text-secondary)', whiteSpace: 'nowrap' }}>{fmtDate(r.created_at)}</td>
                   </tr>
                 ))}

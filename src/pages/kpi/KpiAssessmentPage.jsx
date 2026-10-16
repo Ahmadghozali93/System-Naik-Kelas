@@ -1,7 +1,9 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { Plus, X, CheckCircle, Send, Edit2, Trash2, Award, RefreshCw } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
+import { useNotifikasi } from '../../context/notifikasiStore';
 import { syncKualitasMengajar } from '../../utils/syncKualitasMengajar';
 
 const BULAN_FULL  = ['', 'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
@@ -125,6 +127,7 @@ async function calcAutoValues(guruId, tahun, bulan) {
 
 export default function KpiAssessmentPage() {
   const { user } = useAuth();
+  const notif = useNotifikasi();
   const isAdmin = ['Owner', 'Administrator', 'Supervisor'].includes(user?.role);
 
   // Master data
@@ -161,6 +164,20 @@ export default function KpiAssessmentPage() {
   const [saving,         setSaving]        = useState(false);
   const [formCatatan,    setFormCatatan]   = useState('');
   const [previewBonus,   setPreviewBonus]  = useState(null);
+
+  // Dibuka dari notifikasi: /kpi/penilaian?buka=<id>&tahun=<t>&bulan=<b>
+  const [searchParams, setSearchParams] = useSearchParams();
+  const [pendingBuka, setPendingBuka]   = useState(null);
+  useEffect(() => {
+    const buka = searchParams.get('buka');
+    if (!buka) return;
+    const t = Number(searchParams.get('tahun'));
+    const b = Number(searchParams.get('bulan'));
+    if (t) setFilterTahun(t);
+    if (b) setFilterBulan(b);
+    setPendingBuka(buka);
+    setSearchParams({}, { replace: true });
+  }, [searchParams, setSearchParams]);
 
   // ── MASTER DATA ──────────────────────────────────────────────
   useEffect(() => {
@@ -303,6 +320,9 @@ export default function KpiAssessmentPage() {
   // ── BUKA EDIT ─────────────────────────────────────────────────
   const openEdit = async (assessment) => {
     setEditAssessment(assessment);
+    if (assessment.guru_id === user?.id) {
+      supabase.rpc('notifikasi_tandai_dibaca', { p_kpi_assessment_id: assessment.id }).then(() => notif?.muat());
+    }
     setEditGuru(assessment.gurus || null);
     setFormCatatan(assessment.catatan || '');
     setPreviewBonus(null);
@@ -343,6 +363,16 @@ export default function KpiAssessmentPage() {
     // Fetch live TM
     fetchLiveTm(assessment.guru_id, assessment.periode_tahun, assessment.periode_bulan);
   };
+
+  // Buka penilaian tujuan notifikasi begitu daftarnya (periode yang benar) termuat.
+  useEffect(() => {
+    if (!pendingBuka) return;
+    const a = assessments.find(x => x.id === pendingBuka);
+    if (!a) return;
+    setPendingBuka(null);
+    openEdit(a);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [assessments, pendingBuka]);
 
   // ── REFRESH NILAI OTOMATIS ────────────────────────────────────
   const handleRefreshAuto = async () => {
