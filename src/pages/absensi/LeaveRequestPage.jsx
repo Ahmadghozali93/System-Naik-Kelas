@@ -1,10 +1,13 @@
 import { useState, useEffect } from 'react';
-import { Plus, X, CheckCircle2, XCircle, Clock } from 'lucide-react';
+import { Plus, X, CheckCircle2, XCircle, Clock, Eye } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/authStore';
 
 const todayWIB = () => new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Jakarta' });
 const fmt      = (d) => d ? new Date(d+'T12:00:00').toLocaleDateString('id-ID',{day:'2-digit',month:'short',year:'numeric'}) : '-';
+const fmtWaktu = (t) => t ? new Date(t).toLocaleString('id-ID',{timeZone:'Asia/Jakarta',day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'}) : '-';
+const jamShift = (s) => s ? `${String(s.jam_mulai).slice(0,5)}–${String(s.jam_selesai).slice(0,5)}` : '';
+const durasiHari = (r) => Math.round((new Date(r.tanggal_selesai+'T12:00:00') - new Date(r.tanggal_mulai+'T12:00:00'))/(1000*60*60*24))+1;
 const JENIS    = ['Izin','Sakit','Cuti'];
 
 // Jenis izin — hanya muncul kalau jenis = 'Izin'.
@@ -39,6 +42,8 @@ export default function LeaveRequestPage() {
   const [modal, setModal]         = useState(false);
   const [approveModal, setApproveModal] = useState(null); // { id, action }
   const [catatan, setCatatan]     = useState('');
+  const [detail, setDetail]       = useState(null);   // pengajuan yang sedang dilihat
+  const [rincian, setRincian]     = useState(null);   // izin_detail-nya; null = sedang dimuat
   const [filterStatus, setFilterStatus] = useState('');
   const [filterJenis, setFilterJenis]   = useState('');
 
@@ -58,7 +63,7 @@ export default function LeaveRequestPage() {
   const fetchAll = async () => {
     setLoading(true);
     const [rRes, uRes, gRes] = await Promise.all([
-      supabase.from('leave_requests').select('*, gurus!guru_id(nama)').order('created_at',{ascending:false}),
+      supabase.from('leave_requests').select('*, gurus!guru_id(nama), penyetuju:gurus!disetujui_oleh(nama)').order('created_at',{ascending:false}),
       supabase.from('units').select('*').eq('aktif',true).order('nama'),
       supabase.from('gurus').select('id,nama').eq('status','Aktif').order('nama'),
     ]);
@@ -190,6 +195,17 @@ export default function LeaveRequestPage() {
     setModal(false); setBaris([]); setCekBentrok({}); fetchAll();
   };
 
+  const bukaDetail = async (r) => {
+    setDetail(r); setRincian(r.jenis === 'Izin' ? null : []);
+    if (r.jenis !== 'Izin') return;
+    // Dua FK ke shift_schedules, jadi relasinya disebut lewat nama kolom
+    const { data, error } = await supabase.from('izin_detail')
+      .select('*, asal:shift_schedules!shift_schedule_id(tanggal, dialihkan, shifts(nama, jam_mulai, jam_selesai)), tukar:shift_schedules!tukar_dengan_schedule_id(tanggal, shifts(nama, jam_mulai, jam_selesai)), pengganti:gurus!guru_pengganti_id(nama)')
+      .eq('leave_request_id', r.id).order('tanggal');
+    if (error) { setRincian({ error: error.message }); return; }
+    setRincian(data || []);
+  };
+
   const handleApprove = async (id, action) => {
     const { error } = await supabase.from('leave_requests').update({
       status: action, disetujui_oleh: user.id, catatan_admin: catatan || null,
@@ -248,11 +264,10 @@ export default function LeaveRequestPage() {
               </thead>
               <tbody>
                 {filtered.map((r,i) => {
-                  const d1 = new Date(r.tanggal_mulai+'T12:00:00');
-                  const d2 = new Date(r.tanggal_selesai+'T12:00:00');
-                  const durasi = Math.round((d2-d1)/(1000*60*60*24))+1;
+                  const durasi = durasiHari(r);
                   return (
-                    <tr key={r.id} style={{ borderBottom:'1px solid var(--glass-border)' }}
+                    <tr key={r.id} style={{ borderBottom:'1px solid var(--glass-border)', cursor:'pointer' }}
+                      onClick={()=>bukaDetail(r)} title="Lihat detail pengajuan"
                       onMouseOver={e=>e.currentTarget.style.background='rgba(79,70,229,0.03)'}
                       onMouseOut={e=>e.currentTarget.style.background='transparent'}>
                       <td style={{ padding:'0.7rem 0.75rem', color:'var(--text-secondary)' }}>{i+1}</td>
@@ -275,15 +290,19 @@ export default function LeaveRequestPage() {
                       <td style={{ padding:'0.7rem 0.75rem', textAlign:'center', fontWeight:700 }}>{durasi}h</td>
                       <td style={{ padding:'0.7rem 0.75rem', maxWidth:200, fontSize:'0.82rem', color:'var(--text-secondary)' }}>{r.alasan||'-'}</td>
                       <td style={{ padding:'0.7rem 0.75rem' }}><SBadge s={r.status}/></td>
-                      <td style={{ padding:'0.7rem 0.75rem' }}>
+                      <td style={{ padding:'0.7rem 0.75rem' }} onClick={e=>e.stopPropagation()}>
+                        <div style={{ display:'flex', gap:'0.35rem' }}>
+                          <button onClick={()=>bukaDetail(r)}
+                            style={{ background:'rgba(79,70,229,0.1)', border:'none', borderRadius:'0.35rem', padding:'0.3rem 0.55rem', cursor:'pointer', color:'var(--primary)', display:'flex', alignItems:'center', gap:3 }}><Eye size={13}/>Detail</button>
                         {isAdmin && r.status === 'Pending' && (
-                          <div style={{ display:'flex', gap:'0.35rem' }}>
+                          <>
                             <button onClick={()=>{ setApproveModal({id:r.id,action:'Approved'}); setCatatan(''); }}
                               style={{ background:'#d1fae5', border:'none', borderRadius:'0.35rem', padding:'0.3rem 0.55rem', cursor:'pointer', color:'#047857', display:'flex', alignItems:'center', gap:3 }}><CheckCircle2 size={13}/>Setuju</button>
                             <button onClick={()=>{ setApproveModal({id:r.id,action:'Rejected'}); setCatatan(''); }}
                               style={{ background:'#fee2e2', border:'none', borderRadius:'0.35rem', padding:'0.3rem 0.55rem', cursor:'pointer', color:'#b91c1c', display:'flex', alignItems:'center', gap:3 }}><XCircle size={13}/>Tolak</button>
-                          </div>
+                          </>
                         )}
+                        </div>
                       </td>
                     </tr>
                   );
@@ -449,6 +468,125 @@ export default function LeaveRequestPage() {
                 <button type="submit" className="btn btn-primary" disabled={kirim}>{kirim ? 'Memeriksa...' : 'Kirim Pengajuan'}</button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {/* Modal detail pengajuan */}
+      {detail && (
+        <div className="modal-overlay modal-tengah" onClick={()=>setDetail(null)}>
+          <div className="modal-content" style={{ maxWidth:560, overflowY:'auto' }} onClick={e=>e.stopPropagation()}>
+            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', gap:'0.75rem', marginBottom:'1rem' }}>
+              <div>
+                <p style={{ fontSize:'0.72rem', color:'var(--text-secondary)', margin:0, textTransform:'uppercase', letterSpacing:'0.05em' }}>Detail Pengajuan {detail.jenis}</p>
+                <h2 style={{ fontWeight:700, fontSize:'1.1rem', margin:'0.15rem 0 0.4rem' }}>{detail.gurus?.nama || '-'}</h2>
+                <SBadge s={detail.status}/>
+              </div>
+              <button onClick={()=>setDetail(null)} style={{ background:'none', border:'none', cursor:'pointer' }}><X size={20}/></button>
+            </div>
+
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(auto-fit, minmax(150px, 1fr))', gap:'0.75rem', marginBottom:'1rem' }}>
+              {[
+                ['Unit / Cabang', unitName(detail.unit_id)],
+                ['Jenis', detail.jenis + (detail.sub_jenis ? ` · ${subLabel(detail.sub_jenis)}` : '')],
+                ['Tanggal', detail.tanggal_mulai === detail.tanggal_selesai ? fmt(detail.tanggal_mulai) : `${fmt(detail.tanggal_mulai)} – ${fmt(detail.tanggal_selesai)}`],
+                ['Durasi', `${durasiHari(detail)} hari`],
+                ['Diajukan', fmtWaktu(detail.created_at)],
+                ...(detail.status !== 'Pending' && detail.disetujui_oleh
+                  ? [[detail.status === 'Rejected' ? 'Ditolak oleh' : 'Diproses oleh', detail.penyetuju?.nama || detail.disetujui_oleh]] : []),
+              ].map(([k,v]) => (
+                <div key={k}>
+                  <div style={{ fontSize:'0.7rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.04em' }}>{k}</div>
+                  <div style={{ fontSize:'0.88rem', fontWeight:600, marginTop:'0.15rem' }}>{v}</div>
+                </div>
+              ))}
+            </div>
+
+            <div style={{ marginBottom:'1rem' }}>
+              <div style={{ fontSize:'0.7rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'0.25rem' }}>Alasan</div>
+              <p style={{ margin:0, fontSize:'0.86rem', whiteSpace:'pre-wrap' }}>{detail.alasan || '-'}</p>
+            </div>
+
+            {detail.catatan_admin && (
+              <div style={{ marginBottom:'1rem', background:'rgba(79,70,229,0.05)', borderRadius:'0.5rem', padding:'0.65rem 0.8rem' }}>
+                <div style={{ fontSize:'0.7rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'0.25rem' }}>Catatan Admin</div>
+                <p style={{ margin:0, fontSize:'0.86rem', whiteSpace:'pre-wrap' }}>{detail.catatan_admin}</p>
+              </div>
+            )}
+
+            {detail.lampiran_url && (
+              <p style={{ margin:'0 0 1rem', fontSize:'0.86rem' }}>
+                <a href={detail.lampiran_url} target="_blank" rel="noreferrer" style={{ color:'var(--primary)', fontWeight:600 }}>Lihat lampiran</a>
+              </p>
+            )}
+
+            {/* Rincian per shift — hanya untuk 'Izin' */}
+            {detail.jenis === 'Izin' && (
+              <div style={{ marginBottom:'1rem' }}>
+                <div style={{ fontSize:'0.7rem', fontWeight:700, color:'var(--text-secondary)', textTransform:'uppercase', letterSpacing:'0.04em', marginBottom:'0.4rem' }}>Shift yang Diizinkan</div>
+                {rincian === null ? (
+                  <p style={{ margin:0, fontSize:'0.82rem', color:'var(--text-secondary)' }}>Memuat rincian...</p>
+                ) : rincian.error ? (
+                  <p style={{ margin:0, fontSize:'0.82rem', color:'#b91c1c' }}>Gagal memuat rincian: {rincian.error}</p>
+                ) : rincian.length === 0 ? (
+                  <p style={{ margin:0, fontSize:'0.82rem', color:'var(--text-secondary)' }}>
+                    {detail.rincian_per_shift
+                      ? 'Rincian shift pengajuan ini tidak ditemukan (kemungkinan sudah terhapus).'
+                      : 'Pengajuan lama tanpa rincian per shift — berlaku untuk semua shift dalam rentang tanggal di atas.'}
+                  </p>
+                ) : (
+                  <div style={{ display:'flex', flexDirection:'column', gap:'0.5rem' }}>
+                    {rincian.map((d, i) => (
+                      <div key={d.id} style={{ border:'1px solid var(--glass-border)', borderRadius:'0.55rem', padding:'0.65rem 0.8rem', background:'var(--surface-color)' }}>
+                        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', gap:'0.5rem', flexWrap:'wrap' }}>
+                          <strong style={{ fontSize:'0.84rem' }}>
+                            {i+1}. {fmt(d.tanggal)} · {d.asal?.shifts?.nama || 'Shift'} {d.asal?.shifts && `(${jamShift(d.asal.shifts)})`}
+                          </strong>
+                          <span style={{
+                            background: d.jenis==='tanpa_pengganti' ? '#fee2e2' : '#f3f4f6',
+                            color:      d.jenis==='tanpa_pengganti' ? '#b91c1c' : '#374151',
+                            padding:'0.1rem 0.5rem', borderRadius:999, fontSize:'0.7rem', fontWeight:600, whiteSpace:'nowrap',
+                          }}>{subLabel(d.jenis)}</span>
+                        </div>
+                        {d.jenis === 'tukar_shift' && (
+                          <p style={{ margin:'0.35rem 0 0', fontSize:'0.8rem', color:'var(--text-secondary)' }}>
+                            Ditukar dengan <strong style={{ color:'var(--text-primary)' }}>{d.pengganti?.nama || '-'}</strong>
+                            {d.tukar && <> — mengambil shift {fmt(d.tukar.tanggal)} · {d.tukar.shifts?.nama} ({jamShift(d.tukar.shifts)})</>}
+                          </p>
+                        )}
+                        {d.jenis === 'ganti_hari' && (
+                          <p style={{ margin:'0.35rem 0 0', fontSize:'0.8rem', color:'var(--text-secondary)' }}>
+                            Mengajar gantinya pada <strong style={{ color:'var(--text-primary)' }}>{fmt(d.tanggal_pengganti)}</strong>
+                          </p>
+                        )}
+                        {d.jenis === 'tanpa_pengganti' && (
+                          <p style={{ margin:'0.35rem 0 0', fontSize:'0.8rem', color:'#b91c1c' }}>Kelas tidak jalan — bonus kehadiran hangus</p>
+                        )}
+                        {d.catatan && (
+                          <p style={{ margin:'0.35rem 0 0', fontSize:'0.78rem', color:'var(--text-secondary)', fontStyle:'italic' }}>{d.catatan}</p>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div style={{ display:'flex', gap:'0.65rem', justifyContent:'flex-end', flexWrap:'wrap' }}>
+              {isAdmin && detail.status === 'Pending' && (
+                <>
+                  <button className="btn" style={{ background:'#fee2e2', color:'#b91c1c' }}
+                    onClick={()=>{ setApproveModal({id:detail.id,action:'Rejected'}); setCatatan(''); setDetail(null); }}>
+                    <XCircle size={15}/> Tolak
+                  </button>
+                  <button className="btn" style={{ background:'#047857', color:'#fff' }}
+                    onClick={()=>{ setApproveModal({id:detail.id,action:'Approved'}); setCatatan(''); setDetail(null); }}>
+                    <CheckCircle2 size={15}/> Setujui
+                  </button>
+                </>
+              )}
+              <button className="btn" onClick={()=>setDetail(null)}>Tutup</button>
+            </div>
           </div>
         </div>
       )}
